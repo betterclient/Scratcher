@@ -13,6 +13,11 @@ data class CallExpression(
     val arguments: List<Expression>
 ) : Expression()
 
+data class ConcatExpression(
+    val left: Expression,
+    val right: Expression
+) : Expression()
+
 enum class UnaryOperator(val symbol: String) {
     PLUS("+"),
     MINUS("-"),
@@ -57,6 +62,10 @@ data class ParameterExpression(
 data class VariableExpression(
     val variable: TLVariable,
     val sourceAST: ASTFile
+) : Expression()
+
+data class NewStructExpression(
+    val struct: Struct
 ) : Expression()
 
 sealed class Literal : Expression()

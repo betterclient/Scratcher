@@ -12,7 +12,7 @@ data class VariableStatement(
 ) : Statement()
 
 data class LocalVariableAssignmentStatement(
-    val value: LocalVariable,
+    val variable: LocalVariable,
     val assignment: Expression
 ) : Statement()
 

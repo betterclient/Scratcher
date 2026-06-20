@@ -10,6 +10,7 @@ class ASTFile(
     val functions: MutableList<Function> = mutableListOf()
 ) {
     var completedStage1Parsing = false
+    var completedTypeAnalysis = false
 }
 
 class Struct(
@@ -19,12 +20,6 @@ class Struct(
 ) {
     val type = Type(name, sourceAST)
     var parseInfo: ScratcherLangParser.StructDeclContext? = null
-
-    val initFunc = Function(
-        $$"compiler$initStruct$$name",
-        parameters,
-        type
-    )
 }
 
 //sourceAST = null only for built-in types
@@ -36,10 +31,38 @@ data class Type(val name: String, val sourceAST: ASTFile?, val inner: Type? = nu
         val bool = Type("bool", null)
         val void = Type("void", null)
     }
+    val isPrimitive: Boolean
+        get() = sourceAST == null
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Type
+
+        if (this === int && other === float) return true //implicit conversion, so sorry for this
+
+        if (name != other.name) return false
+        if (sourceAST != other.sourceAST) return false
+        if (inner != other.inner) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + (sourceAST?.hashCode() ?: 0)
+        result = 31 * result + (inner?.hashCode() ?: 0)
+        return result
+    }
 
     /*fun list(): Type {
         return Type("$name[]", this.sourceAST, this)
     }*/
+
+    override fun toString(): String {
+        return name
+    }
 }
 
 class TLVariable(

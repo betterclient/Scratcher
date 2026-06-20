@@ -16,6 +16,8 @@ object ExpressionTypes {
             is UnaryExpression -> getExpressionType(expr.expression)
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
+            is NewStructExpression -> expr.struct.type
+            is ConcatExpression -> Type.str
         }
     }
 
@@ -28,7 +30,6 @@ object ExpressionTypes {
             BinaryOperator.MULTIPLY, BinaryOperator.DIVIDE,
             BinaryOperator.MODULO -> {
                 when {
-                    leftType == Type.str || rightType == Type.str -> Type.str
                     leftType == Type.float || rightType == Type.float -> Type.float
                     else -> Type.int
                 }

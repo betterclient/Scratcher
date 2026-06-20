@@ -7,6 +7,7 @@ import dev.betterclient.ast.BinaryOperator
 import dev.betterclient.ast.BooleanLiteral
 import dev.betterclient.ast.CallExpression
 import dev.betterclient.ast.CodeBlock
+import dev.betterclient.ast.ConcatExpression
 import dev.betterclient.ast.Expression
 import dev.betterclient.ast.ExpressionStatement
 import dev.betterclient.ast.FloatLiteral
@@ -18,6 +19,7 @@ import dev.betterclient.ast.LocalVariable
 import dev.betterclient.ast.LocalVariableAssignmentStatement
 import dev.betterclient.ast.LocalVariableExpression
 import dev.betterclient.ast.MemberExpression
+import dev.betterclient.ast.NewStructExpression
 import dev.betterclient.ast.ParameterExpression
 import dev.betterclient.ast.RepeatStatement
 import dev.betterclient.ast.Statement
@@ -54,6 +56,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             variable.ctx?.let {
                 variable.defaultValue = parseExpression(it)
             }
+            variable.ctx = null
         }
 
         currentFunction = null
@@ -63,6 +66,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             currentFunction = it
             localVariables.clear()
             parseBlock(it.code, it.ctx!!.block())
+            it.ctx = null
         }
         currentFunction = null
     }
@@ -138,10 +142,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseExpression(ctx: ScratcherLangParser.ExpressionContext): Expression {
         return when (ctx) {
             is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression())
-            is ScratcherLangParser.CallExprContext -> CallExpression(
-                func = figureOutFunction(ctx.funcCall(), ctx.argList()),
-                arguments = ctx.argList()?.expression()?.map { parseExpression(it) }?: listOf()
-            )
+            is ScratcherLangParser.CallExprContext -> figureOutFunction(ctx.funcCall(), ctx.argList())
             is ScratcherLangParser.UnaryExprContext -> UnaryExpression(
                 operator = when {
                     ctx.PLUS() != null -> UnaryOperator.PLUS
@@ -248,7 +249,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun figureOutFunction(
         funcCall: ScratcherLangParser.FuncCallContext,
         argList: ScratcherLangParser.ArgListContext?
-    ): Function {
+    ): Expression {
         val sourceAST = if (funcCall.IDENTIFIER() != null) {
             ast
         } else {
@@ -264,20 +265,28 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(parseExpression(expr)) }?: listOf()
 
-        return sourceAST.functions.find {
+        sourceAST.functions.find {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
             return@find expectedArgListTypes == foundArgListTypes
-        }?: let {
-            //maybe its a struct initializer
-            sourceAST.structs.find {
-                if (it.name != funcName) return@find false
-
-                val foundArgListTypes = it.parameters.map { par -> par.type }
-                return@find expectedArgListTypes == foundArgListTypes
-            }?.initFunc?: throw NullPointerException("Function not found: ${sourceAST.path}::${funcName}")
+        }?.let {
+            return CallExpression(
+                func = it,
+                arguments = argList?.expression()?.map { parseExpression(it) }?: listOf()
+            )
         }
+
+        sourceAST.structs.find {
+            if (it.name != funcName) return@find false
+
+            val foundArgListTypes = it.parameters.map { par -> par.type }
+            return@find expectedArgListTypes == foundArgListTypes
+        }?.let {
+            return NewStructExpression(it)
+        }
+
+        throw NullPointerException("Function $funcName not found")
     }
 
     private fun parseLiteral(ctx: ScratcherLangParser.LiteralContext): Expression {
@@ -312,7 +321,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         return exprs.reduce { left, right ->
-            BinaryExpression(left, BinaryOperator.ADD, right)
+            ConcatExpression(left, right)
         }
     }
 

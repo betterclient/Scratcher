@@ -89,6 +89,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     )
                 )
             }
+            struct.parseInfo = null
         }
 
         for (context in initialRead.topLevelElement()) {
