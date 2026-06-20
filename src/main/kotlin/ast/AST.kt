@@ -8,7 +8,11 @@ class ASTFile(
     val structs: MutableList<Struct> = mutableListOf(),
     val variables: MutableList<TLVariable> = mutableListOf(),
     val functions: MutableList<Function> = mutableListOf()
-)
+) {
+    override fun toString(): String {
+        return path
+    }
+}
 
 class Struct(
     val name: String,

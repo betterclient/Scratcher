@@ -1,8 +1,11 @@
 package dev.betterclient
 
-import dev.betterclient.ast.Stage0Parser
+import dev.betterclient.ast.ASTReader
 import java.io.File
 
 fun main() {
-    val ast = Stage0Parser(File("helloworld.sc")).parse()
+    val source = File("helloworld.sc")
+    val ast = ASTReader(source.readText(), source.absolutePath).read()
+
+    println(ast)
 }

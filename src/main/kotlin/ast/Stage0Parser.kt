@@ -38,7 +38,7 @@ class ASTReader(source: String, val fullPath: String) {
 
                 ast.imports.add(stdLib)
             } else {
-                val text = context.PLAIN_STRING()!!.text.removeSurrounding("\"")
+                val text = context.plainStringLiteral()!!.text.removeSurrounding("\"")
                 val currentFile = File(fullPath).absoluteFile
                 val parentDir = currentFile.parentFile
                 val importedFile = File(parentDir, text).canonicalFile
