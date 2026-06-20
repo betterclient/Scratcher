@@ -7,7 +7,7 @@ program
     ;
 
 importDecl
-    : IMPORT (IDENTIFIER | plainStringLiteral) SEMI
+    : IMPORT (IDENTIFIER | plainStringLiteral) (AS IDENTIFIER)? SEMI
     ;
 
 topLevelElement
@@ -83,9 +83,9 @@ repeatStmt
 
 expression
     : LPAREN expression RPAREN                          # parensExpr
-    | expression COLONCOLON IDENTIFIER                  # scopeExpr
+    | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
-    | expression LPAREN argList? RPAREN                 # callExpr
+    | funcCall LPAREN argList? RPAREN                 # callExpr
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr
     | expression (PLUS | MINUS) expression              # addExpr
@@ -95,6 +95,11 @@ expression
     | expression OR expression                          # orExpr
     | literal                                           # literalExpr
     | IDENTIFIER                                        # idExpr
+    ;
+
+funcCall
+    : IDENTIFIER
+    | typePath
     ;
 
 argList

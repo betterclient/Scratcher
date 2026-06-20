@@ -1,6 +1,7 @@
 lexer grammar ScratcherLangLexer;
 
 IMPORT : 'import';
+AS : 'as';
 CONST  : 'const';
 STRUCT : 'struct';
 RETURN : 'return';

@@ -4,21 +4,27 @@ import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 
 class ASTFile(
     val path: String,
-    val imports: MutableList<ASTFile> = mutableListOf(),
+    val imports: MutableMap<String, ASTFile> = mutableMapOf(),
     val structs: MutableList<Struct> = mutableListOf(),
     val variables: MutableList<TLVariable> = mutableListOf(),
     val functions: MutableList<Function> = mutableListOf()
 ) {
-    override fun toString(): String {
-        return path
-    }
+    var completedStage1Parsing = false
 }
 
 class Struct(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
+    val sourceAST: ASTFile
 ) {
+    val type = Type(name, sourceAST)
     var parseInfo: ScratcherLangParser.StructDeclContext? = null
+
+    val initFunc = Function(
+        $$"compiler$initStruct$$name",
+        parameters,
+        type
+    )
 }
 
 //sourceAST = null only for built-in types
@@ -49,10 +55,20 @@ class Function(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
     val returnType: Type,
-    val code: MutableList<Statement> = mutableListOf(), //keep empty while parsing
+    val code: CodeBlock = CodeBlock()
 ) {
     var ctx: ScratcherLangParser.FuncDeclContext? = null
 }
+
+class CodeBlock(
+    val code: MutableList<Statement> = mutableListOf(),
+    val localVariables: MutableList<LocalVariable> = mutableListOf(),
+)
+
+class LocalVariable(
+    val name: String,
+    val type: Type
+)
 
 class Parameter(
     val name: String,

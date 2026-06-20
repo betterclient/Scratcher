@@ -2,43 +2,53 @@ package dev.betterclient.ast
 
 sealed class Statement
 
-class ExpressionStatement(
+data class ExpressionStatement(
     val expression: Expression
 ) : Statement()
 
-class VariableStatement(
-    val name: String,
-    val mutable: Boolean,
+data class VariableStatement(
     val defaultValue: Expression,
-    val type: Type,
+    val variable: LocalVariable
 ) : Statement()
 
-class VariableAssignmentStatement(
-    val variable: Expression,
+data class LocalVariableAssignmentStatement(
+    val value: LocalVariable,
+    val assignment: Expression
+) : Statement()
+
+data class VariableAssignmentStatement(
+    val variable: Parameter,
+    val struct: Struct,
     val assignment: Expression,
 ) : Statement()
 
-class ReturnStatement(
+data class TLVariableAssignmentStatement(
+    val variable: TLVariable,
+    val sourceAST: ASTFile,
+    val assignment: Expression,
+) : Statement()
+
+data class ReturnStatement(
     val expression: Expression
 )
 
-class IfStatement(
+data class IfStatement(
     val condition: Expression,
-    val thenBlock: List<Statement>
+    val thenBlock: CodeBlock
 ) : Statement()
 
-class IfElseStatement(
+data class IfElseStatement(
     val condition: Expression,
-    val thenBlock: List<Statement>,
-    val elseBlock: List<Statement>
-)
+    val thenBlock: CodeBlock,
+    val elseBlock: CodeBlock
+) : Statement()
 
-class WhileStatement(
+data class WhileStatement(
     val condition: Expression,
-    val statements: List<Statement>
-)
+    val block: CodeBlock
+) : Statement()
 
-class RepeatStatement(
+data class RepeatStatement(
     val amount: Expression,
-    val statements: List<Statement>
-)
+    val block: CodeBlock
+) : Statement()

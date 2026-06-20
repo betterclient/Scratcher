@@ -2,16 +2,13 @@ package dev.betterclient.ast
 
 sealed class Expression
 
-class ParenthesizedExpression(
-    val expression: Expression
-) : Expression()
-
-class MemberExpression(
+data class MemberExpression(
     val expression: Expression,
-    val member: String
+    val member: Parameter,
+    val struct: Struct
 ) : Expression()
 
-class CallExpression(
+data class CallExpression(
     val func: Function,
     val arguments: List<Expression>
 ) : Expression()
@@ -22,7 +19,7 @@ enum class UnaryOperator(val symbol: String) {
     NOT("!")
 }
 
-class UnaryExpression(
+data class UnaryExpression(
     val operator: UnaryOperator,
     val expression: Expression
 ) : Expression()
@@ -43,19 +40,27 @@ enum class BinaryOperator(val symbol: String) {
     OR("||")
 }
 
-class BinaryExpression(
+data class BinaryExpression(
     val left: Expression,
     val operator: BinaryOperator,
     val right: Expression
 ) : Expression()
 
-class IdentifierExpression(
-    val name: String
+data class LocalVariableExpression(
+    val variable: LocalVariable
+) : Expression()
+
+data class ParameterExpression(
+    val parameter: Parameter
+) : Expression()
+
+data class VariableExpression(
+    val variable: TLVariable,
+    val sourceAST: ASTFile
 ) : Expression()
 
 sealed class Literal : Expression()
-class IntLiteral(val value: Int) : Literal()
-class FloatLiteral(val value: Float) : Literal()
-class PlainStringLiteral(val value: String) : Literal()
-class InterpolatedStringLiteral(val value: String) : Literal()
-class BooleanLiteral(val value: Boolean) : Literal()
+data class IntLiteral(val value: Int) : Literal()
+data class FloatLiteral(val value: Float) : Literal()
+data class BooleanLiteral(val value: Boolean) : Literal()
+data class StringLiteral(val value: String) : Literal()

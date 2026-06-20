@@ -16,6 +16,7 @@ out/
 ### Kotlin ###
 .kotlin
 
+gen
 ### Eclipse ###
 .apt_generated
 .classpath
