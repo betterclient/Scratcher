@@ -5,22 +5,10 @@ import dev.betterclient.ast.parser.ASTReader
 import dev.betterclient.ast.parser.CompilationContext
 import dev.betterclient.ast.parser.Stage1Parser
 import dev.betterclient.ast.parser.TypeAnalysis
-import dev.betterclient.codegen.ast.*
-import dev.betterclient.codegen.opcode.ChangeSizeByOpcode
-import dev.betterclient.codegen.opcode.EventListener
-import dev.betterclient.codegen.opcode.EventListenerFunction
-import dev.betterclient.codegen.opcode.GetSizeOpcode
-import dev.betterclient.codegen.opcode.Key
-import dev.betterclient.codegen.opcode.ProcedureArgumentBoolean
-import dev.betterclient.codegen.opcode.ProcedureArgumentString
-import dev.betterclient.codegen.opcode.ProcedureCallOpcode
-import dev.betterclient.codegen.opcode.SayForSecsOpcode
-import dev.betterclient.codegen.opcode.SayOpcode
-import dev.betterclient.codegen.opcode.ScratchList
-import dev.betterclient.codegen.opcode.ScratchVariable
-import dev.betterclient.codegen.opcode.SetSizeToOpcode
-import dev.betterclient.codegen.opcode.ThinkForSecsOpcode
-import dev.betterclient.codegen.opcode.ThinkOpcode
+import dev.betterclient.codegen.ast.ScratchFunction
+import dev.betterclient.codegen.ast.ScratchRealString
+import dev.betterclient.codegen.ast.autoSetNext
+import dev.betterclient.codegen.opcode.*
 import dev.betterclient.codegen.openScratchEditorFromResource
 import java.io.File
 
@@ -43,22 +31,24 @@ fun main() {
 
     func.first = autoSetNext(
         ProcedureCallOpcode(func, listOf(arg.asValue, arg2.asValue)),
+        AskAndWaitOpcode(AnswerOpcode().asValue),
+        AskAndWaitOpcode(TouchingObjectOpcode(TouchingObjectMode.EDGE).asValue),
+        AskAndWaitOpcode(TouchingColorOpcode(ScratchRealString("#000000")).asValue),
+        AskAndWaitOpcode(ColorIsTouchingColorOpcode(ScratchRealString("#000000"), ScratchRealString("#FFFFFF")).asValue),
+        AskAndWaitOpcode(DistanceToMouseOpcode().asValue),
+        AskAndWaitOpcode(KeyPressedOpcode(Key.A).asValue),
+        AskAndWaitOpcode(MousePressedOpcode().asValue),
+        AskAndWaitOpcode(GetMouseXOpcode().asValue),
+        AskAndWaitOpcode(GetMouseYOpcode().asValue),
+        AskAndWaitOpcode(GetTimerOpcode().asValue),
+        ResetTimerOpcode(),
+        AskAndWaitOpcode(CurrentCalendar(CalendarMenu.MONTH).asValue),
+        AskAndWaitOpcode(DaysSince2000Opcode().asValue),
+        AskAndWaitOpcode(IsOnlineOpcode().asValue),
+        AskAndWaitOpcode(UsernameOpcode().asValue),
     )
 
     editor.addFunction(func)
-
-    editor.addEventListener(
-        EventListenerFunction(autoSetNext(
-            SayOpcode(ScratchRealString("Hello world!"))
-        ), EventListener.GreenFlag)
-    )
-
-    editor.addEventListener(
-        EventListenerFunction(autoSetNext(
-            SayOpcode(ScratchRealString("Hello world! you pressed W"))
-        ), EventListener.KeyPressed(Key.W))
-    )
-
     editor.writeTo(File("out.sb3"))
 }
 
