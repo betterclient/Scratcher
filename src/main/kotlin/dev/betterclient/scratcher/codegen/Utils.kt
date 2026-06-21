@@ -1,4 +1,4 @@
-package dev.betterclient.codegen
+package dev.betterclient.scratcher.codegen
 
 import org.json.JSONArray
 import org.json.JSONObject

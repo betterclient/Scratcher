@@ -1,8 +1,8 @@
-package dev.betterclient.codegen.opcode
+package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.codegen.ast.ScratchObject
-import dev.betterclient.codegen.ast.ScratchOpcode
-import dev.betterclient.codegen.ast.ScratchValue
+import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
+import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
+import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
 import org.json.JSONArray
 import org.json.JSONObject
 

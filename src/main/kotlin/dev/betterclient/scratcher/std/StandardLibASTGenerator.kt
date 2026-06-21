@@ -1,9 +1,9 @@
-package dev.betterclient.std
+package dev.betterclient.scratcher.std
 
-import dev.betterclient.ast.ASTFile
-import dev.betterclient.ast.Function
-import dev.betterclient.ast.Parameter
-import dev.betterclient.ast.Type
+import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.Type
 
 object StandardLibASTGenerator {
     val stdLib = ASTFile(

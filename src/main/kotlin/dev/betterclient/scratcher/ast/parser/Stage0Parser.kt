@@ -1,14 +1,14 @@
-package dev.betterclient.ast.parser
+package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.ast.ASTFile
-import dev.betterclient.ast.Function
-import dev.betterclient.ast.Parameter
-import dev.betterclient.ast.Struct
-import dev.betterclient.ast.TLVariable
-import dev.betterclient.ast.Type
-import dev.betterclient.ast.read
-import dev.betterclient.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.Struct
+import dev.betterclient.scratcher.ast.TLVariable
+import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.read
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
 
 class CompilationContext {
@@ -32,7 +32,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         //first read for types
         for (context in initialRead.topLevelElement().filter { it.structDecl() != null }) {
             val struct = context.structDecl()!!
-            val structAST = Struct(struct.IDENTIFIER().text, sourceAST = ast)
+            val structAST =
+                Struct(struct.IDENTIFIER().text, sourceAST = ast)
             structAST.parseInfo = struct
             ctx.types.add(structAST.type)
             ast.structs.add(structAST)

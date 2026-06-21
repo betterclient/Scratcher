@@ -1,6 +1,6 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.scratcher.codegen.wrapper
 
-import dev.betterclient.codegen.opcode.ScratchVariable
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import org.json.JSONArray
 
 abstract class ScratchValue {

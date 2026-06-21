@@ -1,10 +1,10 @@
-package dev.betterclient.codegen
+package dev.betterclient.scratcher.codegen
 
-import dev.betterclient.codegen.ast.ScratchFunction
-import dev.betterclient.codegen.opcode.ScratchList
-import dev.betterclient.codegen.ast.ScratchOpcode
-import dev.betterclient.codegen.opcode.EventListenerFunction
-import dev.betterclient.codegen.opcode.ScratchVariable
+import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
+import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
+import dev.betterclient.scratcher.codegen.opcode.EventListenerFunction
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import org.json.JSONArray
 import java.io.File
 

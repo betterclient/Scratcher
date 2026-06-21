@@ -1,8 +1,8 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.scratcher.codegen.wrapper
 
-import dev.betterclient.codegen.opcode.ProcedureDefinitionOpcode
-import dev.betterclient.codegen.opcode.ProcedurePrototypeOpcode
-import dev.betterclient.codegen.rand
+import dev.betterclient.scratcher.codegen.opcode.ProcedureDefinitionOpcode
+import dev.betterclient.scratcher.codegen.opcode.ProcedurePrototypeOpcode
+import dev.betterclient.scratcher.codegen.rand
 import org.json.JSONObject
 
 open class ScratchObject {

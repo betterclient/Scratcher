@@ -1,4 +1,4 @@
-package dev.betterclient.ast
+package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 

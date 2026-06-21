@@ -1,6 +1,6 @@
-package dev.betterclient.ast.parser
+package dev.betterclient.scratcher.ast.parser
 
-import dev.betterclient.ast.*
+import dev.betterclient.scratcher.ast.*
 
 object ExpressionTypes {
     fun getExpressionType(expr: Expression): Type {

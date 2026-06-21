@@ -1,4 +1,4 @@
-package dev.betterclient.ast
+package dev.betterclient.scratcher.ast
 
 sealed class Statement
 
