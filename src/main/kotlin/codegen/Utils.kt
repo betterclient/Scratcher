@@ -23,6 +23,19 @@ fun Random.rand(): String {
     return out
 }
 
+private var counter = 1L
+private val ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 fun rand(): String {
-    return Random.rand()
+    var temp = counter++
+    val sb = StringBuilder()
+
+    while (temp > 0) {
+        temp-- // Adjust for 1-based indexing
+        val rem = (temp % 52).toInt()
+        sb.append(ALPHABET[rem])
+        temp /= 52
+    }
+
+    return sb.reverse().toString()
 }

@@ -43,7 +43,17 @@ class ScratchVariableValue(val variable: ScratchVariable) : ScratchValue() {
 
     override fun toOperand(): JSONArray {
         return JSONArray(listOf(
-            3, JSONArray(listOf(12, variable.name, variable.id))
+            3, JSONArray(listOf(12, variable.name, variable.id)),
+            JSONArray(listOf(10, ""))
+        ))
+    }
+}
+
+class ScratchRealNumber(val number: Double) : ScratchValue() {
+    override var value: ScratchOpcode? = null
+    override fun toOperand(): JSONArray {
+        return JSONArray(listOf(
+            1, JSONArray(listOf(4, number))
         ))
     }
 }

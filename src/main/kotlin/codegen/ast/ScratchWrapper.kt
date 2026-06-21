@@ -39,8 +39,8 @@ abstract class ScratchOpcode(
     protected abstract fun toJSON(base: JSONObject)
 
     fun toJson() = JSONObject().apply {
-        put("next", next?.id)
-        put("parent", parent?.id)
+        put("next", next?.id?: JSONObject.NULL)
+        put("parent", parent?.id?: JSONObject.NULL)
         put("opcode", opcode)
 
         put("topLevel", parent == null)
@@ -52,18 +52,15 @@ abstract class ScratchOpcode(
         alsoAdd.addAll(list)
 
         list.forEach { opcode ->
-            generateSequence(opcode) { it.next }.forEach { node ->
-                node.parent = this
-            }
+            opcode.parent = this
         }
     }
 }
 
 fun autoSetNext(list: List<ScratchOpcode>): ScratchOpcode? {
-    var last: ScratchOpcode? = null
-    list.asReversed().forEach {
-        it.next = last
-        last = it
+    for (i in 0 until list.size - 1) {
+        list[i].next = list[i + 1]
+        list[i + 1].parent = list[i]
     }
     return list.firstOrNull()
 }

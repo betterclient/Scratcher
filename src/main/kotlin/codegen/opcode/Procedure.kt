@@ -41,6 +41,7 @@ class ProcedurePrototypeOpcode(
     private val arguments: List<ScratchOpcode> = listOf()
 ) : ScratchOpcode(null) {
     override val opcode = "procedures_prototype"
+    override val shadow = true
     override val asValue = null
 
     init {

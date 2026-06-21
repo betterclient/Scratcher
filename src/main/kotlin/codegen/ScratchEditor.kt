@@ -25,14 +25,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
     }
 
     fun addFunction(func: ScratchFunction) {
-        //automatic parenting
-        run {
-            var opcode = func.parent.next
-            while (opcode != null) {
-                opcode.parent = func.parent
-                opcode = opcode.next
-            }
-        }
+        func.parent.next?.parent = func.parent
 
         editor.workerSprite.getJSONObject("blocks").apply {
             fun ScratchOpcode.put() { put(this.id, this.toJson()) }
@@ -53,14 +46,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
     }
 
     fun addEventListener(listener: EventListenerFunction) {
-        //automatic parenting
-        run {
-            var opcode = listener.parent.next
-            while (opcode != null) {
-                opcode.parent = listener.parent
-                opcode = opcode.next
-            }
-        }
+        listener.parent.next?.parent = listener.parent
 
         editor.workerSprite.getJSONObject("blocks").apply {
             fun ScratchOpcode.put() { put(this.id, this.toJson()) }
