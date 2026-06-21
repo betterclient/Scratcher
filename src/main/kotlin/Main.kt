@@ -7,7 +7,10 @@ import dev.betterclient.ast.parser.Stage1Parser
 import dev.betterclient.ast.parser.TypeAnalysis
 import dev.betterclient.codegen.ast.*
 import dev.betterclient.codegen.opcode.ChangeSizeByOpcode
+import dev.betterclient.codegen.opcode.EventListener
+import dev.betterclient.codegen.opcode.EventListenerFunction
 import dev.betterclient.codegen.opcode.GetSizeOpcode
+import dev.betterclient.codegen.opcode.Key
 import dev.betterclient.codegen.opcode.ProcedureArgumentBoolean
 import dev.betterclient.codegen.opcode.ProcedureArgumentString
 import dev.betterclient.codegen.opcode.ProcedureCallOpcode
@@ -40,15 +43,21 @@ fun main() {
 
     func.first = autoSetNext(
         ProcedureCallOpcode(func, listOf(arg.asValue, arg2.asValue)),
-        SayOpcode(ScratchRealString("hello world!")),
-        SayForSecsOpcode(ScratchRealString("Hi world!"), ScratchRealString("5")),
-        ThinkForSecsOpcode(ScratchRealString("i be thinking"), ScratchRealString("2")),
-        ThinkOpcode(GetSizeOpcode().asValue),
-        ChangeSizeByOpcode(ScratchRealString("5")),
-        SetSizeToOpcode(ScratchRealString("100")),
     )
 
     editor.addFunction(func)
+
+    editor.addEventListener(
+        EventListenerFunction(autoSetNext(
+            SayOpcode(ScratchRealString("Hello world!"))
+        ), EventListener.GreenFlag)
+    )
+
+    editor.addEventListener(
+        EventListenerFunction(autoSetNext(
+            SayOpcode(ScratchRealString("Hello world! you pressed W"))
+        ), EventListener.KeyPressed(Key.W))
+    )
 
     editor.writeTo(File("out.sb3"))
 }

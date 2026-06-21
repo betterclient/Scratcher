@@ -3,6 +3,7 @@ package dev.betterclient.codegen
 import dev.betterclient.codegen.ast.ScratchFunction
 import dev.betterclient.codegen.opcode.ScratchList
 import dev.betterclient.codegen.ast.ScratchOpcode
+import dev.betterclient.codegen.opcode.EventListenerFunction
 import dev.betterclient.codegen.opcode.ScratchVariable
 import org.json.JSONArray
 import java.io.File
@@ -28,7 +29,6 @@ value class ScratchEditor(private val editor: JSONEditor) {
         run {
             var opcode = func.parent.next
             while (opcode != null) {
-                println("Traversing: ${opcode.opcode} (ID: ${opcode.id}) | alsoAdd size: ${opcode.alsoAdd.size}")
                 opcode.parent = func.parent
                 opcode = opcode.next
             }
@@ -42,7 +42,6 @@ value class ScratchEditor(private val editor: JSONEditor) {
             fun put(start: ScratchOpcode?) {
                 var next = start
                 while (next != null) {
-                    println("Traversing: ${next.opcode} (ID: ${next.id}) | alsoAdd size: ${next.alsoAdd.size}")
                     next.put()
                     next.alsoAdd.forEach { put(it) }
                     next = next.next
@@ -50,6 +49,32 @@ value class ScratchEditor(private val editor: JSONEditor) {
             }
 
             put(func.first)
+        }
+    }
+
+    fun addEventListener(listener: EventListenerFunction) {
+        //automatic parenting
+        run {
+            var opcode = listener.parent.next
+            while (opcode != null) {
+                opcode.parent = listener.parent
+                opcode = opcode.next
+            }
+        }
+
+        editor.workerSprite.getJSONObject("blocks").apply {
+            fun ScratchOpcode.put() { put(this.id, this.toJson()) }
+            listener.parent.put()
+            fun put(start: ScratchOpcode?) {
+                var next = start
+                while (next != null) {
+                    next.put()
+                    next.alsoAdd.forEach { put(it) }
+                    next = next.next
+                }
+            }
+
+            put(listener.first)
         }
     }
 
