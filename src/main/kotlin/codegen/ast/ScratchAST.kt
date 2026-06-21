@@ -7,10 +7,6 @@ open class ScratchObject {
     val id = rand()
 }
 
-class ScratchVariable(
-    val name: String
-) : ScratchObject()
-
 class ScratchFunction(
     name: String,
     var first: ScratchOpcode?,

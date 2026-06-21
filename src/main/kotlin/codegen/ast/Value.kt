@@ -36,3 +36,13 @@ class ScratchBoolean(val access: ScratchAccess, override var value: ScratchOpcod
         ))
     }
 }
+
+class ScratchVariableValue(val variable: ScratchVariable) : ScratchValue() {
+    override var value: ScratchOpcode? = null
+
+    override fun toOperand(): JSONArray {
+        return JSONArray(listOf(
+            3, JSONArray(listOf(12, variable.name, variable.id))
+        ))
+    }
+}

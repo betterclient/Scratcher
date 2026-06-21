@@ -6,7 +6,9 @@ import dev.betterclient.ast.parser.CompilationContext
 import dev.betterclient.ast.parser.Stage1Parser
 import dev.betterclient.ast.parser.TypeAnalysis
 import dev.betterclient.codegen.ast.AddToList
+import dev.betterclient.codegen.ast.ChangeVariableOpcode
 import dev.betterclient.codegen.ast.DeleteItemFromList
+import dev.betterclient.codegen.ast.IndexOfItemInList
 import dev.betterclient.codegen.ast.InsertItemAtList
 import dev.betterclient.codegen.ast.ItemOfList
 import dev.betterclient.codegen.ast.LengthOfList
@@ -18,6 +20,8 @@ import dev.betterclient.codegen.ast.ScratchFunction
 import dev.betterclient.codegen.ast.ScratchList
 import dev.betterclient.codegen.ast.ScratchRealString
 import dev.betterclient.codegen.ast.ScratchVariable
+import dev.betterclient.codegen.ast.ScratchVariableValue
+import dev.betterclient.codegen.ast.SetVariableTo
 import dev.betterclient.codegen.ast.autoSetNext
 import dev.betterclient.codegen.openScratchEditorFromResource
 import java.io.File
@@ -40,13 +44,10 @@ fun main() {
     )
 
     func.first = autoSetNext(
-        ProcedureCallOpcode(func, listOf(arg, arg2)),
-        AddToList(myList, ScratchRealString("67")),
-        AddToList(myList, ScratchRealString("657")),
-        AddToList(myList, ScratchRealString("675")),
-        ReplaceItemOfList(myList, LengthOfList(myList).asValue, ItemOfList(myList, ScratchRealString("1")).asValue),
-        InsertItemAtList(myList, ScratchRealString("1"), ItemOfList(myList, ScratchRealString("2")).asValue),
-        DeleteItemFromList(myList, ScratchRealString("2")),
+        ProcedureCallOpcode(func, listOf(arg.asValue, arg2.asValue)),
+        SetVariableTo(myVariable, arg2.asValue),
+        ChangeVariableOpcode(myVariable, ScratchVariableValue(myVariable)),
+        SetVariableTo(myVariable, IndexOfItemInList(myList, ScratchRealString("thing")).asValue)
     )
 
     editor.addFunction(func)

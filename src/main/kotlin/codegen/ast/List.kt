@@ -118,3 +118,35 @@ class DeleteItemFromList(val list: ScratchList, val index: ScratchValue) : Scrat
         ))))
     }
 }
+
+class IndexOfItemInList(
+    val list: ScratchList,
+    val item: ScratchValue
+) : ScratchOpcode(null) {
+    override val opcode = "data_itemnumoflist"
+
+    override val asValue by lazy {
+        ScratchString(
+            ScratchAccess.VARIABLE,
+            IndexOfItemInList(list, item)
+        )
+    }
+
+    init {
+        takeOwnership(listOfNotNull(item.value))
+    }
+
+    override fun toJSON(base: JSONObject) {
+        base.apply {
+            put("fields", JSONObject().apply {
+                put("LIST", JSONArray().apply {
+                    put(list.name)
+                    put(list.id)
+                })
+            })
+            put("inputs", JSONObject().apply {
+                put("ITEM", item.toOperand())
+            })
+        }
+    }
+}

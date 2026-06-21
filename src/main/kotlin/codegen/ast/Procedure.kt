@@ -119,13 +119,13 @@ class ProcedureArgumentBoolean(
 
 class ProcedureCallOpcode(
     val func: ScratchFunction,
-    val args: List<ScratchOpcode>,
+    val args: List<ScratchValue>,
     next: ScratchOpcode? = null
 ) : ScratchOpcode(next) {
     override val opcode = "procedures_call"
     override val asValue = null
     init {
-        takeOwnership(args.mapNotNull { it.asValue?.value })
+        takeOwnership(args.mapNotNull { it.value })
     }
 
     override fun toJSON(base: JSONObject) {
@@ -143,7 +143,7 @@ class ProcedureCallOpcode(
             })
             put("inputs", JSONObject().also {
                 for ((id, value) in ids.zip(args)) {
-                    it.put(id, value.asValue!!.toOperand())
+                    it.put(id, value.toOperand())
                 }
             })
         }
