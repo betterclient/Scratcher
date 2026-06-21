@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen
 
+import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -24,7 +25,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
         ))
     }
 
-    fun addFunction(func: ScratchFunction) {
+    private fun addFunction(func: ScratchFunction) {
         func.parent.next?.parent = func.parent
 
         editor.workerSprite.getJSONObject("blocks").apply {
@@ -45,7 +46,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
         }
     }
 
-    fun addEventListener(listener: EventListenerFunction) {
+    private fun addEventListener(listener: EventListenerFunction) {
         listener.parent.next?.parent = listener.parent
 
         editor.workerSprite.getJSONObject("blocks").apply {
@@ -62,6 +63,10 @@ value class ScratchEditor(private val editor: JSONEditor) {
 
             put(listener.first)
         }
+    }
+
+    fun addFunction(func: ScratchASTFunction) {
+        addFunction(func.internal)
     }
 
     fun writeTo(file: File) {

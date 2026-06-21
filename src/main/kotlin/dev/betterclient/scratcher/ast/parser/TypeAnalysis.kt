@@ -19,6 +19,7 @@ import dev.betterclient.scratcher.ast.MemberExpression
 import dev.betterclient.scratcher.ast.NewStructExpression
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
+import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
@@ -90,6 +91,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 is WhileStatement -> {
                     checkType(Type.bool, getActualTypeOrThrow(statement.condition), "Non bool used as while condition")
                     checkCodeBlock(function, statement.block.code)
+                }
+                is ReturnStatement -> {
+                    checkType(function.returnType, getActualTypeOrThrow(statement.expression), "Return statement type")
                 }
             }
         }

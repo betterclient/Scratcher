@@ -22,6 +22,7 @@ import dev.betterclient.scratcher.ast.MemberExpression
 import dev.betterclient.scratcher.ast.NewStructExpression
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
+import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
@@ -73,8 +74,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
     private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext) {
         val prevLocalVariables = localVariables.map { it }
-        blockCtx.statement().map { parseStatement(it) }.forEach {
+        blockCtx.statement().map { parseStatement(it); }.forEach {
             block.code.add(it)
+        }
+        blockCtx.returnStmt()?.let {
+            block.code.add(ReturnStatement(parseExpression(it.expression())))
         }
 
         block.localVariables.addAll(localVariables)
@@ -142,7 +146,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseExpression(ctx: ScratcherLangParser.ExpressionContext): Expression {
         return when (ctx) {
             is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression())
-            is ScratcherLangParser.CallExprContext -> figureOutFunction(ctx.funcCall(), ctx.argList())
+            is ScratcherLangParser.CallExprContext -> figureOutFunction(ctx.functionIdentifier(), ctx.argList())
             is ScratcherLangParser.UnaryExprContext -> UnaryExpression(
                 operator = when {
                     ctx.PLUS() != null -> UnaryOperator.PLUS
@@ -247,7 +251,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     }
 
     private fun figureOutFunction(
-        funcCall: ScratcherLangParser.FuncCallContext,
+        funcCall: ScratcherLangParser.FunctionIdentifierContext,
         argList: ScratcherLangParser.ArgListContext?
     ): Expression {
         val sourceAST = if (funcCall.IDENTIFIER() != null) {

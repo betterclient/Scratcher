@@ -30,7 +30,7 @@ data class TLVariableAssignmentStatement(
 
 data class ReturnStatement(
     val expression: Expression
-)
+) : Statement()
 
 data class IfStatement(
     val condition: Expression,

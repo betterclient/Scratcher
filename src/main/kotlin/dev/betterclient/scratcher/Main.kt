@@ -5,6 +5,15 @@ import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
+import dev.betterclient.scratcher.codegen.ast.CallFunction
+import dev.betterclient.scratcher.codegen.ast.ControlStatements
+import dev.betterclient.scratcher.codegen.ast.SBoolParameterExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.ScratchBoolExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
+import dev.betterclient.scratcher.codegen.ast.ScratchLiteralStringExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchType
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
 import dev.betterclient.scratcher.codegen.wrapper.autoSetNext
@@ -17,35 +26,26 @@ fun main() {
         ::main.javaClass.getResourceAsStream("/proj.sb3")!!
     )
 
-    val arg = ProcedureArgumentBoolean("hello bool")
-    val arg2 = ProcedureArgumentString("hello string")
-    val func = ScratchFunction(
+    val arg1 = ScratchFuncArgument("hello bool", ScratchType.BOOL)
+    val arg2 = ScratchFuncArgument("hello string", ScratchType.ANY)
+    val func = ScratchASTFunction(
         "hello world!",
-        first = null,
-        runWithoutScreenRefresh = true,
-        arguments = listOf(arg, arg2)
+        listOf(arg1, arg2),
+        runWithoutScreenRefresh = true
     )
 
-    func.first = autoSetNext(
-        ProcedureCallOpcode(
-            func,
-            listOf(arg.asValue, arg2.asValue)
-        ),
-        WaitOpcode(
-            ScratchRealString(
-                "1"
-            )
-        ),
-        RepeatTimesOpcode(
-            arg2.asValue, autoSetNext(
-                WaitOpcode(
-                    ScratchRealString(
-                        "22"
-                    )
-                )
-            )
-        )
-    )
+    val arg1e = SBoolParameterExpression(arg1)
+    val arg2e = ScratchStringParameterExpression(arg2)
+    func.code.addAll(listOf(
+        CallFunction(func, listOf(
+            arg1e,
+            arg2e
+        )),
+        ControlStatements.Wait(ScratchLiteralStringExpression("1")),
+        ControlStatements.RepeatTimes(arg2e, listOf(
+            ControlStatements.Wait(ScratchLiteralStringExpression("22"))
+        ))
+    ))
 
     editor.addFunction(func)
 

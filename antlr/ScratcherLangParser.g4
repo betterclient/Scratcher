@@ -85,7 +85,7 @@ expression
     : LPAREN expression RPAREN                          # parensExpr
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
-    | funcCall LPAREN argList? RPAREN                 # callExpr
+    | functionIdentifier LPAREN argList? RPAREN                 # callExpr
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr
     | expression (PLUS | MINUS) expression              # addExpr
@@ -97,7 +97,7 @@ expression
     | IDENTIFIER                                        # idExpr
     ;
 
-funcCall
+functionIdentifier
     : IDENTIFIER
     | typePath
     ;
