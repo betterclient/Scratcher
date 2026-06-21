@@ -15,6 +15,7 @@ repositories {
 
 dependencies {
     implementation("com.strumenta:antlr-kotlin-runtime:1.0.10")
+    implementation("org.json:json:20250517")
 }
 
 val generateKotlinGrammarSource = tasks.register<AntlrKotlinTask>("generateKotlinGrammarSource") {

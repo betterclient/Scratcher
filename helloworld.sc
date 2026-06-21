@@ -3,8 +3,6 @@ import std as lib;
 struct User(str name, float score);
 
 void main() {
-    int a = "hi!";
-
     str hello = "Hello, World!";
     User user = User("Sigma", 999.0);
 
