@@ -1,5 +1,8 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.codegen.opcode
 
+import dev.betterclient.codegen.ast.ScratchObject
+import dev.betterclient.codegen.ast.ScratchOpcode
+import dev.betterclient.codegen.ast.ScratchValue
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -7,7 +10,7 @@ class ScratchVariable(
     val name: String
 ) : ScratchObject()
 
-class SetVariableTo(val variable: ScratchVariable, val data: ScratchValue) : ScratchOpcode() {
+class SetVariableToOpcode(val variable: ScratchVariable, val data: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "data_setvariableto"
     init {

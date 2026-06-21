@@ -1,9 +1,9 @@
 package dev.betterclient.codegen
 
 import dev.betterclient.codegen.ast.ScratchFunction
-import dev.betterclient.codegen.ast.ScratchList
+import dev.betterclient.codegen.opcode.ScratchList
 import dev.betterclient.codegen.ast.ScratchOpcode
-import dev.betterclient.codegen.ast.ScratchVariable
+import dev.betterclient.codegen.opcode.ScratchVariable
 import org.json.JSONArray
 import java.io.File
 

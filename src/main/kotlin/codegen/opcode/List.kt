@@ -1,5 +1,10 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.codegen.opcode
 
+import dev.betterclient.codegen.ast.ScratchAccess
+import dev.betterclient.codegen.ast.ScratchObject
+import dev.betterclient.codegen.ast.ScratchOpcode
+import dev.betterclient.codegen.ast.ScratchString
+import dev.betterclient.codegen.ast.ScratchValue
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -7,7 +12,7 @@ class ScratchList(
     val name: String
 ) : ScratchObject()
 
-class ItemOfList(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
+class ItemOfListOpcode(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
     override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
     override val opcode: String = "data_itemoflist"
     init {
@@ -25,7 +30,7 @@ class ItemOfList(val list: ScratchList, val index: ScratchValue) : ScratchOpcode
     }
 }
 
-class LengthOfList(val list: ScratchList) : ScratchOpcode() {
+class LengthOfListOpcode(val list: ScratchList) : ScratchOpcode() {
     override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
     override val opcode: String = "data_lengthoflist"
 
@@ -38,7 +43,7 @@ class LengthOfList(val list: ScratchList) : ScratchOpcode() {
     }
 }
 
-class AddToList(val list: ScratchList, val data: ScratchValue) : ScratchOpcode() {
+class AddToListOpcode(val list: ScratchList, val data: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode: String = "data_addtolist"
     init {
@@ -57,7 +62,7 @@ class AddToList(val list: ScratchList, val data: ScratchValue) : ScratchOpcode()
 /**
  * IMPORTANT: the index is 1 indexed, index == 0 is invalid, index == 1 is the first item
  */
-class ReplaceItemOfList(val list: ScratchList, val index: ScratchValue, val data: ScratchValue) : ScratchOpcode() {
+class ReplaceItemOfListOpcode(val list: ScratchList, val index: ScratchValue, val data: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "data_replaceitemoflist"
 
@@ -80,7 +85,7 @@ class ReplaceItemOfList(val list: ScratchList, val index: ScratchValue, val data
 /**
  * IMPORTANT: the index is 1 indexed, index == 0 is invalid, index == 1 is the first item
  */
-class InsertItemAtList(val list: ScratchList, val index: ScratchValue, val data: ScratchValue) : ScratchOpcode() {
+class InsertItemAtListOpcode(val list: ScratchList, val index: ScratchValue, val data: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "data_insertatlist"
 
@@ -100,7 +105,7 @@ class InsertItemAtList(val list: ScratchList, val index: ScratchValue, val data:
     }
 }
 
-class DeleteItemFromList(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
+class DeleteItemFromListOpcode(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "data_deleteoflist"
 
@@ -119,7 +124,7 @@ class DeleteItemFromList(val list: ScratchList, val index: ScratchValue) : Scrat
     }
 }
 
-class IndexOfItemInList(
+class IndexOfItemInListOpcode(
     val list: ScratchList,
     val item: ScratchValue
 ) : ScratchOpcode(null) {
@@ -128,7 +133,7 @@ class IndexOfItemInList(
     override val asValue by lazy {
         ScratchString(
             ScratchAccess.VARIABLE,
-            IndexOfItemInList(list, item)
+            IndexOfItemInListOpcode(list, item)
         )
     }
 

@@ -1,9 +1,13 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.codegen.opcode
 
+import dev.betterclient.codegen.ast.ScratchAccess
+import dev.betterclient.codegen.ast.ScratchOpcode
+import dev.betterclient.codegen.ast.ScratchString
+import dev.betterclient.codegen.ast.ScratchValue
 import org.json.JSONArray
 import org.json.JSONObject
 
-class GotoXY(
+class GotoXYOpcode(
     val x: ScratchValue,
     val y: ScratchValue,
 ) : ScratchOpcode() {
@@ -23,12 +27,12 @@ class GotoXY(
     }
 }
 
-class Goto(
+class GotoOpcode(
     mode: GotoMode
 ) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_goto"
-    val gotoMenu = GotoMenu(mode, "motion_goto_menu")
+    val gotoMenu = GotoMenuOpcode(mode, "motion_goto_menu")
     init {
         takeOwnership(listOf(gotoMenu))
     }
@@ -45,7 +49,7 @@ enum class GotoMode(val id: String) {
     MOUSE("_mouse_"), RANDOM("_random_")
 }
 
-class GlideSecToXY(
+class GlideSecToXYOpcode(
     val seconds: ScratchValue,
     val x: ScratchValue,
     val y: ScratchValue
@@ -67,7 +71,7 @@ class GlideSecToXY(
     }
 }
 
-class TurnRight(val degrees: ScratchValue) : ScratchOpcode() {
+class TurnRightOpcode(val degrees: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_turnright"
 
@@ -83,7 +87,7 @@ class TurnRight(val degrees: ScratchValue) : ScratchOpcode() {
     }
 }
 
-class TurnLeft(val degrees: ScratchValue) : ScratchOpcode() {
+class TurnLeftOpcode(val degrees: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_turnleft"
 
@@ -99,13 +103,13 @@ class TurnLeft(val degrees: ScratchValue) : ScratchOpcode() {
     }
 }
 
-class GlideTo(
+class GlideToOpcode(
     val seconds: ScratchValue,
     mode: GotoMode
 ) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_glideto"
-    val gotoMenu = GotoMenu(mode, "motion_glideto_menu")
+    val gotoMenu = GotoMenuOpcode(mode, "motion_glideto_menu")
 
     init {
         takeOwnership(listOfNotNull(gotoMenu, seconds.value))
@@ -120,7 +124,7 @@ class GlideTo(
     }
 }
 
-class GotoMenu(
+class GotoMenuOpcode(
     val mode: GotoMode,
     override val opcode: String
 ) : ScratchOpcode() {
@@ -134,7 +138,7 @@ class GotoMenu(
     }
 }
 
-class SetX(val x: ScratchValue) : ScratchOpcode() {
+class SetXOpcode(val x: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_setx"
     init {
@@ -149,7 +153,7 @@ class SetX(val x: ScratchValue) : ScratchOpcode() {
     }
 }
 
-class SetY(val y: ScratchValue) : ScratchOpcode() {
+class SetYOpcode(val y: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_sety"
     init {
@@ -164,7 +168,7 @@ class SetY(val y: ScratchValue) : ScratchOpcode() {
     }
 }
 
-class SetRotationStyle(val rotationStyle: RotationStyle) : ScratchOpcode() {
+class SetRotationStyleOpcode(val rotationStyle: RotationStyle) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "motion_setrotationstyle"
 
@@ -184,7 +188,7 @@ enum class RotationStyle(val id: String) {
     ALL_AROUND("all around"),
 }
 
-class GetXPosition : ScratchOpcode() {
+class GetXPositionOpcode : ScratchOpcode() {
     override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
     override val opcode = "motion_xposition"
 
@@ -194,7 +198,7 @@ class GetXPosition : ScratchOpcode() {
     }
 }
 
-class GetYPosition : ScratchOpcode() {
+class GetYPositionOpcode : ScratchOpcode() {
     override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
     override val opcode = "motion_yposition"
 
@@ -204,7 +208,7 @@ class GetYPosition : ScratchOpcode() {
     }
 }
 
-class GetDirection : ScratchOpcode() {
+class GetDirectionOpcode : ScratchOpcode() {
     override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
     override val opcode = "motion_direction"
 

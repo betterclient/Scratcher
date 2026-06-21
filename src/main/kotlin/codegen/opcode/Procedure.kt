@@ -1,5 +1,11 @@
-package dev.betterclient.codegen.ast
+package dev.betterclient.codegen.opcode
 
+import dev.betterclient.codegen.ast.ScratchAccess
+import dev.betterclient.codegen.ast.ScratchBoolean
+import dev.betterclient.codegen.ast.ScratchFunction
+import dev.betterclient.codegen.ast.ScratchOpcode
+import dev.betterclient.codegen.ast.ScratchString
+import dev.betterclient.codegen.ast.ScratchValue
 import dev.betterclient.codegen.rand
 import org.json.JSONArray
 import org.json.JSONObject
@@ -89,9 +95,11 @@ class ProcedureArgumentString(
     val argName: String
 ) : ScratchOpcode(null) {
     override val opcode = "argument_reporter_string_number"
-    override val asValue by lazy { ScratchString(
-        ScratchAccess.PARAMETER, ProcedureArgumentString(argName)
-    ) }
+    override val asValue by lazy {
+        ScratchString(
+            ScratchAccess.PARAMETER, ProcedureArgumentString(argName)
+        )
+    }
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().also {
@@ -105,9 +113,11 @@ class ProcedureArgumentBoolean(
     val argName: String
 ) : ScratchOpcode(null) {
     override val opcode = "argument_reporter_boolean"
-    override val asValue by lazy { ScratchBoolean(
-        ScratchAccess.PARAMETER, ProcedureArgumentBoolean(argName)
-    ) }
+    override val asValue by lazy {
+        ScratchBoolean(
+            ScratchAccess.PARAMETER, ProcedureArgumentBoolean(argName)
+        )
+    }
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().also {

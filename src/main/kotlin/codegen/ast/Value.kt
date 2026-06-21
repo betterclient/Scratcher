@@ -1,5 +1,6 @@
 package dev.betterclient.codegen.ast
 
+import dev.betterclient.codegen.opcode.ScratchVariable
 import org.json.JSONArray
 
 abstract class ScratchValue {

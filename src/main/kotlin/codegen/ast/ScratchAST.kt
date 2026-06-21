@@ -1,5 +1,7 @@
 package dev.betterclient.codegen.ast
 
+import dev.betterclient.codegen.opcode.ProcedureDefinitionOpcode
+import dev.betterclient.codegen.opcode.ProcedurePrototypeOpcode
 import dev.betterclient.codegen.rand
 import org.json.JSONObject
 
