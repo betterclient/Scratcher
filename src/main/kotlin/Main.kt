@@ -31,44 +31,22 @@ fun main() {
 
     func.first = autoSetNext(
         ProcedureCallOpcode(func, listOf(arg.asValue, arg2.asValue)),
-        AskAndWaitOpcode(AddOpcode(ScratchRealString("5"), ScratchRealString("10")).asValue),
-        AskAndWaitOpcode(SubtractOpcode(ScratchRealString("10"), ScratchRealString("5")).asValue),
-        AskAndWaitOpcode(MultiplyOpcode(ScratchRealString("3"), ScratchRealString("4")).asValue),
-        AskAndWaitOpcode(DivideOpcode(ScratchRealString("12"), ScratchRealString("4")).asValue),
-        AskAndWaitOpcode(RandomOpcode(ScratchRealString("1"), ScratchRealString("10")).asValue),
-
-        AskAndWaitOpcode(GTOpcode(ScratchRealString("15"), ScratchRealString("10")).asValue),
-        AskAndWaitOpcode(LTOpcode(ScratchRealString("5"), ScratchRealString("10")).asValue),
-        AskAndWaitOpcode(EqualsOpcode(ScratchRealString("apple"), ScratchRealString("apple")).asValue),
-
-        AskAndWaitOpcode(
-            AndOpcode(
-                GTOpcode(ScratchRealString("15"), ScratchRealString("10")).asValue,
-                LTOpcode(ScratchRealString("5"), ScratchRealString("10")).asValue
-            ).asValue
-        ),
-        AskAndWaitOpcode(
-            OrOpcode(
-                GTOpcode(ScratchRealString("15"), ScratchRealString("10")).asValue,
-                LTOpcode(ScratchRealString("10"), ScratchRealString("5")).asValue
-            ).asValue
-        ),
-        AskAndWaitOpcode(
-            NotOpcode(
-                EqualsOpcode(ScratchRealString("apple"), ScratchRealString("banana")).asValue
-            ).asValue
-        ),
-
-        AskAndWaitOpcode(JoinOpcode(ScratchRealString("apple "), ScratchRealString("banana")).asValue),
-        AskAndWaitOpcode(LetterOfOpcode(ScratchRealString("1"), ScratchRealString("apple")).asValue),
-        AskAndWaitOpcode(LengthOpcode(ScratchRealString("apple")).asValue),
-        AskAndWaitOpcode(ContainsOpcode(ScratchRealString("apple"), ScratchRealString("a")).asValue),
-
-        AskAndWaitOpcode(ModOpcode(ScratchRealString("10"), ScratchRealString("3")).asValue),
-        AskAndWaitOpcode(RoundOpcode(ScratchRealString("4.6")).asValue),
-        AskAndWaitOpcode(MathOpOpcode(MathOp.ABS, ScratchRealString("-10")).asValue),
-        AskAndWaitOpcode(MathOpOpcode(MathOp.SQRT, ScratchRealString("9")).asValue),
-        AskAndWaitOpcode(MathOpOpcode(MathOp.SIN, ScratchRealString("90")).asValue)
+        WaitOpcode(ScratchRealString("1")),
+        RepeatTimesOpcode(ScratchRealString("2"), autoSetNext(
+            WaitOpcode(ScratchRealString("22"))
+        )),
+        IfThenOpcode(EqualsOpcode(ScratchRealString("1"), ScratchRealString("1")).asValue, autoSetNext(
+            WaitOpcode(ScratchRealString("22"))
+        )),
+        IfElseOpcode(EqualsOpcode(ScratchRealString("1"), ScratchRealString("1")).asValue, autoSetNext(
+            WaitOpcode(ScratchRealString("22"))
+        ), autoSetNext(
+            WaitOpcode(ScratchRealString("67"))
+        )),
+        WaitUntilOpcode(EqualsOpcode(ScratchRealString("2"), ScratchRealString("2")).asValue),
+        RepeatUntilOpcode(EqualsOpcode(ScratchRealString("2"), ScratchRealString("2")).asValue, autoSetNext(
+            WaitOpcode(ScratchRealString("675"))
+        ))
     )
 
     editor.addFunction(func)

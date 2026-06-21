@@ -49,8 +49,13 @@ abstract class ScratchOpcode(
     }
 
     protected fun takeOwnership(list: List<ScratchOpcode>) {
-        list.forEach { opcode -> opcode.parent = this }
         alsoAdd.addAll(list)
+
+        list.forEach { opcode ->
+            generateSequence(opcode) { it.next }.forEach { node ->
+                node.parent = this
+            }
+        }
     }
 }
 
