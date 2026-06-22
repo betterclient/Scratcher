@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
@@ -24,7 +23,7 @@ class AskAndWaitOpcode(val question: ScratchValue) : ScratchOpcode() {
 }
 
 class AnswerOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_answer"
 
     override fun toJSON(base: JSONObject) {
@@ -34,7 +33,7 @@ class AnswerOpcode : ScratchOpcode() {
 }
 
 class TouchingObjectOpcode(mode: TouchingObjectMode) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_touchingobject"
     val menu = TouchingObjectMenuOpcode(mode)
     init {
@@ -57,7 +56,7 @@ enum class TouchingObjectMode(val id: String) {
 class TouchingObjectMenuOpcode(val mode: TouchingObjectMode) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "sensing_touchingobjectmenu"
-    override val shadow = true
+    override var shadow = true
 
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
@@ -68,7 +67,7 @@ class TouchingObjectMenuOpcode(val mode: TouchingObjectMode) : ScratchOpcode() {
 }
 
 class TouchingColorOpcode(val color: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_touchingcolor"
 
     init {
@@ -84,7 +83,7 @@ class TouchingColorOpcode(val color: ScratchValue) : ScratchOpcode() {
 }
 
 class ColorIsTouchingColorOpcode(val color1: ScratchValue, val color2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_coloristouchingcolor"
 
     override fun toJSON(base: JSONObject) {
@@ -97,7 +96,7 @@ class ColorIsTouchingColorOpcode(val color1: ScratchValue, val color2: ScratchVa
 }
 
 class DistanceToMouseOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_distanceto"
     val menu = DistanceToMenu()
     init {
@@ -115,7 +114,7 @@ class DistanceToMouseOpcode : ScratchOpcode() {
 class DistanceToMenu : ScratchOpcode() {
     override val asValue = null
     override val opcode = "sensing_distancetomenu"
-    override val shadow = true
+    override var shadow = true
 
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
@@ -126,7 +125,7 @@ class DistanceToMenu : ScratchOpcode() {
 }
 
 class KeyPressedOpcode(key: Key) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_keypressed"
     val menu = KeyPressedMenu(key)
 
@@ -145,7 +144,7 @@ class KeyPressedOpcode(key: Key) : ScratchOpcode() {
 class KeyPressedMenu(val key: Key) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "sensing_keyoptions"
-    override val shadow = true
+    override var shadow = true
 
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
@@ -156,7 +155,7 @@ class KeyPressedMenu(val key: Key) : ScratchOpcode() {
 }
 
 class MousePressedOpcode : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_mousedown"
 
     override fun toJSON(base: JSONObject) {
@@ -166,7 +165,7 @@ class MousePressedOpcode : ScratchOpcode() {
 }
 
 class GetMouseXOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_mousex"
 
     override fun toJSON(base: JSONObject) {
@@ -176,7 +175,7 @@ class GetMouseXOpcode : ScratchOpcode() {
 }
 
 class GetMouseYOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_mousey"
 
     override fun toJSON(base: JSONObject) {
@@ -186,7 +185,7 @@ class GetMouseYOpcode : ScratchOpcode() {
 }
 
 class GetTimerOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_timer"
 
     override fun toJSON(base: JSONObject) {
@@ -216,7 +215,7 @@ enum class CalendarMenu(val id: String) {
 }
 
 class CurrentCalendar(val name: CalendarMenu) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_current"
 
     override fun toJSON(base: JSONObject) {
@@ -228,7 +227,7 @@ class CurrentCalendar(val name: CalendarMenu) : ScratchOpcode() {
 }
 
 class DaysSince2000Opcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_dayssince2000"
 
     override fun toJSON(base: JSONObject) {
@@ -238,7 +237,7 @@ class DaysSince2000Opcode : ScratchOpcode() {
 }
 
 class IsOnlineOpcode : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_online"
 
     override fun toJSON(base: JSONObject) {
@@ -248,7 +247,7 @@ class IsOnlineOpcode : ScratchOpcode() {
 }
 
 class UsernameOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "sensing_username"
 
     override fun toJSON(base: JSONObject) {

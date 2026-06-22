@@ -33,7 +33,7 @@ abstract class ScratchOpcode(
     var parent: ScratchOpcode? = null
     abstract val asValue: ScratchValue?
     abstract val opcode: String
-    open val shadow: Boolean = false
+    open var shadow: Boolean = false
     open val alsoAdd: MutableList<ScratchOpcode> = mutableListOf() //when you need to add more
 
     protected abstract fun toJSON(base: JSONObject)

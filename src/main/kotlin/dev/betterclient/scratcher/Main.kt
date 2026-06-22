@@ -5,9 +5,13 @@ import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
+import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ControlStatements
+import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
+import dev.betterclient.scratcher.codegen.ast.SBinaryOperator
 import dev.betterclient.scratcher.codegen.ast.SBoolParameterExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchASTEventListener
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchBoolExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
@@ -48,6 +52,19 @@ fun main() {
     ))
 
     editor.addFunction(func)
+    editor.addEventListener(ScratchASTEventListener(
+        EventListener.GreenFlag,
+        listOf(
+            CallFunction(func, listOf(
+                BoolOperatorExpressions.BinaryExpression(
+                    binaryOperator = SBinaryOperator.EQUALS,
+                    operand1 = ScratchLiteralStringExpression("1"),
+                    operand2 = ScratchLiteralStringExpression("22")
+                ),
+                ScratchLiteralStringExpression("1"),
+            ))
+        )
+    ))
 
     editor.writeTo(File("out.sb3"))
 }

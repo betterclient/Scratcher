@@ -1,6 +1,8 @@
 package dev.betterclient.scratcher.codegen
 
+import dev.betterclient.scratcher.codegen.ast.ScratchASTEventListener
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.compile
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -66,7 +68,12 @@ value class ScratchEditor(private val editor: JSONEditor) {
     }
 
     fun addFunction(func: ScratchASTFunction) {
+        func.internal.first = compile(func.code)
         addFunction(func.internal)
+    }
+
+    fun addEventListener(listener: ScratchASTEventListener) {
+        addEventListener(listener.internal)
     }
 
     fun writeTo(file: File) {

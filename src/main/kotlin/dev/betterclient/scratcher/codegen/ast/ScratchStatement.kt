@@ -43,6 +43,12 @@ class CallFunction(
     val func: ScratchASTFunction,
     val args: List<ScratchExpression>
 ) : ScratchStatement() {
+    init {
+        func.args.zip(args).forEach { (theirs, ours) ->
+            if (theirs.type == ScratchType.BOOL && ours !is ScratchBoolExpression) throw UnsupportedOperationException("Trying to pass non bool expression into bool argument while calling ${func.name}")
+        }
+    }
+
     override fun lower() = listOf(ProcedureCallOpcode(
         func.internal, args.map { it.lower() }
     ))

@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
@@ -13,7 +12,7 @@ class ScratchList(
 ) : ScratchObject()
 
 class ItemOfListOpcode(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode: String = "data_itemoflist"
     init {
         takeOwnership(listOfNotNull(index.value))
@@ -31,7 +30,7 @@ class ItemOfListOpcode(val list: ScratchList, val index: ScratchValue) : Scratch
 }
 
 class LengthOfListOpcode(val list: ScratchList) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode: String = "data_lengthoflist"
 
     override fun toJSON(base: JSONObject) {
@@ -132,7 +131,6 @@ class IndexOfItemInListOpcode(
 
     override val asValue by lazy {
         ScratchString(
-            ScratchAccess.VARIABLE,
             IndexOfItemInListOpcode(list, item)
         )
     }

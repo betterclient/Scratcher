@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
@@ -129,7 +128,7 @@ class GotoMenuOpcode(
     override val opcode: String
 ) : ScratchOpcode() {
     override val asValue = null
-    override val shadow = true
+    override var shadow = true
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().apply {
             put("TO", JSONArray(listOf(mode.id, null)))
@@ -189,7 +188,7 @@ enum class RotationStyle(val id: String) {
 }
 
 class GetXPositionOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "motion_xposition"
 
     override fun toJSON(base: JSONObject) {
@@ -199,7 +198,7 @@ class GetXPositionOpcode : ScratchOpcode() {
 }
 
 class GetYPositionOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "motion_yposition"
 
     override fun toJSON(base: JSONObject) {
@@ -209,7 +208,7 @@ class GetYPositionOpcode : ScratchOpcode() {
 }
 
 class GetDirectionOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "motion_direction"
 
     override fun toJSON(base: JSONObject) {

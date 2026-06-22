@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
@@ -11,7 +10,7 @@ import org.json.JSONObject
 //math
 
 class AddOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_add"
 
     init {
@@ -28,7 +27,7 @@ class AddOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode(
 }
 
 class SubtractOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_subtract"
 
     init {
@@ -45,7 +44,7 @@ class SubtractOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOp
 }
 
 class MultiplyOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_multiply"
 
     init {
@@ -62,7 +61,7 @@ class MultiplyOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOp
 }
 
 class DivideOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_divide"
 
     init {
@@ -79,7 +78,7 @@ class DivideOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpco
 }
 
 class RandomOpcode(val from: ScratchValue, val to: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_random"
 
     init {
@@ -98,7 +97,7 @@ class RandomOpcode(val from: ScratchValue, val to: ScratchValue) : ScratchOpcode
 //comparison
 
 class GTOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_gt"
 
     init {
@@ -115,7 +114,7 @@ class GTOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : Scratch
 }
 
 class LTOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_lt"
 
     init {
@@ -132,7 +131,7 @@ class LTOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : Scratch
 }
 
 class EqualsOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_equals"
 
     init {
@@ -151,7 +150,7 @@ class EqualsOpcode(val operand1: ScratchValue, val operand2: ScratchValue) : Scr
 //logical
 
 class AndOpcode(val operand1: ScratchBoolean, val operand2: ScratchBoolean) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_and"
 
     init {
@@ -168,7 +167,7 @@ class AndOpcode(val operand1: ScratchBoolean, val operand2: ScratchBoolean) : Sc
 }
 
 class OrOpcode(val operand1: ScratchBoolean, val operand2: ScratchBoolean) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_or"
 
     init {
@@ -185,7 +184,7 @@ class OrOpcode(val operand1: ScratchBoolean, val operand2: ScratchBoolean) : Scr
 }
 
 class NotOpcode(val operand: ScratchBoolean) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_not"
 
     init {
@@ -203,7 +202,7 @@ class NotOpcode(val operand: ScratchBoolean) : ScratchOpcode() {
 //string
 
 class JoinOpcode(val string1: ScratchValue, val string2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_join"
 
     init {
@@ -220,7 +219,7 @@ class JoinOpcode(val string1: ScratchValue, val string2: ScratchValue) : Scratch
 }
 
 class LetterOfOpcode(val letter: ScratchValue, val string: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_letter_of"
 
     init {
@@ -237,7 +236,7 @@ class LetterOfOpcode(val letter: ScratchValue, val string: ScratchValue) : Scrat
 }
 
 class LengthOpcode(val string: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_length"
 
     init {
@@ -253,7 +252,7 @@ class LengthOpcode(val string: ScratchValue) : ScratchOpcode() {
 }
 
 class ContainsOpcode(val string1: ScratchValue, val string2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchBoolean(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchBoolean(this)
     override val opcode = "operator_contains"
 
     init {
@@ -271,7 +270,7 @@ class ContainsOpcode(val string1: ScratchValue, val string2: ScratchValue) : Scr
 
 //math
 class ModOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_mod"
 
     init {
@@ -288,7 +287,7 @@ class ModOpcode(val num1: ScratchValue, val num2: ScratchValue) : ScratchOpcode(
 }
 
 class RoundOpcode(val num: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_round"
 
     init {
@@ -321,7 +320,7 @@ enum class MathOp(val id: String) {
 }
 
 class MathOpOpcode(val operator: MathOp, val num: ScratchValue) : ScratchOpcode() {
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
     override val opcode = "operator_mathop"
 
     init {

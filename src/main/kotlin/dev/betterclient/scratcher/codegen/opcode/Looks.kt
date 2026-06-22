@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
@@ -100,7 +99,7 @@ class SetSizeToOpcode(val size: ScratchValue) : ScratchOpcode() {
 
 class GetSizeOpcode : ScratchOpcode() {
     override val opcode = "looks_size"
-    override val asValue = ScratchString(ScratchAccess.VARIABLE, this)
+    override val asValue = ScratchString(this)
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject())

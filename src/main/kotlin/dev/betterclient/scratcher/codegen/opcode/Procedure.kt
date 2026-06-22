@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.wrapper.ScratchAccess
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -41,21 +40,22 @@ class ProcedurePrototypeOpcode(
     private val arguments: List<ScratchOpcode> = listOf()
 ) : ScratchOpcode(null) {
     override val opcode = "procedures_prototype"
-    override val shadow = true
+    override var shadow = true
     override val asValue = null
+    val argIDS = arguments.map { rand() }
 
     init {
         if (arguments.filter { it is ProcedureArgumentString || it is ProcedureArgumentBoolean }.size != arguments.size) {
             throw UnsupportedOperationException("Non arguments on the arguments field...")
         }
         takeOwnership(arguments)
+        arguments.forEach { it.shadow = true }
     }
 
     override fun toJSON(base: JSONObject) {
         val inputsJson = JSONObject()
-        val ids = arguments.map { rand() }
         for ((i, block) in arguments.withIndex()) {
-            inputsJson.put(ids[i], JSONArray().apply { put(1); put(block.id) })
+            inputsJson.put(argIDS[i], JSONArray().apply { put(1); put(block.id) })
         }
         base.put("inputs", inputsJson)
         base.put("fields", JSONObject())
@@ -64,7 +64,7 @@ class ProcedurePrototypeOpcode(
             put("tagName", "mutation")
             put("children", JSONArray())
             put("proccode", getProcCode())
-            put("argumentids", JSONArray(ids).toString())
+            put("argumentids", JSONArray(argIDS).toString())
             put("argumentnames", JSONArray(arguments.map {
                 when (it) {
                     is ProcedureArgumentString -> it.argName
@@ -74,12 +74,12 @@ class ProcedurePrototypeOpcode(
             }).toString())
             put("argumentdefaults", JSONArray(arguments.map {
                 when (it) {
-                    is ProcedureArgumentString -> it.argName
-                    is ProcedureArgumentBoolean -> it.argName
+                    is ProcedureArgumentString -> ""
+                    is ProcedureArgumentBoolean -> "false"
                     else -> ""
                 }
             }).toString())
-            put("warp", warp)
+            put("warp", warp.toString())
         })
     }
 
@@ -96,11 +96,10 @@ class ProcedureArgumentString(
     val argName: String
 ) : ScratchOpcode(null) {
     override val opcode = "argument_reporter_string_number"
-    override val asValue by lazy {
-        ScratchString(
-            ScratchAccess.PARAMETER, ProcedureArgumentString(argName)
+    override val asValue
+        get() = ScratchString(
+            ProcedureArgumentString(argName)
         )
-    }
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().also {
@@ -114,11 +113,10 @@ class ProcedureArgumentBoolean(
     val argName: String
 ) : ScratchOpcode(null) {
     override val opcode = "argument_reporter_boolean"
-    override val asValue by lazy {
-        ScratchBoolean(
-            ScratchAccess.PARAMETER, ProcedureArgumentBoolean(argName)
+    override val asValue
+        get() = ScratchBoolean(
+            ProcedureArgumentBoolean(argName)
         )
-    }
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().also {
@@ -140,7 +138,7 @@ class ProcedureCallOpcode(
     }
 
     override fun toJSON(base: JSONObject) {
-        val ids = args.map { rand() }
+        val ids = func.parent.prototype.argIDS
 
         base.apply {
             put("shadow", false)

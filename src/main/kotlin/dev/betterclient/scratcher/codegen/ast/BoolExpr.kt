@@ -17,7 +17,7 @@ class SBoolParameterExpression(val parameter: ScratchFuncArgument) : ScratchBool
 }
 
 object BoolOperatorExpressions {
-    class SBinaryExpressions(
+    class BinaryExpression(
         val operand1: ScratchExpression,
         val operand2: ScratchExpression,
         val binaryOperator: SBinaryOperator
@@ -29,14 +29,12 @@ object BoolOperatorExpressions {
                 SBinaryOperator.LT -> LTOpcode(operand1.lower(), operand2.lower())
                 SBinaryOperator.STRING_CONTAINS -> ContainsOpcode(operand1.lower(), operand2.lower())
 
-                SBinaryOperator.GTE -> OrOpcode(
-                    GTOpcode(operand1.lower(), operand2.lower()).asValue,
-                    EqualsOpcode(operand1.lower(), operand2.lower()).asValue
+                SBinaryOperator.GTE -> NotOpcode(
+                    LTOpcode(operand1.lower(), operand2.lower()).asValue
                 )
 
-                SBinaryOperator.LTE -> OrOpcode(
-                    LTOpcode(operand1.lower(), operand2.lower()).asValue,
-                    EqualsOpcode(operand1.lower(), operand2.lower()).asValue
+                SBinaryOperator.LTE -> NotOpcode(
+                    GTOpcode(operand1.lower(), operand2.lower()).asValue
                 )
             }.asValue!!
         }
