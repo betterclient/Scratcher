@@ -36,7 +36,7 @@ sealed class ScratchStatement {
 }
 
 fun compile(block: List<ScratchStatement>): ScratchOpcode? {
-    return autoSetNext(block.map { it.lower() }.reduce { a1, a2 -> a1 + a2 })
+    return block.map { it.lower() }.reduceOrNull { a1, a2 -> a1 + a2 }?.let { autoSetNext(it) }
 }
 
 class CallFunction(

@@ -26,6 +26,7 @@ import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.UnaryExpression
 import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
@@ -78,7 +79,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             block.code.add(it)
         }
         blockCtx.returnStmt()?.let {
-            block.code.add(ReturnStatement(parseExpression(it.expression())))
+            block.code.add(ReturnStatement(it.expression()?.let { expr -> parseExpression(expr) }))
         }
 
         block.localVariables.addAll(localVariables)
@@ -94,6 +95,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val value = parseExpression(child.expression())
 
                 val variable = LocalVariable(name, type)
+                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.path}::${variable.name} is type void.")
                 localVariables.add(variable)
                 VariableStatement(value, variable)
             }
@@ -268,6 +270,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(parseExpression(expr)) }?: listOf()
+        val args = argList?.expression()?.map { parseExpression(it) }?: listOf()
 
         sourceAST.functions.find {
             if (it.name != funcName) return@find false
@@ -277,7 +280,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }?.let {
             return CallExpression(
                 func = it,
-                arguments = argList?.expression()?.map { parseExpression(it) }?: listOf()
+                arguments = args
             )
         }
 
@@ -287,7 +290,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             val foundArgListTypes = it.parameters.map { par -> par.type }
             return@find expectedArgListTypes == foundArgListTypes
         }?.let {
-            return NewStructExpression(it)
+            return NewStructExpression(it, args)
         }
 
         throw NullPointerException("Function $funcName not found")

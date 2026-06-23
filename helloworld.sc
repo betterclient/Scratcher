@@ -1,10 +1,12 @@
-import std as lib;
+import looks;
 
-struct User(str name, float score);
+struct User(int a, int b);
 
 void main() {
-    str hello = "Hello, World!";
-    User user = User("Sigma", 999.0);
+    int b = 5;
+    looks::say("hi! ${a()} ${b}");
+}
 
-    lib::say("${hello} My name is ${user.name}");
+int a() {
+    return 5;
 }

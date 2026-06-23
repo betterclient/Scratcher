@@ -66,7 +66,7 @@ assignStmt
     ;
 
 returnStmt
-    : RETURN expression SEMI
+    : RETURN expression? SEMI
     ;
 
 ifStmt

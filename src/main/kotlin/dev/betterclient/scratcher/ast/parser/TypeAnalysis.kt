@@ -23,6 +23,9 @@ import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.TemporaryCallStatement
+import dev.betterclient.scratcher.ast.TemporaryHeapAccessStatement
+import dev.betterclient.scratcher.ast.TemporaryLocalVariableIndexExpression
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.UnaryExpression
 import dev.betterclient.scratcher.ast.UnaryOperator
@@ -51,19 +54,81 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it)
+                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.path}::${variable.name} is of type void.")
                 if (variable.type != actualType) throw UnsupportedOperationException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
 
         for (function in ast.functions) {
             checkCodeBlock(function, function.code.code)
+
+            if (function.returnType != Type.void && !doesBlockGuaranteeReturn(function.code.code)) {
+                throw UnsupportedOperationException("Function ${ast.path}::${function.name} does not have a guaranteed return")
+            }
+            pruneUnreachableCode(function.code.code)
+        }
+    }
+
+    private fun doesBlockGuaranteeReturn(code: List<Statement>): Boolean {
+        for (statement in code) {
+            if (doesStatementGuaranteeReturn(statement)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun pruneUnreachableCode(code: MutableList<Statement>) {
+        var hasReturn = false
+        code.removeIf { statement ->
+            when (statement) {
+                is IfElseStatement -> {
+                    pruneUnreachableCode(statement.thenBlock.code)
+                    pruneUnreachableCode(statement.elseBlock.code)
+                }
+                is IfStatement -> {
+                    pruneUnreachableCode(statement.thenBlock.code)
+                }
+                is WhileStatement -> {
+                    pruneUnreachableCode(statement.block.code)
+                }
+                is RepeatStatement -> {
+                    pruneUnreachableCode(statement.block.code)
+                }
+                else -> {}
+            }
+
+            if (doesStatementGuaranteeReturn(statement)) {
+                hasReturn = true
+                return@removeIf false
+            }
+
+            return@removeIf hasReturn
+        }
+    }
+
+    private fun doesStatementGuaranteeReturn(statement: Statement): Boolean {
+        return when (statement) {
+            is ReturnStatement -> true
+            is IfElseStatement -> {
+                doesBlockGuaranteeReturn(statement.thenBlock.code) && doesBlockGuaranteeReturn(statement.elseBlock.code)
+            }
+            else -> false
         }
     }
 
     private fun checkCodeBlock(function: Function, code: MutableList<Statement>) {
         for (statement in code) {
             when(statement) {
-                is ExpressionStatement -> { getActualTypeOrThrow(statement.expression) } //just check if the expressions inside are ok
+                is ExpressionStatement -> {
+                    //just check if the expressions inside are ok
+                    getActualTypeOrThrow(statement.expression)
+                    if (statement.expression is NewStructExpression) {
+                        throw UnsupportedOperationException("Unused new struct in ${ast.path}::${function.name}")
+                    } else if (statement.expression !is CallExpression) {
+                        throw UnsupportedOperationException("Unsupported expression as top level. ${statement.expression}")
+                    }
+                }
                 is IfElseStatement -> {
                     checkType(Type.bool, getActualTypeOrThrow(statement.condition), "Non bool as if statement condition")
                     checkCodeBlock(function, statement.thenBlock.code)
@@ -93,8 +158,21 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     checkCodeBlock(function, statement.block.code)
                 }
                 is ReturnStatement -> {
-                    checkType(function.returnType, getActualTypeOrThrow(statement.expression), "Return statement type")
+                    if (statement.expression == null) {
+                        if (function.returnType != Type.void) {
+                            throw UnsupportedOperationException("Must return a value from a non-void function.")
+                        }
+                    } else {
+                        if (function.returnType == Type.void) {
+                            throw UnsupportedOperationException("Cannot return a value from a void function.")
+                        }
+                        checkType(function.returnType, getActualTypeOrThrow(statement.expression), "Return statement type")
+                    }
                 }
+
+                //unreachable
+                is TemporaryCallStatement -> {}
+                is TemporaryHeapAccessStatement -> {}
             }
         }
     }
@@ -158,6 +236,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
             is NewStructExpression -> expr.struct.type
+            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

@@ -83,10 +83,12 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         //second read for parameters
         ast.structs.forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
+                val type = figureOutType(ctx, ast, field.type())
+                if (type == Type.void) throw UnsupportedOperationException("${ast.path}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
-                        figureOutType(ctx, ast, field.type())
+                        type
                     )
                 )
             }
@@ -99,9 +101,11 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val funcAST = Function(
                     func.IDENTIFIER().text,
                     parameters = (func.paramList()?.param() ?: listOf()).map {
+                        val type = figureOutType(ctx, ast, it.type())
+                        if (type == Type.void) throw UnsupportedOperationException("${ast.path}::${func.IDENTIFIER().text} has an argument with type void.")
                         Parameter(
                             it.IDENTIFIER().text,
-                            figureOutType(ctx, ast, it.type())
+                            type
                         )
                     }.toMutableList(),
                     returnType = figureOutType(ctx, ast, func.type())
@@ -117,6 +121,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     figureOutType(ctx, ast, variable.type())
                 )
                 astVariable.ctx = variable.expression()
+                if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.path}::${astVariable.name} is type void.")
 
                 ast.variables.add(astVariable)
             }

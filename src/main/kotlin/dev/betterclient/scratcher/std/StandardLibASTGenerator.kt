@@ -6,13 +6,17 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Type
 
 object StandardLibASTGenerator {
-    val stdLib = ASTFile(
-        "std",
+    fun isStandardLib(func: Function): Boolean {
+        return lib.map { it.value.functions }.reduce { a, b -> (a + b).toMutableList() }.contains(func)
+    }
+
+    val looksLib = ASTFile(
+        "looks",
         functions = mutableListOf()
     )
 
     init {
-        stdLib.functions.add(
+        looksLib.functions.add(
             Function(
                 "say",
                 parameters = mutableListOf(
@@ -24,6 +28,6 @@ object StandardLibASTGenerator {
     }
 
     val lib = mapOf(
-        "std" to stdLib,
+        "looks" to looksLib,
     )
 }

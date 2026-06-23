@@ -65,7 +65,8 @@ data class VariableExpression(
 ) : Expression()
 
 data class NewStructExpression(
-    val struct: Struct
+    val struct: Struct,
+    val args: List<Expression>
 ) : Expression()
 
 sealed class Literal : Expression()
@@ -73,3 +74,8 @@ data class IntLiteral(val value: Int) : Literal()
 data class FloatLiteral(val value: Float) : Literal()
 data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
+
+//ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+data class TemporaryLocalVariableIndexExpression(
+    val variable: LocalVariable
+) : Expression()

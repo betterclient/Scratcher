@@ -77,7 +77,7 @@ class TLVariable(
 class Function(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
-    val returnType: Type,
+    var returnType: Type,
     val code: CodeBlock = CodeBlock()
 ) {
     var ctx: ScratcherLangParser.FuncDeclContext? = null

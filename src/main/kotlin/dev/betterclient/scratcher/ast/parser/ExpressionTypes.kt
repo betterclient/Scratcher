@@ -18,6 +18,7 @@ object ExpressionTypes {
             is ParameterExpression -> expr.parameter.type
             is NewStructExpression -> expr.struct.type
             is ConcatExpression -> Type.str
+            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

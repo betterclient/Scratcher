@@ -29,7 +29,7 @@ data class TLVariableAssignmentStatement(
 ) : Statement()
 
 data class ReturnStatement(
-    val expression: Expression
+    val expression: Expression?
 ) : Statement()
 
 data class IfStatement(
@@ -51,4 +51,15 @@ data class WhileStatement(
 data class RepeatStatement(
     val amount: Expression,
     val block: CodeBlock
+) : Statement()
+
+//ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+data class TemporaryCallStatement(
+    val func: Function,
+    val args: MutableList<Expression>
+) : Statement()
+
+data class TemporaryHeapAccessStatement(
+    val par: Parameter,
+    val data: Expression
 ) : Statement()
