@@ -1,9 +1,11 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import dev.betterclient.scratcher.codegen.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.random.Random
 
 sealed class EventListener {
     object GreenFlag : EventListener()
@@ -30,8 +32,8 @@ class WhenGreenFlagClicked : ScratchOpcode() {
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
         base.put("fields", JSONObject())
-        base.put("x", 500)
-        base.put("y", 500)
+        base.put("x", nextBlockPosition())
+        base.put("y", nextBlockPosition())
     }
 }
 
@@ -44,8 +46,8 @@ class WhenKeyPressed(val key: Key) : ScratchOpcode() {
         base.put("fields", JSONObject().apply {
             put("KEY_OPTION", JSONArray(listOf(key.id, null)))
         })
-        base.put("x", 500)
-        base.put("y", 500)
+        base.put("x", nextBlockPosition())
+        base.put("y", nextBlockPosition())
     }
 }
 

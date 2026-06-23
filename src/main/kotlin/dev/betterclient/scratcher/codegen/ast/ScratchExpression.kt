@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.codegen.ast
 import dev.betterclient.scratcher.codegen.opcode.AddOpcode
 import dev.betterclient.scratcher.codegen.opcode.AnswerOpcode
 import dev.betterclient.scratcher.codegen.opcode.CalendarMenu
+import dev.betterclient.scratcher.codegen.opcode.ContainsItemInListOpcode
 import dev.betterclient.scratcher.codegen.opcode.CurrentCalendar
 import dev.betterclient.scratcher.codegen.opcode.DaysSince2000Opcode
 import dev.betterclient.scratcher.codegen.opcode.DistanceToMouseOpcode
@@ -27,11 +28,13 @@ import dev.betterclient.scratcher.codegen.opcode.MultiplyOpcode
 import dev.betterclient.scratcher.codegen.opcode.RandomOpcode
 import dev.betterclient.scratcher.codegen.opcode.RoundOpcode
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.SubtractOpcode
 import dev.betterclient.scratcher.codegen.opcode.UsernameOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
+import dev.betterclient.scratcher.codegen.wrapper.ScratchVariableValue
 
 sealed class ScratchExpression {
     abstract fun lower(): ScratchValue
@@ -40,6 +43,8 @@ sealed class ScratchExpression {
 class ScratchLiteralStringExpression(val string: String) : ScratchExpression() {
     override fun lower() = ScratchRealString(string)
 }
+val String.scratch
+    get() = ScratchLiteralStringExpression(this)
 
 class ScratchStringParameterExpression(val parameter: ScratchFuncArgument) : ScratchExpression() {
     override fun lower() = parameter.internal.asValue!!
@@ -148,5 +153,13 @@ object ListExpressions {
 
     class IndexOfItemInList(val list: ScratchList, val item: ScratchExpression) : ScratchExpression() {
         override fun lower() = IndexOfItemInListOpcode(list, item.lower()).asValue
+    }
+
+    class ContainsItemInList(val list: ScratchList, val item: ScratchExpression) : ScratchBoolExpression() {
+        override fun lower() = ContainsItemInListOpcode(list, item.lower()).asValue
+    }
+
+    class Variable(val variable: ScratchVariable) : ScratchExpression() {
+        override fun lower() = ScratchVariableValue(variable)
     }
 }

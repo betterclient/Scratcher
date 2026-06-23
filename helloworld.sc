@@ -1,12 +1,12 @@
 import looks;
 
-struct User(int a, int b);
-
-void main() {
-    int b = 5;
-    looks::say("hi! ${a()} ${b}");
+int fib(int n) {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
 }
 
-int a() {
-    return 5;
+void main() {
+    looks::say(fib(5));
 }

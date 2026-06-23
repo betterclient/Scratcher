@@ -59,7 +59,7 @@ data class TemporaryCallStatement(
     val args: MutableList<Expression>
 ) : Statement()
 
-data class TemporaryHeapAccessStatement(
-    val par: Parameter,
+data class TemporaryHeapSetStatement(
+    val index: Expression,
     val data: Expression
 ) : Statement()

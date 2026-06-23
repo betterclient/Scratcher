@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
@@ -126,7 +127,7 @@ class DeleteItemFromListOpcode(val list: ScratchList, val index: ScratchValue) :
 class IndexOfItemInListOpcode(
     val list: ScratchList,
     val item: ScratchValue
-) : ScratchOpcode(null) {
+) : ScratchOpcode() {
     override val opcode = "data_itemnumoflist"
 
     override val asValue by lazy {
@@ -152,4 +153,21 @@ class IndexOfItemInListOpcode(
             })
         }
     }
+}
+
+class ContainsItemInListOpcode(
+    val list: ScratchList,
+    val item: ScratchValue
+) : ScratchOpcode() {
+    override val asValue = ScratchBoolean(this)
+    override val opcode = "data_listcontainsitem"
+
+    override fun toJSON(base: JSONObject) {
+        base.put("inputs", JSONObject().put("ITEM", item.toOperand()))
+        base.put("fields", JSONObject().put("LIST", JSONArray(listOf(
+            list.name,
+            list.id
+        ))))
+    }
+
 }

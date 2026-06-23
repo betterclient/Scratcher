@@ -293,7 +293,16 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             return NewStructExpression(it, args)
         }
 
-        throw NullPointerException("Function $funcName not found")
+        val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.name }})"
+        val candidates = mutableListOf<String>()
+        sourceAST.functions.filter { it.name == funcName }.forEach { func ->
+            candidates.add("Function \"${func.returnType.name} ${func.name}(${func.parameters.map { it.type }.joinToString(", ") { it.name }})\"")
+        }
+        sourceAST.structs.filter { it.name == targetFunc }.forEach { struct ->
+            candidates.add("Struct \"${struct.name}\"")
+        }
+
+        throw NullPointerException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
     }
 
     private fun parseLiteral(ctx: ScratcherLangParser.LiteralContext): Expression {

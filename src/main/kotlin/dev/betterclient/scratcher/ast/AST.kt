@@ -1,6 +1,8 @@
 package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 
 class ASTFile(
     val path: String,
@@ -34,28 +36,6 @@ data class Type(val name: String, val sourceAST: ASTFile?, val inner: Type? = nu
     val isPrimitive: Boolean
         get() = sourceAST == null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Type
-
-        if (this === int && other === float) return true //implicit conversion, so sorry for this
-
-        if (name != other.name) return false
-        if (sourceAST != other.sourceAST) return false
-        if (inner != other.inner) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + (sourceAST?.hashCode() ?: 0)
-        result = 31 * result + (inner?.hashCode() ?: 0)
-        return result
-    }
-
     /*fun list(): Type {
         return Type("$name[]", this.sourceAST, this)
     }*/
@@ -74,7 +54,7 @@ class TLVariable(
     var ctx: ScratcherLangParser.ExpressionContext? = null
 }
 
-class Function(
+open class Function(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
     var returnType: Type,
@@ -82,6 +62,14 @@ class Function(
 ) {
     var ctx: ScratcherLangParser.FuncDeclContext? = null
 }
+
+class StandardLibASTFunction(
+    name: String,
+    parameters: MutableList<Parameter> = mutableListOf(),
+    val precompiledCode: ScratchASTFunction
+) : Function(
+    name, parameters, Type.void
+)
 
 class CodeBlock(
     val code: MutableList<Statement> = mutableListOf(),

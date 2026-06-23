@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import dev.betterclient.scratcher.codegen.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -8,6 +9,7 @@ import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
 import dev.betterclient.scratcher.codegen.rand
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.random.Random
 
 class ProcedureDefinitionOpcode(
     val prototype: ProcedurePrototypeOpcode,
@@ -21,8 +23,8 @@ class ProcedureDefinitionOpcode(
 
     override fun toJSON(base: JSONObject) {
         base.apply {
-            put("x", 99)
-            put("y", 99)
+            put("x", nextBlockPosition())
+            put("y", nextBlockPosition())
             put("fields", JSONObject())
             put("inputs", JSONObject().apply {
                 put("custom_block", JSONArray().also {

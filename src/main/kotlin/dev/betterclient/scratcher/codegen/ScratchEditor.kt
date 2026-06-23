@@ -69,6 +69,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
 
     fun addFunction(func: ScratchASTFunction) {
         func.internal.first = compile(func.code)
+        func.internal.parent.next = func.internal.first
         addFunction(func.internal)
     }
 

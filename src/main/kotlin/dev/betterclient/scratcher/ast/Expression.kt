@@ -79,3 +79,7 @@ data class StringLiteral(val value: String) : Literal()
 data class TemporaryLocalVariableIndexExpression(
     val variable: LocalVariable
 ) : Expression()
+
+data class TemporaryHeapGetExpression(
+    val index: Expression,
+) : Expression()

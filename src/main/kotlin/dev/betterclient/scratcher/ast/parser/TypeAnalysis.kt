@@ -24,7 +24,8 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.TemporaryCallStatement
-import dev.betterclient.scratcher.ast.TemporaryHeapAccessStatement
+import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
+import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
 import dev.betterclient.scratcher.ast.TemporaryLocalVariableIndexExpression
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.UnaryExpression
@@ -172,7 +173,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
                 //unreachable
                 is TemporaryCallStatement -> {}
-                is TemporaryHeapAccessStatement -> {}
+                is TemporaryHeapSetStatement -> {}
             }
         }
     }
@@ -237,6 +238,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is ParameterExpression -> expr.parameter.type
             is NewStructExpression -> expr.struct.type
             is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

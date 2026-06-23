@@ -81,7 +81,7 @@ class FunctionReachability(val ast: ASTFile) {
                 }
 
                 is TemporaryCallStatement -> {}
-                is TemporaryHeapAccessStatement -> {}
+                is TemporaryHeapSetStatement -> {}
             }
         }
         return funcs
@@ -116,6 +116,7 @@ class FunctionReachability(val ast: ASTFile) {
             is Literal -> {}
 
             is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 }

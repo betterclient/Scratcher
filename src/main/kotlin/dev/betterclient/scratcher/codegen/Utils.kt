@@ -39,3 +39,7 @@ fun rand(): String {
 
     return sb.reverse().toString()
 }
+
+fun nextBlockPosition(): Int {
+    return Random.nextInt(2000)
+}

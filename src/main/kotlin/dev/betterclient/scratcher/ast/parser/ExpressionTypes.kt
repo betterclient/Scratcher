@@ -19,6 +19,7 @@ object ExpressionTypes {
             is NewStructExpression -> expr.struct.type
             is ConcatExpression -> Type.str
             is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

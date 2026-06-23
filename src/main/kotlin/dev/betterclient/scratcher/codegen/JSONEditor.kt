@@ -18,7 +18,7 @@ class JSONEditor(val file: ZipFile) {
     }
 
     fun writeTo(ifile: File) {
-        //println(project.toString(4))
+        println(project.toString(4))
         overwrites["project.json"] = project.toString().toByteArray()
 
         ZipOutputStream(ifile.outputStream()).use { zip ->

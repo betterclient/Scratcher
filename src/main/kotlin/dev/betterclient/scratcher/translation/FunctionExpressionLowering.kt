@@ -9,6 +9,7 @@ class FunctionExpressionLowering(val func: Function) {
     val doingReturnLowering = func.returnType != Type.void
 
     fun run() {
+        if (func is StandardLibASTFunction) return //already lowered!!!
         if (doingReturnLowering) {
             func.parameters.add(returnIndexParameter)
         }
@@ -70,7 +71,7 @@ class FunctionExpressionLowering(val func: Function) {
                         val list = mutableListOf<Statement>()
                         val expr = lowerExpr(statement.expression!!) //type checking stage guarantees this is non-null
                         list.addAll(expr.prepend)
-                        list.add(TemporaryHeapAccessStatement(returnIndexParameter, expr.expression!!))
+                        list.add(TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expr.expression!!))
                         list.add(ReturnStatement(null)) //codegen still needs a return statement to generate stop(this-script)
                         replacements[statement] = list
                     }
@@ -118,7 +119,7 @@ class FunctionExpressionLowering(val func: Function) {
                     replacements[statement] = list
                 }
                 is TemporaryCallStatement -> throw UnsupportedOperationException("unreachable")
-                is TemporaryHeapAccessStatement -> throw UnsupportedOperationException("unreachable")
+                is TemporaryHeapSetStatement -> throw UnsupportedOperationException("unreachable")
             }
         }
 
@@ -210,6 +211,7 @@ class FunctionExpressionLowering(val func: Function) {
             is LocalVariableExpression -> ExpressionLowerResult(expression)
 
             is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 }
