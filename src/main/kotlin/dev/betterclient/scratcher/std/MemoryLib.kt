@@ -18,7 +18,7 @@ object MemoryLib {
         editor.addList(heap)
         editor.addList(freeList)
 
-        free = editor.compile(lib, "free", warp = true) {
+        free = editor.compile(lib, "free") {
             val index = arg("index", Type.int)
             val size = arg("size", Type.int)
 
@@ -50,7 +50,7 @@ object MemoryLib {
             }
         }
 
-        alloc = editor.compile(lib, "alloc", warp = true) {
+        alloc = editor.compile(lib, "alloc") {
             val size = arg("size", Type.int)
             val returnIndex = arg("returnIndex", Type.int)
 

@@ -89,12 +89,12 @@ object StandardLibASTGenerator {
 
 object LooksLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "say", warp = true) {
+        editor.compile(lib, "say") {
             val message = arg("message", Type.str)
             looks.say(message)
         }
 
-        editor.compile(lib, "sayForSeconds", warp = true) {
+        editor.compile(lib, "sayForSeconds") {
             val message = arg("message", Type.str)
             val seconds = arg("seconds", Type.float)
             looks.say(message, seconds)
@@ -104,7 +104,7 @@ object LooksLib {
 
 object SensingLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "ask", warp = true) {
+        editor.compile(lib, "ask") {
             val message = arg("message", Type.str)
             sensing.ask(message)
         }
@@ -114,7 +114,7 @@ object SensingLib {
 object ExceptionLib {
     lateinit var panic: StandardLibASTFunction
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        panic = editor.compile(lib, "panic", warp = true) {
+        panic = editor.compile(lib, "panic") {
             val message = arg("message", Type.str)
             control.stop(StopMode.OTHER_SCRIPTS_IN_SPRITE)
             sensing.ask(message)

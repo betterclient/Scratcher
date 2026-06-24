@@ -128,6 +128,10 @@ infix fun DSLExpression.math(operation: MathOp) = DSLFromCreator {
     )
 }
 
+fun DSLExpression.round() = DSLFromCreator {
+    OperatorExpressions.RoundNumber(this.lower())
+}
+
 operator fun DSLExpression.div(right: DSLExpression) = DSLFromCreator {
     OperatorExpressions.BinaryExpression(
         left = this.lower(),

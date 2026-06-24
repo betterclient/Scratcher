@@ -11,7 +11,7 @@ class ScratchASTFunction(
     val name: String,
     val args: List<ScratchFuncArgument>,
     val code: MutableList<ScratchStatement> = mutableListOf(),
-    val runWithoutScreenRefresh: Boolean = false
+    val runWithoutScreenRefresh: Boolean = true
 ) {
     val internal = ScratchFunction(
         name, null,

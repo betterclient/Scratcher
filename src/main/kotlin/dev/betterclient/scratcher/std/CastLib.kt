@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.codegen.opcode.MathOp
 
 object CastLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "toFloatOrDefault", warp = true) {
+        editor.compile(lib, "toFloatOrDefault") {
             val str = arg("str", Type.str)
             val fallback = arg("fallback", Type.float)
             val returnArg = returnArg(Type.float)
@@ -23,7 +23,7 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toFloat", warp = true) {
+        editor.compile(lib, "toFloat") {
             val str = arg("str", Type.str)
             val returnArg = returnArg(Type.float)
 
@@ -38,7 +38,7 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toIntOrDefault", warp = true) {
+        editor.compile(lib, "toIntOrDefault") {
             val str = arg("str", Type.str)
             val fallback = arg("fallback", Type.int)
             val returnArg = returnArg(Type.int)
@@ -54,7 +54,7 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toInt", warp = true) {
+        editor.compile(lib, "toInt") {
             val str = arg("str", Type.str)
             val returnArg = returnArg(Type.int)
 
@@ -69,7 +69,7 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toBoolOrDefault", warp = true) {
+        editor.compile(lib, "toBoolOrDefault") {
             val str = arg("str", Type.str)
             val fallback = arg("fallback", Type.bool)
             val returnArg = returnArg(Type.bool)
@@ -85,7 +85,7 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toBool", warp = true) {
+        editor.compile(lib, "toBool") {
             val str = arg("str", Type.str)
             val returnArg = returnArg(Type.bool)
 
@@ -100,13 +100,13 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toStr", warp = true) {
+        editor.compile(lib, "toStr") {
             val value = arg("value", Type.float)
             val returnArg = returnArg(Type.str)
             MemoryLib.heap[returnArg] = value
         }
 
-        editor.compile(lib, "toStr", warp = true) {
+        editor.compile(lib, "toStr") {
             val value = arg("value", Type.bool)
             val returnArg = returnArg(Type.str)
             MemoryLib.heap[returnArg] = value

@@ -160,7 +160,7 @@ fun compile(name: String, editor: ScratchEditor, warp: Boolean, block: CodeBuild
     return builder.toFunc()
 }
 
-fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = false, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
+fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = true, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
     val func = compile(name, this, warp, block)
     library.functions.add(func)
     return func
