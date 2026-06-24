@@ -8,7 +8,7 @@ import dev.betterclient.scratcher.codegen.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 
-object MemoryLibRewrite {
+object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))
     val freeList = ScratchList(obfuscate("FreeList"))
     lateinit var free: StandardLibASTFunction
@@ -27,26 +27,26 @@ object MemoryLibRewrite {
             val right = variable("right")
             val middle = variable("middle")
 
+            left.set(1.sc)
+            right.set(freeList.length)
+            control.repeatUntil(left gt right) {
+                middle.set(((left + right) / 2.sc).math(MathOp.FLOOR))
+                control.ifElse(
+                    condition = freeList[middle] lt index,
+                    thenBlock = {
+                        left.set(middle + 1.sc)
+                    },
+                    elseBlock = {
+                        right.set(middle - 1.sc)
+                    }
+                )
+            }
+
             currentIndex.set(index)
             control.repeat(size) {
-                control.ifThen(freeList.contains(currentIndex).not()) {
-                    left.set(1.sc)
-                    right.set(freeList.length)
-                    control.repeatUntil(left gt right) {
-                        middle.set(((left + right) / 2.sc).math(MathOp.FLOOR))
-                        control.ifElse(
-                            condition = freeList[middle] lt currentIndex,
-                            thenBlock = {
-                                left.set(middle + 1.sc)
-                            },
-                            elseBlock = {
-                                right.set(middle - 1.sc)
-                            }
-                        )
-                    }
-                    freeList.insert(left, currentIndex)
-                }
+                freeList.insert(left, currentIndex)
                 currentIndex.changeBy(1.sc)
+                left.changeBy(1.sc)
             }
         }
 
@@ -56,25 +56,20 @@ object MemoryLibRewrite {
 
             val variable = variable("variable")
             val maxSearchIndex = variable("maxSearchIndex")
-            val endIndex = variable("endIndex")
-            val startNumber = variable("startNumber")
-            val endNumber = variable("endNumber")
+            val allocatedAddress = variable("allocatedAddress")
 
-            heap[returnIndex] = (-1).sc
+            allocatedAddress.set((-1).sc)
             control.ifThen(freeList.length gte size) {
                 variable.set(1.sc)
                 maxSearchIndex.set((freeList.length - size) + 1.sc)
-                control.repeatUntil(
-                    (variable gt maxSearchIndex) or (heap[returnIndex] equals (-1).sc).not()
-                ) {
-                    endIndex.set((variable + size) - 1.sc)
-                    startNumber.set(freeList[variable])
-                    endNumber.set(freeList[endIndex])
 
+                control.repeatUntil(
+                    (variable gt maxSearchIndex) or (allocatedAddress gt 0.sc)
+                ) {
                     control.ifElse(
-                        condition = (endNumber - startNumber) equals (size - 1.sc),
+                        condition = (freeList[(variable + size) - 1.sc] - freeList[variable]) equals (size - 1.sc),
                         thenBlock = {
-                            heap[returnIndex] = freeList[variable]
+                            allocatedAddress.set(freeList[variable])
                             control.repeat(size) {
                                 freeList.remove(variable)
                             }
@@ -86,12 +81,14 @@ object MemoryLibRewrite {
                 }
             }
 
-            control.ifThen(heap[returnIndex] equals (-1).sc) {
-                heap[returnIndex] = heap.length + 1.sc
+            control.ifThen(allocatedAddress equals (-1).sc) {
+                allocatedAddress.set(heap.length + 1.sc)
                 control.repeat(size) {
                     heap.add("".sc)
                 }
             }
+
+            heap[returnIndex] = allocatedAddress
         }
     }
 }

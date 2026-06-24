@@ -13,7 +13,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.obfuscate
-import dev.betterclient.scratcher.std.MemoryLibRewrite
+import dev.betterclient.scratcher.std.MemoryLib
 
 class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toScratch: (Function) -> ScratchASTFunction) {
     fun translateAll(editor: ScratchEditor, listeners: List<ASTEventListener>) {
@@ -41,12 +41,12 @@ class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toSc
         } else {
             listOf(
                 CallFunction(
-                    MemoryLibRewrite.alloc.precompiledCode,
+                    MemoryLib.alloc.precompiledCode,
                     listOf(localSize.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
-                        ListExpressions.ItemAtIndex(MemoryLibRewrite.heap, reservedIndex.toString().scratch)
+                        ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
                     )
                 )
             )
@@ -66,11 +66,11 @@ class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toSc
             runWithoutScreenRefresh = true,
             args = listOf(),
             code = mutableListOf<ScratchStatement>(
-                ListStatements.ClearList(MemoryLibRewrite.heap),
-                ListStatements.ClearList(MemoryLibRewrite.freeList)
+                ListStatements.ClearList(MemoryLib.heap),
+                ListStatements.ClearList(MemoryLib.freeList)
             ).also { list ->
                 repeat(entrypointCount) {
-                    list.add(ListStatements.AddToList(MemoryLibRewrite.heap, "reserved".scratch))
+                    list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
                 }
             }
         )

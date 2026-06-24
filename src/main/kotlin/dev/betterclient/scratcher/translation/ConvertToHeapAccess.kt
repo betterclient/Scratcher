@@ -37,7 +37,7 @@ import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.codegen.obfuscate
-import dev.betterclient.scratcher.std.MemoryLibRewrite
+import dev.betterclient.scratcher.std.MemoryLib
 
 class ConvertToHeapAccess(
     val functions: List<Function>
@@ -313,7 +313,7 @@ class ConvertToHeapAccess(
                     replacements[statement] = listOf(
                         VariableStatement(IntLiteral(-1), allocVar),
                         TemporaryCallStatement(
-                            MemoryLibRewrite.alloc,
+                            MemoryLib.alloc,
                             mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
                         ),
                         statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
@@ -326,7 +326,7 @@ class ConvertToHeapAccess(
         }
 
         val freeStmt = TemporaryCallStatement(
-            MemoryLibRewrite.free,
+            MemoryLib.free,
             args = mutableListOf(ParameterExpression(par), getTemporary(function))
         )
         if (returnStmt == null && block == function.code) {

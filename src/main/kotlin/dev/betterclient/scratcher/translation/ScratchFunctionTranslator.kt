@@ -49,7 +49,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
 import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.std.MemoryLibRewrite
+import dev.betterclient.scratcher.std.MemoryLib
 
 class ScratchFunctionTranslator(
     val original: Function,
@@ -72,7 +72,7 @@ class ScratchFunctionTranslator(
             }
             is TemporaryHeapSetStatement -> {
                 ListStatements.ReplaceItem(
-                    list = MemoryLibRewrite.heap,
+                    list = MemoryLib.heap,
                     item = translateExpr(stmt.data),
                     index = translateExpr(stmt.index),
                 )
@@ -120,7 +120,7 @@ class ScratchFunctionTranslator(
                 )
                 UnaryOperator.NOT -> BoolOperatorExpressions.SNotExpression(translateExpr(expr.expression) as ScratchBoolExpression)
             }
-            is TemporaryHeapGetExpression -> ListExpressions.ItemAtIndex(MemoryLibRewrite.heap, translateExpr(expr.index))
+            is TemporaryHeapGetExpression -> ListExpressions.ItemAtIndex(MemoryLib.heap, translateExpr(expr.index))
             is ParameterExpression -> if (expr.parameter.type == Type.bool) SBoolParameterExpression(
                 scratch.args[original.parameters.indexOf(expr.parameter)]
             ) else {

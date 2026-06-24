@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 
 object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
-        MemoryLibRewrite.init(memoryLib, editor)
+        MemoryLib.init(memoryLib, editor)
         LooksLib.init(looksLib, editor)
     }
 
