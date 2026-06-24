@@ -322,15 +322,23 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(parseExpression(expr)) }?: listOf()
         val args = argList?.expression()?.map { parseExpression(it) }?: listOf()
 
-        sourceAST.functions.find {
+        var resolvedFunc = sourceAST.functions.find {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
-            return@find matchesArguments(
-                expectedArgListTypes,
-                foundArgListTypes
-            )
-        }?.let {
+            matchesArgumentsExactly(expectedArgListTypes, foundArgListTypes)
+        }
+
+        if (resolvedFunc == null) {
+            resolvedFunc = sourceAST.functions.find {
+                if (it.name != funcName) return@find false
+
+                val foundArgListTypes = it.parameters.map { par -> par.type }
+                matchesArguments(expectedArgListTypes, foundArgListTypes)
+            }
+        }
+
+        resolvedFunc?.let {
             return CallExpression(
                 func = it,
                 arguments = args
@@ -359,6 +367,16 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         throw NullPointerException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
+    }
+
+    private fun matchesArgumentsExactly(
+        provided: List<Type>,
+        expected: List<Type>
+    ): Boolean {
+        if (provided.size != expected.size) return false
+        return provided.zip(expected).all { (from, to) ->
+            from == to
+        }
     }
 
     private fun matchesArguments(

@@ -105,17 +105,29 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         for (context in initialRead.topLevelElement()) {
             if (context.funcDecl() != null) {
                 val func = context.funcDecl()!!
+                val parameterList = (func.paramList()?.param() ?: listOf()).map {
+                    val type = figureOutType(ctx, ast, it.type())
+                    if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
+                    Parameter(it.IDENTIFIER().text, type)
+                }.toMutableList()
+
+                val returnType = figureOutType(ctx, ast, func.type())
+                val funcName = func.IDENTIFIER().text
+
+                val duplicate = ast.functions.find { existing ->
+                    existing.name == funcName &&
+                            existing.parameters.map { it.type } == parameterList.map { it.type }
+                }
+
+                if (duplicate != null) {
+                    val sig = parameterList.joinToString(", ") { it.type.name }
+                    throw UnsupportedOperationException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
+                }
+
                 val funcAST = Function(
-                    func.IDENTIFIER().text,
-                    parameters = (func.paramList()?.param() ?: listOf()).map {
-                        val type = figureOutType(ctx, ast, it.type())
-                        if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
-                        Parameter(
-                            it.IDENTIFIER().text,
-                            type
-                        )
-                    }.toMutableList(),
-                    returnType = figureOutType(ctx, ast, func.type())
+                    name = funcName,
+                    parameters = parameterList,
+                    returnType = returnType
                 )
                 funcAST.ctx = func.block()
 
