@@ -9,6 +9,8 @@ import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.translation.ConvertToHeapAccess
+import dev.betterclient.scratcher.translation.EntrypointReachability
+import dev.betterclient.scratcher.translation.EntrypointTranslator
 import dev.betterclient.scratcher.translation.FunctionExpressionLowering
 import dev.betterclient.scratcher.translation.FunctionReachability
 import dev.betterclient.scratcher.translation.FunctionStructureTranslator
@@ -51,6 +53,17 @@ fun main() {
 
     println("Translate code")
     scratchStubs.forEach { (normalAST, scratchAST) -> ScratchFunctionTranslator(normalAST, scratchAST) { scratchStubs[it]!! }.run() }
+
+    println("Find imported entrypoints")
+    val reachableEntrypoints = EntrypointReachability().run(ast)
+
+    println("Compile entrypoints")
+    EntrypointTranslator(
+        getFunctionLocalSize = { reachableFunctionsLocalCountsMap[it]!! },
+        toScratch = { scratchStubs[it]!! }
+    ).translateAll(
+        editor, reachableEntrypoints
+    )
 
     println("Compile to scratch")
     scratchStubs.map { it.value }.forEach { editor.addFunction(it) }

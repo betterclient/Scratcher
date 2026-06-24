@@ -9,6 +9,7 @@ IF     : 'if';
 ELSE   : 'else';
 WHILE  : 'while';
 REPEAT : 'repeat';
+ON     : 'on';
 
 INT_TYPE   : 'int';
 FLOAT_TYPE : 'float';
@@ -29,7 +30,6 @@ COLONCOLON : '::';
 DOT    : '.';
 ASSIGN : '=';
 
-
 PLUS  : '+';
 MINUS : '-';
 BANG  : '!';
@@ -44,7 +44,6 @@ EQ    : '==';
 NE    : '!=';
 AND   : '&&';
 OR    : '||';
-
 
 INT        : [0-9]+ ;
 FLOAT      : [0-9]+ '.' [0-9]+ ;

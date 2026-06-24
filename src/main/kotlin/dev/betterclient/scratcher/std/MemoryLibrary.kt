@@ -30,6 +30,8 @@ import dev.betterclient.scratcher.codegen.rand
 object MemoryLibrary {
     val heap = ScratchList("Scratcher Heap")
     val freeList = ScratchList("FreeList")
+    lateinit var alloc: StandardLibASTFunction
+    lateinit var free: StandardLibASTFunction
 
     fun generate(editor: ScratchEditor): MutableList<Function> {
         val list = mutableListOf<Function>()
@@ -38,7 +40,7 @@ object MemoryLibrary {
         editor.addList(freeList)
 
         //TODO: maybe a DSL for stdlib functions?
-        list.add(generateFree(editor, freeList))
+        list.add(generateFree(editor, freeList).also { free = it })
 
         ScratchFuncArgument(rand(), ScratchType.ANY).also { variable ->
             list.add(generateAlloc(
@@ -48,7 +50,7 @@ object MemoryLibrary {
                 { ListExpressions.ItemAtIndex(heap, ScratchStringParameterExpression(variable)) },
                 { ListStatements.ReplaceItem(heap, it, ScratchStringParameterExpression(variable)) },
                 variable
-            ))
+            ).also { alloc = it })
         }
 
         return list

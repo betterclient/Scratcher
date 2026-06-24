@@ -61,13 +61,21 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             variable.ctx = null
         }
 
+        ast.eventListeners.forEach { listener ->
+            listener.ctx?.let {
+                listener.code.code.add(ExpressionStatement(
+                    CallExpression(it, mutableListOf())
+                ))
+            }
+        }
+
         currentFunction = null
         localVariables.clear()
 
         ast.functions.forEach {
             currentFunction = it
             localVariables.clear()
-            parseBlock(it.code, it.ctx!!.block())
+            parseBlock(it.code, it.ctx!!)
             it.ctx = null
         }
         currentFunction = null

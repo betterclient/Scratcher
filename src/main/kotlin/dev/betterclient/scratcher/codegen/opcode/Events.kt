@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -93,5 +94,13 @@ enum class Key(val id: String) {
     NUM6("6"),
     NUM7("7"),
     NUM8("8"),
-    NUM9("9")
+    NUM9("9");
+
+    companion object {
+        fun from(eventArg: ScratcherLangParser.EventArgContext): Key {
+            val text = eventArg.IDENTIFIER()?.text ?:  eventArg.literal()!!.text.removeSurrounding("\"")
+            return Key.entries.find { it.id.equals(text, true) }
+                ?: throw NullPointerException("Unknown key $text")
+        }
+    }
 }

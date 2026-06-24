@@ -2,17 +2,25 @@ package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
-import dev.betterclient.scratcher.codegen.ast.ScratchStatement
+import dev.betterclient.scratcher.codegen.opcode.EventListener
 
 class ASTFile(
     val path: String,
     val imports: MutableMap<String, ASTFile> = mutableMapOf(),
     val structs: MutableList<Struct> = mutableListOf(),
     val variables: MutableList<TLVariable> = mutableListOf(),
-    val functions: MutableList<Function> = mutableListOf()
+    val functions: MutableList<Function> = mutableListOf(),
+    val eventListeners: MutableList<ASTEventListener> = mutableListOf()
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
+}
+
+class ASTEventListener(
+    val event: EventListener,
+    val code: CodeBlock
+) {
+    var ctx: Function? = null
 }
 
 class Struct(
@@ -60,7 +68,7 @@ open class Function(
     var returnType: Type,
     val code: CodeBlock = CodeBlock()
 ) {
-    var ctx: ScratcherLangParser.FuncDeclContext? = null
+    var ctx: ScratcherLangParser.BlockContext? = null
 }
 
 class StandardLibASTFunction(

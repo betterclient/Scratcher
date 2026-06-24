@@ -14,6 +14,7 @@ topLevelElement
     : tlVarDecl
     | funcDecl
     | structDecl
+    | eventDecl
     ;
 
 statement
@@ -81,11 +82,20 @@ repeatStmt
     : REPEAT LPAREN expression RPAREN block
     ;
 
+eventDecl
+    : ON IDENTIFIER ( LPAREN eventArg? RPAREN )? block
+    ;
+
+eventArg
+    : IDENTIFIER
+    | literal
+    ;
+
 expression
     : LPAREN expression RPAREN                          # parensExpr
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
-    | functionIdentifier LPAREN argList? RPAREN                 # callExpr
+    | functionIdentifier LPAREN argList? RPAREN         # callExpr
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr
     | expression (PLUS | MINUS) expression              # addExpr

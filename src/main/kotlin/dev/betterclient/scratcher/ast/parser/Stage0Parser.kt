@@ -1,13 +1,18 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.read
+import dev.betterclient.scratcher.codegen.opcode.EventListener
+import dev.betterclient.scratcher.codegen.opcode.Key
+import dev.betterclient.scratcher.codegen.rand
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
 
@@ -110,7 +115,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     }.toMutableList(),
                     returnType = figureOutType(ctx, ast, func.type())
                 )
-                funcAST.ctx = func
+                funcAST.ctx = func.block()
 
                 ast.functions.add(funcAST)
             } else if (context.tlVarDecl() != null) {
@@ -124,6 +129,27 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.path}::${astVariable.name} is type void.")
 
                 ast.variables.add(astVariable)
+            } else if (context.eventDecl() != null) {
+                val event = context.eventDecl()!!
+                val listener = when (event.IDENTIFIER().text) {
+                    "GreenFlag" if event.eventArg() == null -> EventListener.GreenFlag
+                    "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!))
+                    else -> throw UnsupportedOperationException("Unknown event type ${event.IDENTIFIER().text}")
+                }
+
+                val func = Function(
+                    name = "compiler@eventlistener@${rand()}",
+                    parameters = mutableListOf(),
+                    returnType = Type.void,
+                )
+                func.ctx = event.block()
+
+                ast.functions.add(func)
+                ast.eventListeners.add(ASTEventListener(
+                    listener, CodeBlock()
+                ).also {
+                    it.ctx = func
+                })
             }
         }
 

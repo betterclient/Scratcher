@@ -1,12 +1,20 @@
 import looks;
 
-int fib(int n) {
-    if (n < 2) {
-        return n;
-    }
-    return fib(n - 1) + fib(n - 2);
-}
+struct User(int a, int b);
 
 void main() {
-    looks::say("${fib(9)}");
+    int b = 5;
+    looks::say("hi! ${a()} ${b}");
+}
+
+int a() {
+    return 5;
+}
+
+on GreenFlag {
+    main();
+}
+
+on KeyPressed(W) {
+    looks::say("W was pressed!");
 }

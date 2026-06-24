@@ -37,14 +37,13 @@ import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.codegen.rand
+import dev.betterclient.scratcher.std.MemoryLibrary
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class ConvertToHeapAccess(
     val functions: List<Function>
 ) {
     private val temporaryExpression = mutableMapOf<Function, TemporaryHeapGetExpression>() //used as a marker
-    private val freeFunc = StandardLibASTGenerator.memoryLib.functions.find { it.name == "free" }!!
-    private val allocFunc = StandardLibASTGenerator.memoryLib.functions.find { it.name == "alloc" && it.parameters.size == 2 }!!
 
     fun run(): Map<Function, Int> {
         println("Add stack parameter")
@@ -315,7 +314,7 @@ class ConvertToHeapAccess(
                     replacements[statement] = listOf(
                         VariableStatement(IntLiteral(-1), allocVar),
                         TemporaryCallStatement(
-                            allocFunc,
+                            MemoryLibrary.alloc,
                             mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
                         ),
                         statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
@@ -328,7 +327,7 @@ class ConvertToHeapAccess(
         }
 
         val freeStmt = TemporaryCallStatement(
-            freeFunc,
+            MemoryLibrary.free,
             args = mutableListOf(ParameterExpression(par), getTemporary(function))
         )
         if (returnStmt == null && block == function.code) {

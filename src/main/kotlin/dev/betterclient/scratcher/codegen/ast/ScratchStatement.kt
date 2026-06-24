@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.codegen.ast
 
 import dev.betterclient.scratcher.codegen.opcode.AddToListOpcode
 import dev.betterclient.scratcher.codegen.opcode.ChangeVariableOpcode
+import dev.betterclient.scratcher.codegen.opcode.ClearListOpcode
 import dev.betterclient.scratcher.codegen.opcode.DeleteItemFromListOpcode
 import dev.betterclient.scratcher.codegen.opcode.GlideSecToXYOpcode
 import dev.betterclient.scratcher.codegen.opcode.GlideToOpcode
@@ -148,6 +149,12 @@ object ListStatements {
         val index: ScratchExpression
     ) : ScratchStatement() {
         override fun lower() = listOf(DeleteItemFromListOpcode(list, index.lower()))
+    }
+
+    class ClearList(
+        val list: ScratchList
+    ) : ScratchStatement() {
+        override fun lower() = listOf(ClearListOpcode(list))
     }
 }
 
