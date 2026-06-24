@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.std
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -16,6 +17,8 @@ object StandardLibASTGenerator {
         MathLib.init(mathLib, editor)
         ExceptionLib.init(exceptLib, editor)
         SensingLib.init(sensingLib, editor)
+        CastLib.init(castLib, editor)
+
         typeChecker
     }
 
@@ -39,12 +42,17 @@ object StandardLibASTGenerator {
         "sensing"
     )
 
+    val castLib = ASTFile(
+        "cast"
+    )
+
     val lib = mutableMapOf(
         "looks" to looksLib,
         "sensing" to sensingLib,
         "memory" to memoryLib,
         "math" to mathLib,
         "except" to exceptLib,
+        "cast" to castLib
     )
 
     val typeChecker by lazy {
@@ -104,8 +112,9 @@ object SensingLib {
 }
 
 object ExceptionLib {
+    lateinit var panic: StandardLibASTFunction
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "panic", warp = true) {
+        panic = editor.compile(lib, "panic", warp = true) {
             val message = arg("message", Type.str)
             control.stop(StopMode.OTHER_SCRIPTS_IN_SPRITE)
             sensing.ask(message)

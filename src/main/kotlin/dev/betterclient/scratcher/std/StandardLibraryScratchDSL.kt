@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ControlStatements
 import dev.betterclient.scratcher.codegen.ast.LooksStatements
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
@@ -79,6 +80,12 @@ class CodeBuilder internal constructor(
         return DSLVariable(ScratchVariable(obfuscate(name)).also {
             editor.addVariable(it)
         })
+    }
+
+    fun call(function: StandardLibASTFunction, vararg args: DSLExpression) {
+        statements.add(CallFunction(
+            function.precompiledCode, args.map { it.lower() }
+        ))
     }
 
     internal fun addStatement(statement: ScratchStatement) {

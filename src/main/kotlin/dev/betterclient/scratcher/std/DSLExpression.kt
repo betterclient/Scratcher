@@ -22,8 +22,8 @@ sealed class DSLExpression {
 }
 
 @StandardLibraryScratchDSL
-sealed class DSLBoolExpression {
-    abstract fun lower(): ScratchBoolExpression
+sealed class DSLBoolExpression : DSLExpression() {
+    abstract override fun lower(): ScratchBoolExpression
 }
 
 class DSLArgumentExpression(

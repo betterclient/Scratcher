@@ -13,5 +13,12 @@ object MathLib {
 
             MemoryLib.heap[returnArg] = num.math(MathOp.FLOOR)
         }
+
+        editor.compile(lib, "isNumber", warp = true) {
+            val number = arg("number", Type.float)
+            val returnArg = returnArg(Type.bool)
+
+            MemoryLib.heap[returnArg] = (number * 1.sc) equals number
+        }
     }
 }
