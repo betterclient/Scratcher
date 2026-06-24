@@ -42,6 +42,10 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 Struct(struct.IDENTIFIER().text, sourceAST = ast)
             structAST.parseInfo = struct
             ctx.types.add(structAST.type)
+            ast.structs.find { it.name == structAST.name }?.let {
+                throw UnsupportedOperationException("Duplicate struct definition ${ast.simplePath}::${it.name}")
+            }
+
             ast.structs.add(structAST)
         }
 
@@ -124,10 +128,33 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     throw UnsupportedOperationException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
                 }
 
+                var isWarp = false
+                var isExport = false
+                func.modifier().forEach { modifier ->
+                    when {
+                        modifier.EXPORT() != null -> {
+                            if (isExport) {
+                                val sig = parameterList.joinToString(", ") { it.type.name }
+                                throw IllegalStateException("Double export in ${ast.simplePath}::$funcName($sig)")
+                            }
+                            isExport = true
+                        }
+                        modifier.WARP() != null -> {
+                            if (isWarp) {
+                                val sig = parameterList.joinToString(", ") { it.type.name }
+                                throw IllegalStateException("Double warp in ${ast.simplePath}::$funcName($sig)")
+                            }
+                            isWarp = true
+                        }
+                    }
+                }
+
                 val funcAST = Function(
                     name = funcName,
                     parameters = parameterList,
-                    returnType = returnType
+                    returnType = returnType,
+                    warp = isWarp,
+                    export = isExport,
                 )
                 funcAST.ctx = func.block()
 
@@ -155,6 +182,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     name = "compiler@eventlistener@${obfuscate(event.IDENTIFIER().text)}i${ctx.eventListenerIndex++}",
                     parameters = mutableListOf(),
                     returnType = Type.void,
+                    export = false,
+                    warp = false,
                 )
                 func.ctx = event.block()
 

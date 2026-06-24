@@ -10,6 +10,8 @@ ELSE   : 'else';
 WHILE  : 'while';
 REPEAT : 'repeat';
 ON     : 'on';
+WARP   : 'warp';
+EXPORT : 'export';
 
 INT_TYPE   : 'int';
 FLOAT_TYPE : 'float';

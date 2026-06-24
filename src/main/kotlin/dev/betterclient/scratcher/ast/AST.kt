@@ -78,7 +78,9 @@ open class Function(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
     var returnType: Type,
-    val code: CodeBlock = CodeBlock()
+    val code: CodeBlock = CodeBlock(),
+    val export: Boolean,
+    val warp: Boolean
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }
@@ -89,7 +91,7 @@ class StandardLibASTFunction(
     val precompiledCode: ScratchASTFunction,
     returnType: Type = Type.void
 ) : Function(
-    name, parameters, returnType
+    name, parameters, returnType, CodeBlock(), false, true
 )
 
 class CodeBlock(

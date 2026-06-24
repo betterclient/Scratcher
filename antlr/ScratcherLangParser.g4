@@ -35,7 +35,12 @@ varDecl
     ;
 
 funcDecl
-    : type IDENTIFIER LPAREN paramList? RPAREN block
+    : modifier* type IDENTIFIER LPAREN paramList? RPAREN block
+    ;
+
+modifier
+    : EXPORT
+    | WARP
     ;
 
 paramList

@@ -8,7 +8,7 @@ void main() {
     looks::say("hi! ${a(cast::toBool("true"))} ${b}");
 }
 
-int a(bool a) {
+warp int a(bool a) {
     if(a) {
         return 5;
     } else {

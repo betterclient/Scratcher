@@ -20,7 +20,7 @@ class FunctionStructureTranslator {
                     type = if (it.type == Type.bool) ScratchType.BOOL else ScratchType.ANY
                 )
             },
-            runWithoutScreenRefresh = true
+            runWithoutScreenRefresh = function.warp
         )
     }
 }
