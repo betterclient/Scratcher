@@ -335,10 +335,15 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 else -> StringLiteral("")
             }
         }
-
-        return exprs.reduce { left, right ->
-            ConcatExpression(left, right)
+        val exprsReduced = if (exprs.size == 1) {
+            ConcatExpression(exprs[0], StringLiteral(""))
+        } else {
+            exprs.reduce { left, right ->
+                ConcatExpression(left, right)
+            }
         }
+
+        return exprsReduced
     }
 
     private fun unescapeString(esc: String): String {

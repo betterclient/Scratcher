@@ -8,5 +8,5 @@ int fib(int n) {
 }
 
 void main() {
-    looks::say(fib(5));
+    looks::say("${fib(9)}");
 }
