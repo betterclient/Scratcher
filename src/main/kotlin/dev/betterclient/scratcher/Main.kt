@@ -46,7 +46,7 @@ fun main() {
     reachableFunctions.forEach { RemoveEmptyAllocations(it, reachableFunctionsLocalCountsMap[it]?: 0).run() }
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions) //make sure these are here
-    //TODO: make wrappers for these functions and make the original 2 inaccessible
+    reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
 
     val translator = FunctionStructureTranslator()
     //store it as a pair cause we need the original func for the code itself

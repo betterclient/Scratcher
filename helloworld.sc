@@ -1,10 +1,11 @@
 import looks;
+import cast;
 
 struct User(int a, int b);
 
 void main() {
     int b = 5;
-    looks::say("hi! ${a(true)} ${b}");
+    looks::say("hi! ${a(cast::toBool("true"))} ${b}");
 }
 
 int a(bool a) {

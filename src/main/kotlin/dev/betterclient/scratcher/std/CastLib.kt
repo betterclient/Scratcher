@@ -71,7 +71,7 @@ object CastLib {
 
         editor.compile(lib, "toBoolOrDefault") {
             val str = arg("str", Type.str)
-            val fallback = arg("fallback", Type.bool)
+            val fallback = boolArg("fallback")
             val returnArg = returnArg(Type.bool)
 
             control.ifElse(
@@ -107,7 +107,7 @@ object CastLib {
         }
 
         editor.compile(lib, "toStr") {
-            val value = arg("value", Type.bool)
+            val value = boolArg("value")
             val returnArg = returnArg(Type.str)
             MemoryLib.heap[returnArg] = value
         }

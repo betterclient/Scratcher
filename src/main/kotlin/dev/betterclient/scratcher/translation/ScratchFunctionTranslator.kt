@@ -49,6 +49,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchBoolExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchType
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.getUniqueName
@@ -69,9 +70,15 @@ class ScratchFunctionTranslator(
     private fun translateStatement(stmt: Statement): ScratchStatement {
         return when(stmt) {
             is TemporaryCallStatement -> {
+                val func = lookup(stmt.func)
                 CallFunction(
-                    func = lookup(stmt.func),
-                    args = stmt.args.map { translateExpr(it) }
+                    func = func,
+                    args = stmt.args.mapIndexed { index, expression ->
+                        if (func.args[index].type == ScratchType.BOOL)
+                            translateExpr(expression).asBool()
+                        else
+                            translateExpr(expression)
+                    }
                 )
             }
             is TemporaryHeapSetStatement -> {

@@ -310,7 +310,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             ast
         } else {
             val import = funcCall.typePath()!!.IDENTIFIER(0)!!.text
-            ast.imports[import]?: throw Exception("Import not found $import for $funcCall.")
+            ast.imports[import]?: throw Exception("Import not found $import for ${funcCall.text}.")
         }
 
         val funcName = if (funcCall.IDENTIFIER() != null) {
@@ -360,7 +360,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.name }})"
         val candidates = mutableListOf<String>()
         sourceAST.functions.filter { it.name == funcName }.forEach { func ->
-            candidates.add("Function \"${func.returnType.name} ${func.name}(${func.parameters.map { it.type }.joinToString(", ") { it.name }})\"")
+            candidates.add("Function \"${func.returnType.name} ${func.name}(${func.parameters.joinToString(", ") { "${it.type} ${it.name}" }})\"")
         }
         sourceAST.structs.filter { it.name == targetFunc }.forEach { struct ->
             candidates.add("Struct \"${struct.name}\"")
