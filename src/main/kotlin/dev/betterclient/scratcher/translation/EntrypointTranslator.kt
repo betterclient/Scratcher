@@ -12,8 +12,8 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.EventListener
-import dev.betterclient.scratcher.codegen.rand
-import dev.betterclient.scratcher.std.MemoryLibrary
+import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.std.MemoryLibRewrite
 
 class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toScratch: (Function) -> ScratchASTFunction) {
     fun translateAll(editor: ScratchEditor, listeners: List<ASTEventListener>) {
@@ -41,12 +41,12 @@ class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toSc
         } else {
             listOf(
                 CallFunction(
-                    MemoryLibrary.alloc.precompiledCode,
+                    MemoryLibRewrite.alloc.precompiledCode,
                     listOf(localSize.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
-                        ListExpressions.ItemAtIndex(MemoryLibrary.heap, reservedIndex.toString().scratch)
+                        ListExpressions.ItemAtIndex(MemoryLibRewrite.heap, reservedIndex.toString().scratch)
                     )
                 )
             )
@@ -62,15 +62,15 @@ class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toSc
 
     private fun generateResetEvent(editor: ScratchEditor, entrypointCount: Int) {
         val func = ScratchASTFunction(
-            rand(),
+            obfuscate("compiler@reset"),
             runWithoutScreenRefresh = true,
             args = listOf(),
             code = mutableListOf<ScratchStatement>(
-                ListStatements.ClearList(MemoryLibrary.heap),
-                ListStatements.ClearList(MemoryLibrary.freeList)
+                ListStatements.ClearList(MemoryLibRewrite.heap),
+                ListStatements.ClearList(MemoryLibRewrite.freeList)
             ).also { list ->
                 repeat(entrypointCount) {
-                    list.add(ListStatements.AddToList(MemoryLibrary.heap, "reserved".scratch))
+                    list.add(ListStatements.AddToList(MemoryLibRewrite.heap, "reserved".scratch))
                 }
             }
         )

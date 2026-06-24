@@ -16,8 +16,7 @@ import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.std.MemoryLibrary
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.MemoryLibRewrite
 
 class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int) {
     fun run() {
@@ -45,11 +44,11 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
             if (statement is TemporaryCallStatement) {
                 val firstArg = statement.args.getOrNull(0)
 
-                val isAlloc0 = statement.func == MemoryLibrary.alloc && //alloc
+                val isAlloc0 = statement.func == MemoryLibRewrite.alloc && //alloc
                         firstArg is IntLiteral && //with literal
                         firstArg.value == 0 //0!!!!
 
-                val isFree0 = statement.func == MemoryLibrary.free && //free
+                val isFree0 = statement.func == MemoryLibRewrite.free && //free
                         firstArg is ParameterExpression && //with a parameter
                         firstArg.parameter == function.parameters.first() && //stack parameter!!
                         functionLocalCount == 0 //and we don't have any locals

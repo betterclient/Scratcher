@@ -26,7 +26,7 @@ fun Random.rand(): String {
 private var counter = 1L
 private val ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-fun rand(): String {
+fun newMinification(): String {
     var temp = counter++
     val sb = StringBuilder()
 
@@ -38,6 +38,23 @@ fun rand(): String {
     }
 
     return sb.reverse().toString()
+}
+
+const val OBFUSCATION = false
+const val OBFUSCATION_MINIFICATION = false
+
+inline fun obfuscate(nonObfuscatedName: String): String {
+    return if (OBFUSCATION) {
+        getUniqueName()
+    } else nonObfuscatedName
+}
+
+inline fun getUniqueName(): String {
+    return if (OBFUSCATION_MINIFICATION) {
+        newMinification()
+    } else {
+        Random.rand()
+    }
 }
 
 fun nextBlockPosition(): Int {

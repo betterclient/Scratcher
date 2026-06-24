@@ -12,11 +12,12 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.read
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
-import dev.betterclient.scratcher.codegen.rand
+import dev.betterclient.scratcher.codegen.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
 
 class CompilationContext {
+    var eventListenerIndex: Int = 0
     val asts = mutableMapOf<String, ASTFile>()
     val types = mutableListOf(
         Type.str,
@@ -138,7 +139,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 }
 
                 val func = Function(
-                    name = "compiler@eventlistener@${rand()}",
+                    name = "compiler@eventlistener@${obfuscate(event.IDENTIFIER().text)}i${ctx.eventListenerIndex++}",
                     parameters = mutableListOf(),
                     returnType = Type.void,
                 )

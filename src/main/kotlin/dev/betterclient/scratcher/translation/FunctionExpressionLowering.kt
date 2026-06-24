@@ -2,7 +2,7 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.codegen.rand
+import dev.betterclient.scratcher.codegen.obfuscate
 
 class FunctionExpressionLowering(val func: Function) {
     val returnIndexParameter = Parameter("compiler@${func.name}Return", Type.int)
@@ -143,7 +143,7 @@ class FunctionExpressionLowering(val func: Function) {
         if (isVoid) {
             prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
         } else {
-            val local = LocalVariable(rand(), expression.func.returnType)
+            val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
             prepend.add(VariableStatement(IntLiteral(-1), local))
             prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
             expr = LocalVariableExpression(local)

@@ -6,14 +6,14 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
 import dev.betterclient.scratcher.codegen.ast.ScratchType
-import dev.betterclient.scratcher.codegen.rand
+import dev.betterclient.scratcher.codegen.obfuscate
 
 class FunctionStructureTranslator {
     fun translate(function: Function): ScratchASTFunction {
         if (function is StandardLibASTFunction) return function.precompiledCode
 
         return ScratchASTFunction(
-            name = rand(),
+            name = obfuscate(function.name),
             args = function.parameters.map {
                 ScratchFuncArgument(
                     name = it.name,

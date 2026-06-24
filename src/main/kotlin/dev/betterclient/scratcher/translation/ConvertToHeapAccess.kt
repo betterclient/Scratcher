@@ -36,9 +36,8 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.codegen.rand
-import dev.betterclient.scratcher.std.MemoryLibrary
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.std.MemoryLibRewrite
 
 class ConvertToHeapAccess(
     val functions: List<Function>
@@ -310,11 +309,11 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val allocVar = LocalVariable(rand(), Type.int)
+                    val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
                     replacements[statement] = listOf(
                         VariableStatement(IntLiteral(-1), allocVar),
                         TemporaryCallStatement(
-                            MemoryLibrary.alloc,
+                            MemoryLibRewrite.alloc,
                             mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
                         ),
                         statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
@@ -327,7 +326,7 @@ class ConvertToHeapAccess(
         }
 
         val freeStmt = TemporaryCallStatement(
-            MemoryLibrary.free,
+            MemoryLibRewrite.free,
             args = mutableListOf(ParameterExpression(par), getTemporary(function))
         )
         if (returnStmt == null && block == function.code) {

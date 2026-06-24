@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import dev.betterclient.scratcher.codegen.getUniqueName
 import dev.betterclient.scratcher.codegen.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
@@ -9,7 +10,6 @@ import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
 import dev.betterclient.scratcher.codegen.rand
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.random.Random
 
 class ProcedureDefinitionOpcode(
     val prototype: ProcedurePrototypeOpcode,
@@ -44,7 +44,7 @@ class ProcedurePrototypeOpcode(
     override val opcode = "procedures_prototype"
     override var shadow = true
     override val asValue = null
-    val argIDS = arguments.map { rand() }
+    val argIDS = arguments.map { getUniqueName() }
 
     init {
         if (arguments.filter { it is ProcedureArgumentString || it is ProcedureArgumentBoolean }.size != arguments.size) {
