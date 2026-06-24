@@ -36,7 +36,7 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.MemoryLib
 
 class ConvertToHeapAccess(
@@ -47,7 +47,7 @@ class ConvertToHeapAccess(
     fun run(): Map<Function, Int> {
         println("Add stack parameter")
         val stacks = functions.filter { it !is StandardLibASTFunction }.map { func ->
-            Parameter("stack", Type.int).also { func.parameters.add(0, it) } to func
+            Parameter(obfuscate("stack"), Type.int).also { func.parameters.add(0, it) } to func
         }
 
         println("Add free(stack) and alloc(stack)")
@@ -155,12 +155,17 @@ class ConvertToHeapAccess(
                 ))
             }
             is VariableStatement -> {
+                val index = curFunc.indexOf(statement.variable)
                 listOf(TemporaryHeapSetStatement(
-                    index = BinaryExpression(
-                        left = ParameterExpression(stackPar),
-                        right = IntLiteral(curFunc.indexOf(statement.variable)),
-                        operator = BinaryOperator.ADD,
-                    ),
+                    index = if (index == 0) {
+                        ParameterExpression(stackPar)
+                    } else {
+                        BinaryExpression(
+                            left = ParameterExpression(stackPar),
+                            right = IntLiteral(index),
+                            operator = BinaryOperator.ADD,
+                        )
+                    },
                     data = convertExpression(statement.defaultValue, currentFunction, getFunctionLocals)
                 ))
             }

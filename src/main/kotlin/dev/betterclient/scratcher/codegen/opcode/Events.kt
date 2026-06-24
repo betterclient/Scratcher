@@ -1,12 +1,11 @@
 package dev.betterclient.scratcher.codegen.opcode
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.codegen.nextBlockPosition
+import dev.betterclient.scratcher.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.random.Random
 
 sealed class EventListener {
     object GreenFlag : EventListener()

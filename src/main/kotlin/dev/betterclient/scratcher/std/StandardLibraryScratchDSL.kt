@@ -6,22 +6,16 @@ import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ControlStatements
-import dev.betterclient.scratcher.codegen.ast.ListExpressions
-import dev.betterclient.scratcher.codegen.ast.ListStatements
 import dev.betterclient.scratcher.codegen.ast.LooksStatements
-import dev.betterclient.scratcher.codegen.ast.SBoolParameterExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
-import dev.betterclient.scratcher.codegen.ast.ScratchBoolExpression
-import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
-import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchType
-import dev.betterclient.scratcher.codegen.ast.VariableStatements
+import dev.betterclient.scratcher.codegen.ast.SensingStatements
 import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.codegen.obfuscate
-import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
+import dev.betterclient.scratcher.codegen.opcode.StopMode
 
 @DslMarker
 @Target(AnnotationTarget.CLASS)
@@ -37,9 +31,11 @@ class CodeBuilder internal constructor(
     private val statements = mutableListOf<ScratchStatement>()
     private val arguments = mutableListOf<ScratchFuncArgument>()
     private val astArguments = mutableListOf<Parameter>()
+    private var currentReturnType = Type.void
 
     val looks get() = DSLLooks(this)
     val control get() = DSLControl(this)
+    val sensing get() = DSLSensing(this)
 
     val String.sc
         get() = DSLFromCreator { this.scratch }
@@ -57,6 +53,15 @@ class CodeBuilder internal constructor(
                     arguments.add(it)
                     astArguments.add(Parameter(name, type))
                 }
+        )
+    }
+
+    fun returnArg(type: Type): DSLExpression {
+        currentReturnType = type
+        return DSLArgumentExpression(
+            ScratchFuncArgument(obfuscate("returnIndex"), ScratchType.ANY).also {
+                arguments.add(it)
+            }
         )
     }
 
@@ -97,7 +102,8 @@ class CodeBuilder internal constructor(
                 args = arguments,
                 code = statements,
                 runWithoutScreenRefresh = warp
-            )
+            ),
+            returnType = currentReturnType
         )
     }
 }
@@ -107,6 +113,14 @@ class CodeBuilder internal constructor(
 value class DSLLooks(private val builder: CodeBuilder) {
     fun say(message: DSLExpression, seconds: DSLExpression? = null) {
         builder.addStatement(LooksStatements.Say(message.lower(), seconds?.lower()))
+    }
+}
+
+@JvmInline
+@StandardLibraryScratchDSL
+value class DSLSensing(private val builder: CodeBuilder) {
+    fun ask(message: DSLExpression) {
+        builder.addStatement(SensingStatements.Ask(message.lower()))
     }
 }
 
@@ -127,6 +141,10 @@ value class DSLControl(private val builder: CodeBuilder) {
 
     fun repeatUntil(condition: DSLBoolExpression, block: CodeBuilder.() -> Unit) {
         builder.addStatement(ControlStatements.RepeatUntil(condition.lower(), builder.compileInternal(block)))
+    }
+
+    fun stop(mode: StopMode) {
+        builder.addStatement(ControlStatements.Stop(mode))
     }
 }
 

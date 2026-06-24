@@ -4,11 +4,15 @@ struct User(int a, int b);
 
 void main() {
     int b = 5;
-    looks::say("hi! ${a()} ${b}");
+    looks::say("hi! ${a(true)} ${b}");
 }
 
-int a() {
-    return 5;
+int a(bool a) {
+    if(a) {
+        return 5;
+    } else {
+        return 67;
+    }
 }
 
 on GreenFlag {

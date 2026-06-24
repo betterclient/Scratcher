@@ -46,7 +46,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
 
-        if (StandardLibASTGenerator.lib.containsValue(ast)) return
+        if (StandardLibASTGenerator.lib.containsValue(ast) && !StandardLibASTGenerator.rawLibs.contains(ast)) {
+            return
+        }
 
         internalRun()
     }
@@ -55,7 +57,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it)
-                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.path}::${variable.name} is of type void.")
+                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.simplePath}::${variable.name} is of type void.")
                 if (variable.type != actualType) throw UnsupportedOperationException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
@@ -64,7 +66,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             checkCodeBlock(function, function.code.code)
 
             if (function.returnType != Type.void && !doesBlockGuaranteeReturn(function.code.code)) {
-                throw UnsupportedOperationException("Function ${ast.path}::${function.name} does not have a guaranteed return")
+                throw UnsupportedOperationException("Function ${ast.simplePath}::${function.name} does not have a guaranteed return")
             }
             pruneUnreachableCode(function.code.code)
         }
@@ -125,7 +127,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     //just check if the expressions inside are ok
                     getActualTypeOrThrow(statement.expression)
                     if (statement.expression is NewStructExpression) {
-                        throw UnsupportedOperationException("Unused new struct in ${ast.path}::${function.name}")
+                        throw UnsupportedOperationException("Unused new struct in ${ast.simplePath}::${function.name}")
                     } else if (statement.expression !is CallExpression) {
                         throw UnsupportedOperationException("Unsupported expression as top level. ${statement.expression}")
                     }
@@ -179,7 +181,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     }
 
     fun checkType(expected: Type, found: Type, errorMessage: String) {
-        if (expected != found) {
+        if (!found.isAssignable(expected)) {
             throw UnsupportedOperationException("$errorMessage, expected $expected, found $found")
         }
     }

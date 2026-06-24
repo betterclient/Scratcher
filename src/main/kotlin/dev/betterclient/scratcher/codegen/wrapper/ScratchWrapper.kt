@@ -1,9 +1,8 @@
 package dev.betterclient.scratcher.codegen.wrapper
 
-import dev.betterclient.scratcher.codegen.getUniqueName
+import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.codegen.opcode.ProcedureDefinitionOpcode
 import dev.betterclient.scratcher.codegen.opcode.ProcedurePrototypeOpcode
-import dev.betterclient.scratcher.codegen.rand
 import org.json.JSONObject
 
 open class ScratchObject {

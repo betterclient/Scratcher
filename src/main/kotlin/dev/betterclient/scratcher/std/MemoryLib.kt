@@ -4,7 +4,7 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 

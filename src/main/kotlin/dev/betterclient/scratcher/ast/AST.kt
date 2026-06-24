@@ -3,9 +3,11 @@ package dev.betterclient.scratcher.ast
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.opcode.EventListener
+import java.io.File
 
 class ASTFile(
     val path: String,
+    val simplePath: String = File(path).nameWithoutExtension,
     val imports: MutableMap<String, ASTFile> = mutableMapOf(),
     val structs: MutableList<Struct> = mutableListOf(),
     val variables: MutableList<TLVariable> = mutableListOf(),
@@ -18,7 +20,8 @@ class ASTFile(
 
 class ASTEventListener(
     val event: EventListener,
-    val code: CodeBlock
+    val code: CodeBlock,
+    val sourceAST: ASTFile
 ) {
     var ctx: Function? = null
 }
@@ -51,6 +54,15 @@ data class Type(val name: String, val sourceAST: ASTFile?, val inner: Type? = nu
     override fun toString(): String {
         return name
     }
+
+    fun isAssignable(other: Type): Boolean {
+        if (other == this) return true
+
+        return when {
+            this == int && other == float -> true
+            else -> false
+        }
+    }
 }
 
 class TLVariable(
@@ -74,9 +86,10 @@ open class Function(
 class StandardLibASTFunction(
     name: String,
     parameters: MutableList<Parameter> = mutableListOf(),
-    val precompiledCode: ScratchASTFunction
+    val precompiledCode: ScratchASTFunction,
+    returnType: Type = Type.void
 ) : Function(
-    name, parameters, Type.void
+    name, parameters, returnType
 )
 
 class CodeBlock(

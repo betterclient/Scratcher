@@ -12,7 +12,7 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.read
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
-import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
 
@@ -58,6 +58,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 val stdLib = StandardLibASTGenerator.lib[moduleName]
                     ?: throw NullPointerException("Standard library module $moduleName not found")
+                if (StandardLibASTGenerator.isRestricted(stdLib)) throw NullPointerException("Standard library module $moduleName is restricted!")
 
                 val key = alias ?: moduleName
                 ast.imports[key] = stdLib
@@ -90,7 +91,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         ast.structs.forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type())
-                if (type == Type.void) throw UnsupportedOperationException("${ast.path}::${struct.name} has an argument with type void.")
+                if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
@@ -108,7 +109,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     func.IDENTIFIER().text,
                     parameters = (func.paramList()?.param() ?: listOf()).map {
                         val type = figureOutType(ctx, ast, it.type())
-                        if (type == Type.void) throw UnsupportedOperationException("${ast.path}::${func.IDENTIFIER().text} has an argument with type void.")
+                        if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                         Parameter(
                             it.IDENTIFIER().text,
                             type
@@ -127,7 +128,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     figureOutType(ctx, ast, variable.type())
                 )
                 astVariable.ctx = variable.expression()
-                if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.path}::${astVariable.name} is type void.")
+                if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${astVariable.name} is type void.")
 
                 ast.variables.add(astVariable)
             } else if (context.eventDecl() != null) {
@@ -135,7 +136,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val listener = when (event.IDENTIFIER().text) {
                     "GreenFlag" if event.eventArg() == null -> EventListener.GreenFlag
                     "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!))
-                    else -> throw UnsupportedOperationException("Unknown event type ${event.IDENTIFIER().text}")
+                    else -> throw UnsupportedOperationException("Unknown event type ${event.text}")
                 }
 
                 val func = Function(
@@ -147,7 +148,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 ast.functions.add(func)
                 ast.eventListeners.add(ASTEventListener(
-                    listener, CodeBlock()
+                    listener, CodeBlock(), ast
                 ).also {
                     it.ctx = func
                 })

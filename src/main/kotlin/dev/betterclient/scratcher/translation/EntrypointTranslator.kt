@@ -12,7 +12,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.EventListener
-import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.MemoryLib
 
 class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toScratch: (Function) -> ScratchASTFunction) {

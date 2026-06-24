@@ -49,6 +49,9 @@ import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
 import dev.betterclient.scratcher.codegen.ast.scratch
+import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.newMinification
 import dev.betterclient.scratcher.std.MemoryLib
 
 class ScratchFunctionTranslator(
@@ -77,14 +80,14 @@ class ScratchFunctionTranslator(
                     index = translateExpr(stmt.index),
                 )
             }
-            is ReturnStatement -> ControlStatements.StopThisScript()
+            is ReturnStatement -> ControlStatements.Stop(StopMode.THIS_SCRIPT)
             is IfElseStatement -> ControlStatements.IfElse(
-                condition = translateExpr(stmt.condition) as ScratchBoolExpression, //thank you static analysis!
+                condition = translateExpr(stmt.condition).asBool(),
                 thenBlock = stmt.thenBlock.code.map { translateStatement(it) },
                 elseBlock = stmt.elseBlock.code.map { translateStatement(it) }
             )
             is IfStatement -> ControlStatements.IfThen(
-                condition = translateExpr(stmt.condition) as ScratchBoolExpression,
+                condition = translateExpr(stmt.condition).asBool(),
                 block = stmt.thenBlock.code.map { translateStatement(it) }
             )
             is RepeatStatement -> ControlStatements.RepeatTimes(
@@ -92,7 +95,7 @@ class ScratchFunctionTranslator(
                 block = stmt.block.code.map { translateStatement(it) }
             )
             is WhileStatement -> ControlStatements.RepeatUntil(
-                condition = BoolOperatorExpressions.SNotExpression(translateExpr(stmt.condition) as ScratchBoolExpression),
+                condition = BoolOperatorExpressions.SNotExpression(translateExpr(stmt.condition).asBool()),
                 block = stmt.block.code.map { translateStatement(it) },
             )
 
@@ -118,7 +121,7 @@ class ScratchFunctionTranslator(
                     right = translateExpr(expr.expression),
                     operator = OperatorExpressions.BinaryOperator.SUBTRACT
                 )
-                UnaryOperator.NOT -> BoolOperatorExpressions.SNotExpression(translateExpr(expr.expression) as ScratchBoolExpression)
+                UnaryOperator.NOT -> BoolOperatorExpressions.SNotExpression(translateExpr(expr.expression).asBool())
             }
             is TemporaryHeapGetExpression -> ListExpressions.ItemAtIndex(MemoryLib.heap, translateExpr(expr.index))
             is ParameterExpression -> if (expr.parameter.type == Type.bool) SBoolParameterExpression(
@@ -131,11 +134,14 @@ class ScratchFunctionTranslator(
             is VariableExpression -> TODO()
             is MemberExpression -> TODO()
 
-            is BooleanLiteral -> BoolOperatorExpressions.BinaryExpression(
-                operand1 = "1".scratch,
-                operand2 = (if (expr.value) "1" else "2").scratch,
-                binaryOperator = SBinaryOperator.EQUALS
-            )
+            is BooleanLiteral -> {
+                val target = getUniqueName()
+                BoolOperatorExpressions.BinaryExpression(
+                    operand1 = target.scratch,
+                    operand2 = (if (expr.value) target else getUniqueName()).scratch,
+                    binaryOperator = SBinaryOperator.EQUALS
+                )
+            }
             is FloatLiteral -> expr.value.toString().scratch
             is IntLiteral -> expr.value.toString().scratch
             is StringLiteral -> expr.value.scratch
@@ -209,15 +215,23 @@ class ScratchFunctionTranslator(
             )
 
             BinaryOperator.AND -> BoolOperatorExpressions.SBoolComparisonExpressions(
-                operand1 = translateExpr(expr.left) as ScratchBoolExpression,
-                operand2 = translateExpr(expr.right) as ScratchBoolExpression,
+                operand1 = translateExpr(expr.left).asBool(),
+                operand2 = translateExpr(expr.right).asBool(),
                 operator = SBoolOperator.AND
             )
             BinaryOperator.OR -> BoolOperatorExpressions.SBoolComparisonExpressions(
-                operand1 = translateExpr(expr.left) as ScratchBoolExpression,
-                operand2 = translateExpr(expr.right) as ScratchBoolExpression,
+                operand1 = translateExpr(expr.left).asBool(),
+                operand2 = translateExpr(expr.right).asBool(),
                 operator = SBoolOperator.OR
             )
         }
+    }
+
+    fun ScratchExpression.asBool(): ScratchBoolExpression {
+        return this as? ScratchBoolExpression ?: BoolOperatorExpressions.BinaryExpression(
+            operand1 = this,
+            operand2 = "true".scratch,
+            binaryOperator = SBinaryOperator.EQUALS
+        )
     }
 }

@@ -28,7 +28,8 @@ fun main() {
     val ast = compile(File("helloworld.sc"))
 
     println("Reachability")
-    val reachableFunctions = FunctionReachability(ast).reachableFunctions.toMutableList()
+    val reachableEntrypoints = EntrypointReachability().run(ast)
+    val reachableFunctions = FunctionReachability(reachableEntrypoints).run()
 
     //TODO: Fix while bug
 
@@ -53,9 +54,6 @@ fun main() {
 
     println("Translate code")
     scratchStubs.forEach { (normalAST, scratchAST) -> ScratchFunctionTranslator(normalAST, scratchAST) { scratchStubs[it]!! }.run() }
-
-    println("Find imported entrypoints")
-    val reachableEntrypoints = EntrypointReachability().run(ast)
 
     println("Compile entrypoints")
     EntrypointTranslator(

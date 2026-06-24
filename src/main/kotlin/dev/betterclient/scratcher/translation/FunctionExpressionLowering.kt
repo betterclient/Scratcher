@@ -2,10 +2,10 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.codegen.obfuscate
+import dev.betterclient.scratcher.obfuscate
 
 class FunctionExpressionLowering(val func: Function) {
-    val returnIndexParameter = Parameter("compiler@${func.name}Return", Type.int)
+    val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), Type.int)
     val doingReturnLowering = func.returnType != Type.void
 
     fun run() {

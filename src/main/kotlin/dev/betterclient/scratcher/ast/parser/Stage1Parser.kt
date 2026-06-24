@@ -20,6 +20,7 @@ import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
 import dev.betterclient.scratcher.ast.NewStructExpression
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
@@ -33,6 +34,7 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.OBFUSCATION
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
@@ -75,10 +77,50 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         ast.functions.forEach {
             currentFunction = it
             localVariables.clear()
+            if (ast.path != "typecheck") {
+                addParameterChecks(it.code, it.parameters)
+            }
             parseBlock(it.code, it.ctx!!)
             it.ctx = null
         }
         currentFunction = null
+    }
+
+    private fun addParameterChecks(
+        code: CodeBlock,
+        parameters: MutableList<Parameter>
+    ) {
+        for (parameter in parameters) {
+            if (parameter.type == Type.float) {
+                val func = if (OBFUSCATION) {
+                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloatObf" }
+                } else {
+                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloat" }
+                }!!
+
+                code.code.add(ExpressionStatement(
+                    CallExpression(func, listOfNotNull(
+                        ParameterExpression(parameter),
+                        if (OBFUSCATION) null else
+                            StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not a float!")
+                    ).toMutableList())
+                ))
+            } else if (parameter.type == Type.int) {
+                val func = if (OBFUSCATION) {
+                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkIntObf" }
+                } else {
+                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkInt" }
+                }!!
+
+                code.code.add(ExpressionStatement(
+                    CallExpression(func, listOfNotNull(
+                        ParameterExpression(parameter),
+                        if (OBFUSCATION) null else
+                            StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not an integer!")
+                    ).toMutableList())
+                ))
+            }
+        }
     }
 
     private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext) {
@@ -103,7 +145,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val value = parseExpression(child.expression())
 
                 val variable = LocalVariable(name, type)
-                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.path}::${variable.name} is type void.")
+                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.simplePath}::${variable.name} is type void.")
                 localVariables.add(variable)
                 VariableStatement(value, variable)
             }
@@ -120,7 +162,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                         VariableAssignmentStatement(variableExpr.member, variableExpr.struct, assignmentExpr)
                     }
                     is VariableExpression -> {
-                        if (!variableExpr.variable.mutable) throw IllegalStateException("Tried to assign to immutable field ${variableExpr.sourceAST.path}::${variableExpr.variable.name}")
+                        if (!variableExpr.variable.mutable) throw IllegalStateException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
 
                         TLVariableAssignmentStatement(variableExpr.variable, variableExpr.sourceAST, assignmentExpr)
                     }
@@ -284,7 +326,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
-            return@find expectedArgListTypes == foundArgListTypes
+            return@find matchesArguments(
+                expectedArgListTypes,
+                foundArgListTypes
+            )
         }?.let {
             return CallExpression(
                 func = it,
@@ -296,7 +341,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
-            return@find expectedArgListTypes == foundArgListTypes
+            return@find matchesArguments(
+                expectedArgListTypes,
+                foundArgListTypes
+            )
         }?.let {
             return NewStructExpression(it, args)
         }
@@ -311,6 +359,17 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         throw NullPointerException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
+    }
+
+    private fun matchesArguments(
+        provided: List<Type>,
+        expected: List<Type>
+    ): Boolean {
+        if (provided.size != expected.size) return false
+
+        return provided.zip(expected).all { (from, to) ->
+            from.isAssignable(to)
+        }
     }
 
     private fun parseLiteral(ctx: ScratcherLangParser.LiteralContext): Expression {
@@ -344,7 +403,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
         val exprsReduced = if (exprs.size == 1) {
-            ConcatExpression(exprs[0], StringLiteral(""))
+            if (ExpressionTypes.getExpressionType(exprs[0]) == Type.str) {
+                exprs[0]
+            } else {
+                ConcatExpression(exprs[0], StringLiteral(""))
+            }
         } else {
             exprs.reduce { left, right ->
                 ConcatExpression(left, right)

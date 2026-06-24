@@ -118,14 +118,20 @@ class RepeatUntilOpcode(val condition: ScratchBoolean, val block: ScratchOpcode?
     }
 }
 
-class StopThisScriptOpcode : ScratchOpcode() {
+class StopOpcode(val mode: StopMode) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "control_stop"
 
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().apply {
-            put("STOP_OPTION", JSONArray(listOf("this script", JSONObject.NULL)))
+            put("STOP_OPTION", JSONArray(listOf(mode.id, JSONObject.NULL)))
         })
         base.put("inputs", JSONObject())
     }
+}
+
+enum class StopMode(val id: String) {
+    ALL("all"),
+    THIS_SCRIPT("this script"),
+    OTHER_SCRIPTS_IN_SPRITE("other scripts in sprite")
 }

@@ -1,37 +1,6 @@
 package dev.betterclient.scratcher.codegen.ast
 
-import dev.betterclient.scratcher.codegen.opcode.AddToListOpcode
-import dev.betterclient.scratcher.codegen.opcode.ChangeVariableOpcode
-import dev.betterclient.scratcher.codegen.opcode.ClearListOpcode
-import dev.betterclient.scratcher.codegen.opcode.DeleteItemFromListOpcode
-import dev.betterclient.scratcher.codegen.opcode.GlideSecToXYOpcode
-import dev.betterclient.scratcher.codegen.opcode.GlideToOpcode
-import dev.betterclient.scratcher.codegen.opcode.GotoMode
-import dev.betterclient.scratcher.codegen.opcode.GotoOpcode
-import dev.betterclient.scratcher.codegen.opcode.GotoXYOpcode
-import dev.betterclient.scratcher.codegen.opcode.IfElseOpcode
-import dev.betterclient.scratcher.codegen.opcode.IfThenOpcode
-import dev.betterclient.scratcher.codegen.opcode.InsertItemAtListOpcode
-import dev.betterclient.scratcher.codegen.opcode.ProcedureCallOpcode
-import dev.betterclient.scratcher.codegen.opcode.RepeatTimesOpcode
-import dev.betterclient.scratcher.codegen.opcode.RepeatUntilOpcode
-import dev.betterclient.scratcher.codegen.opcode.ReplaceItemOfListOpcode
-import dev.betterclient.scratcher.codegen.opcode.RotationStyle
-import dev.betterclient.scratcher.codegen.opcode.SayForSecsOpcode
-import dev.betterclient.scratcher.codegen.opcode.SayOpcode
-import dev.betterclient.scratcher.codegen.opcode.ScratchList
-import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
-import dev.betterclient.scratcher.codegen.opcode.SetRotationStyleOpcode
-import dev.betterclient.scratcher.codegen.opcode.SetVariableToOpcode
-import dev.betterclient.scratcher.codegen.opcode.SetXOpcode
-import dev.betterclient.scratcher.codegen.opcode.SetYOpcode
-import dev.betterclient.scratcher.codegen.opcode.StopThisScriptOpcode
-import dev.betterclient.scratcher.codegen.opcode.ThinkForSecsOpcode
-import dev.betterclient.scratcher.codegen.opcode.ThinkOpcode
-import dev.betterclient.scratcher.codegen.opcode.TurnLeftOpcode
-import dev.betterclient.scratcher.codegen.opcode.TurnRightOpcode
-import dev.betterclient.scratcher.codegen.opcode.WaitOpcode
-import dev.betterclient.scratcher.codegen.opcode.WaitUntilOpcode
+import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.autoSetNext
@@ -99,8 +68,8 @@ object ControlStatements {
         override fun lower() = listOf(RepeatUntilOpcode(condition.lower() as ScratchBoolean, compile(block)))
     }
 
-    class StopThisScript : ScratchStatement() {
-        override fun lower() = listOf(StopThisScriptOpcode())
+    class Stop(val mode: StopMode) : ScratchStatement() {
+        override fun lower() = listOf(StopOpcode(mode))
     }
 }
 
@@ -212,5 +181,15 @@ object MotionStatements {
 
     class SetRotationStyle(val style: RotationStyle) : ScratchStatement() {
         override fun lower() = listOf(SetRotationStyleOpcode(style))
+    }
+}
+
+object SensingStatements {
+    class Ask(val message: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(AskAndWaitOpcode(message.lower()))
+    }
+
+    class ResetTimer : ScratchStatement() {
+        override fun lower() = listOf(ResetTimerOpcode())
     }
 }

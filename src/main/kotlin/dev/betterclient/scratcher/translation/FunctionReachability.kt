@@ -3,17 +3,19 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 
-class FunctionReachability(val ast: ASTFile) {
-    val reachableFunctions = getAllReachableFunctions()
+class FunctionReachability(val entrypoints: List<ASTEventListener>) {
+    fun run(): MutableList<Function> {
+        return entrypoints.flatMap { getAllReachableFunctions(it) }.distinct().toMutableList()
+    }
 
-    private fun getAllReachableFunctions(): List<Function> {
+    private fun getAllReachableFunctions(fromEntrypoint: ASTEventListener): List<Function> {
         val visited = mutableSetOf<Function>()
         val queue = ArrayDeque<Function>()
 
-        queue.addAll(ast.functions)
-        visited.addAll(ast.functions)
+        queue.add(fromEntrypoint.ctx!!)
+        visited.add(fromEntrypoint.ctx!!)
 
-        for (variable in ast.variables) {
+        for (variable in fromEntrypoint.sourceAST.variables) {
             variable.defaultValue?.let { expr ->
                 val called = mutableListOf<Function>()
                 addAllReachableFunctions(called, expr)

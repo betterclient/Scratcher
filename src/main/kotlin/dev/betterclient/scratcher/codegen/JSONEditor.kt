@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen
 
+import dev.betterclient.scratcher.toObjectArray
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStream

@@ -1,13 +1,12 @@
 package dev.betterclient.scratcher.codegen.opcode
 
-import dev.betterclient.scratcher.codegen.getUniqueName
-import dev.betterclient.scratcher.codegen.nextBlockPosition
+import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
-import dev.betterclient.scratcher.codegen.rand
 import org.json.JSONArray
 import org.json.JSONObject
 
