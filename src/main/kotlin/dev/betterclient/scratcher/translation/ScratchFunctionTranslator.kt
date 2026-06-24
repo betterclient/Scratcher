@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.translation
 
+import dev.betterclient.scratcher.OBFUSCATION
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
 import dev.betterclient.scratcher.ast.BooleanLiteral
@@ -135,10 +136,10 @@ class ScratchFunctionTranslator(
             is MemberExpression -> TODO()
 
             is BooleanLiteral -> {
-                val target = getUniqueName()
+                val target = if (OBFUSCATION) getUniqueName() else "1"
                 BoolOperatorExpressions.BinaryExpression(
                     operand1 = target.scratch,
-                    operand2 = (if (expr.value) target else getUniqueName()).scratch,
+                    operand2 = (if (expr.value) target else {if (OBFUSCATION) getUniqueName() else "2"}).scratch,
                     binaryOperator = SBinaryOperator.EQUALS
                 )
             }
