@@ -9,6 +9,13 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.lib.CalendarLib
+import dev.betterclient.scratcher.std.lib.CastLib
+import dev.betterclient.scratcher.std.lib.LooksLib
+import dev.betterclient.scratcher.std.lib.MathLib
+import dev.betterclient.scratcher.std.lib.MemoryLib
+import dev.betterclient.scratcher.std.lib.SensingLib
 
 object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
@@ -17,34 +24,19 @@ object StandardLibASTGenerator {
         MathLib.init(mathLib, editor)
         ExceptionLib.init(exceptLib, editor)
         SensingLib.init(sensingLib, editor)
+        CalendarLib.init(calendarLib, editor)
         CastLib.init(castLib, editor)
 
         typeChecker
     }
 
-    val memoryLib = ASTFile(
-        "memory"
-    )
-
-    val looksLib = ASTFile(
-        "looks"
-    )
-
-    val mathLib = ASTFile(
-        "math"
-    )
-
-    val exceptLib = ASTFile(
-        "except"
-    )
-
-    val sensingLib = ASTFile(
-        "sensing"
-    )
-
-    val castLib = ASTFile(
-        "cast"
-    )
+    val memoryLib = ASTFile("memory")
+    val looksLib = ASTFile("looks")
+    val mathLib = ASTFile("math")
+    val exceptLib = ASTFile("except")
+    val sensingLib = ASTFile("sensing")
+    val calendarLib = ASTFile("calendar")
+    val castLib = ASTFile("cast")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -52,7 +44,8 @@ object StandardLibASTGenerator {
         "memory" to memoryLib,
         "math" to mathLib,
         "except" to exceptLib,
-        "cast" to castLib
+        "cast" to castLib,
+        "calendar" to calendarLib,
     )
 
     val typeChecker by lazy {
@@ -84,30 +77,6 @@ object StandardLibASTGenerator {
         Stage1Parser(context, ast).parse()
 
         return ast
-    }
-}
-
-object LooksLib {
-    fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "say") {
-            val message = arg("message", Type.str)
-            looks.say(message)
-        }
-
-        editor.compile(lib, "sayForSeconds") {
-            val message = arg("message", Type.str)
-            val seconds = arg("seconds", Type.float)
-            looks.say(message, seconds)
-        }
-    }
-}
-
-object SensingLib {
-    fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "ask") {
-            val message = arg("message", Type.str)
-            sensing.ask(message)
-        }
     }
 }
 

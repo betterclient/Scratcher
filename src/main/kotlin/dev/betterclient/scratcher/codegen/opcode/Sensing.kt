@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.codegen.opcode
 
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
+import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
 import org.json.JSONArray
@@ -124,24 +125,29 @@ class DistanceToMenu : ScratchOpcode() {
     }
 }
 
-class KeyPressedOpcode(key: Key) : ScratchOpcode() {
+class KeyPressedOpcode(val key: ScratchValue) : ScratchOpcode() {
     override val asValue = ScratchBoolean(this)
     override val opcode = "sensing_keypressed"
     val menu = KeyPressedMenu(key)
 
     init {
-        takeOwnership(listOf(menu))
+        takeOwnership(listOfNotNull(menu, key.value))
     }
 
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject().apply {
-            put("KEY_OPTION", JSONArray(listOf(1, menu.id)))
+            val keyBlock = key.value
+            if (keyBlock != null) {
+                put("KEY_OPTION", JSONArray(listOf(3, keyBlock.id, menu.id)))
+            } else {
+                put("KEY_OPTION", JSONArray(listOf(1, menu.id)))
+            }
         })
         base.put("fields", JSONObject())
     }
 }
 
-class KeyPressedMenu(val key: Key) : ScratchOpcode() {
+class KeyPressedMenu(val key: ScratchValue) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "sensing_keyoptions"
     override var shadow = true
@@ -149,7 +155,8 @@ class KeyPressedMenu(val key: Key) : ScratchOpcode() {
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
         base.put("fields", JSONObject().apply {
-            put("KEY_OPTION", JSONArray(listOf(key.id, null)))
+            val dropdownValue = (if (key.value == null) ((key as? ScratchRealString)?.real) else null)?: "space"
+            put("KEY_OPTION", JSONArray(listOf(dropdownValue, null)))
         })
     }
 }

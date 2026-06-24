@@ -1,11 +1,13 @@
 import looks;
 import cast;
+import math;
+import calendar;
 
 struct User(int a, int b);
 
 void main() {
     int b = 5;
-    looks::say("hi! ${a(cast::toBool("true"))} ${b}");
+    looks::say("hi! ${a(cast::toBool("true"))} ${math::floor(b)}, Today is the ${calendar::getDayOfWeek()}th day of the week!");
 }
 
 warp int a(bool a) {

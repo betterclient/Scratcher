@@ -1,5 +1,4 @@
 import math;
-import looks;
 import except;
 
 void checkInt(int f, str error) {

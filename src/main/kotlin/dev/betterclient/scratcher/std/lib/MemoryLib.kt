@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.std
+package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
@@ -7,6 +7,16 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.div
+import dev.betterclient.scratcher.std.dsl.equals
+import dev.betterclient.scratcher.std.dsl.gt
+import dev.betterclient.scratcher.std.dsl.gte
+import dev.betterclient.scratcher.std.dsl.lt
+import dev.betterclient.scratcher.std.dsl.math
+import dev.betterclient.scratcher.std.dsl.minus
+import dev.betterclient.scratcher.std.dsl.or
+import dev.betterclient.scratcher.std.dsl.plus
 
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))

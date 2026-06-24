@@ -37,7 +37,7 @@ import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.MemoryLib
+import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ConvertToHeapAccess(
     val functions: List<Function>

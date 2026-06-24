@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.std
+package dev.betterclient.scratcher.std.dsl
 
 import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.ListExpressions

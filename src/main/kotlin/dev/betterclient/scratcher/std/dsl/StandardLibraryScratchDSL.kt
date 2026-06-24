@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.std
+package dev.betterclient.scratcher.std.dsl
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchType
+import dev.betterclient.scratcher.codegen.ast.SensingExpressions
 import dev.betterclient.scratcher.codegen.ast.SensingStatements
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.obfuscate
@@ -60,7 +61,7 @@ class CodeBuilder internal constructor(
     fun returnArg(type: Type): DSLExpression {
         currentReturnType = type
         return DSLArgumentExpression(
-            ScratchFuncArgument(obfuscate("returnIndex"), ScratchType.ANY).also {
+            ScratchFuncArgument(obfuscate("compiler@returnIndex"), ScratchType.ANY).also {
                 arguments.add(it)
             }
         )
@@ -126,8 +127,15 @@ value class DSLLooks(private val builder: CodeBuilder) {
 @JvmInline
 @StandardLibraryScratchDSL
 value class DSLSensing(private val builder: CodeBuilder) {
+    val answer: DSLExpression
+        get() = get(SensingExpressions.SensingData.Answer)
+
     fun ask(message: DSLExpression) {
         builder.addStatement(SensingStatements.Ask(message.lower()))
+    }
+
+    operator fun get(value: SensingExpressions.SensingData) = DSLFromCreator {
+        SensingExpressions.SenseExpression(value)
     }
 }
 

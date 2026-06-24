@@ -16,7 +16,7 @@ import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.std.MemoryLib
+import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int) {
     fun run() {

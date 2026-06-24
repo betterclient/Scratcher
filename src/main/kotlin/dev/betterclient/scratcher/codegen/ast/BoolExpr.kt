@@ -71,7 +71,7 @@ enum class SBoolOperator {
 }
 
 object SensingBoolExpressions {
-    class TouchingObjectExpression(val mode: TouchingObjectMode) : ScratchBoolExpression() {
+   /* class TouchingObjectExpression(val mode: TouchingObjectMode) : ScratchBoolExpression() {
         override fun lower(): ScratchValue {
             return TouchingObjectOpcode(mode).asValue
         }
@@ -90,11 +90,11 @@ object SensingBoolExpressions {
         override fun lower(): ScratchValue {
             return ColorIsTouchingColorOpcode(color1.lower(), color2.lower()).asValue
         }
-    }
+    }*/
 
-    class KeyPressedExpression(val key: Key) : ScratchBoolExpression() {
+    class KeyPressedExpression(val key: ScratchExpression) : ScratchBoolExpression() {
         override fun lower(): ScratchValue {
-            return KeyPressedOpcode(key).asValue
+            return KeyPressedOpcode(key.lower()).asValue
         }
     }
 

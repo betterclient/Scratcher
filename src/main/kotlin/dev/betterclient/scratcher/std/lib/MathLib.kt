@@ -1,9 +1,14 @@
-package dev.betterclient.scratcher.std
+package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.MathOp
+import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.equals
+import dev.betterclient.scratcher.std.dsl.math
+import dev.betterclient.scratcher.std.dsl.round
+import dev.betterclient.scratcher.std.dsl.times
 
 object MathLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {

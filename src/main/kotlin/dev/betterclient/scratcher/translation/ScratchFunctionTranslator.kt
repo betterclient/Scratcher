@@ -53,8 +53,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchType
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.newMinification
-import dev.betterclient.scratcher.std.MemoryLib
+import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
     val original: Function,
