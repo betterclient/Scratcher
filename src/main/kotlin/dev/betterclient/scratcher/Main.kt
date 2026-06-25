@@ -21,6 +21,7 @@ import dev.betterclient.scratcher.translation.ScratchFunctionTranslator
 import java.io.File
 
 fun main() {
+    val startTime = System.currentTimeMillis()
     val editor = openScratchEditorFromResource(
         ::main.javaClass.getResourceAsStream("/proj.sb3")!!
     )
@@ -67,6 +68,7 @@ fun main() {
     println("Compile to scratch")
     scratchStubs.map { it.value }.forEach { editor.addFunction(it) }
     editor.writeTo(File("out.sb3"))
+    println("Compilation successful in ${System.currentTimeMillis() - startTime}ms")
 }
 
 fun compile(sourceFile: File): ASTFile {
