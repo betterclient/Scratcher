@@ -22,9 +22,9 @@ object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
         ExceptionLib.init(exceptLib, editor)
         MemoryLib.init(memoryLib, editor)
-        LooksLib.init(looksLib, editor)
+        LooksLib.init(looksLib)
         MathLib.init(mathLib, editor)
-        SensingLib.init(sensingLib, editor)
+        SensingLib.init(sensingLib)
         CalendarLib.init(calendarLib)
         CastLib.init(castLib, editor)
 

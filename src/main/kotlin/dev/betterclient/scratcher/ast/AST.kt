@@ -2,8 +2,6 @@ package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
-import dev.betterclient.scratcher.codegen.ast.ScratchExpression
-import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.translation.ExpressionLowerResult
 import java.io.File

@@ -1,29 +1,11 @@
 package dev.betterclient.scratcher.std.dsl
 
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.TemporaryScratchExpr
-import dev.betterclient.scratcher.ast.TemporaryScratchStmt
-import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.ast.CallFunction
-import dev.betterclient.scratcher.codegen.ast.ControlStatements
-import dev.betterclient.scratcher.codegen.ast.LooksStatements
-import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
-import dev.betterclient.scratcher.codegen.ast.ScratchExpression
-import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
-import dev.betterclient.scratcher.codegen.ast.ScratchStatement
-import dev.betterclient.scratcher.codegen.ast.ScratchType
-import dev.betterclient.scratcher.codegen.ast.SensingExpressions
-import dev.betterclient.scratcher.codegen.ast.SensingStatements
-import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
 @DslMarker

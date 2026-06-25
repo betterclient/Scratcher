@@ -1,14 +1,13 @@
 import looks;
 import cast;
-import math;
-import calendar;
+import sensing;
 import mem;
 
 struct User(int a, int b);
 
 void main() {
     int b = 5;
-    User u = User(5, a(false));
+    User u = User(5, cast::toIntOrDefault(sensing::ask("What should I print?"), 5));
     looks::say("test: ${u.b}");
     mem::free(u);
 }

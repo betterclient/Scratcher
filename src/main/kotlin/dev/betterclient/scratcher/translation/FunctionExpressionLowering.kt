@@ -157,9 +157,11 @@ class FunctionExpressionLowering(val func: Function) {
 
                     val code = func.realCode(argsMapped + TemporaryLocalVariableIndexExpression(local))
 
+                    prepend.addAll(code.prepend)
                     prepend.add(LocalVariableAssignmentStatement(local, code.expression!!))
+
                     ExpressionLowerResult(
-                        LocalVariableExpression(local), prepend + code.prepend
+                        LocalVariableExpression(local), prepend
                     )
                 } else {
                     val code = func.realCode(argsMapped)
