@@ -6,12 +6,7 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.opcode.MathOp
-import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.dsl.math
-import dev.betterclient.scratcher.std.dsl.round
-import dev.betterclient.scratcher.std.dsl.times
+import dev.betterclient.scratcher.std.dsl.*
 
 object MathLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {

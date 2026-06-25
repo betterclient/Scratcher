@@ -2,30 +2,16 @@ package dev.betterclient.scratcher.std
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
-import dev.betterclient.scratcher.codegen.ast.CallFunction
-import dev.betterclient.scratcher.codegen.ast.ControlStatements
-import dev.betterclient.scratcher.codegen.ast.SBinaryOperator
-import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.lib.CalendarLib
-import dev.betterclient.scratcher.std.lib.CastLib
-import dev.betterclient.scratcher.std.lib.LooksLib
-import dev.betterclient.scratcher.std.lib.MathLib
-import dev.betterclient.scratcher.std.lib.MemoryLib
-import dev.betterclient.scratcher.std.lib.SensingLib
+import dev.betterclient.scratcher.std.lib.*
 
 object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
@@ -71,10 +57,6 @@ object StandardLibASTGenerator {
 
     val rawLibs by lazy {
         listOf(typeChecker)
-    }
-
-    fun isStandardLib(func: Function): Boolean {
-        return lib.map { it.value.functions }.reduce { a, b -> (a + b).toMutableList() }.contains(func)
     }
 
     fun isRestricted(library: ASTFile): Boolean {

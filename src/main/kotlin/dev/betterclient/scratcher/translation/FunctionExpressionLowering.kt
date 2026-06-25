@@ -3,7 +3,6 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.ExceptionLib
 
