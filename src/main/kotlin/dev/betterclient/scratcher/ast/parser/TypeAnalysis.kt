@@ -26,7 +26,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it)
                 if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.simplePath}::${variable.name} is of type void.")
-                if (variable.type != actualType) throw UnsupportedOperationException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
+                if (!actualType.isAssignable(variable.type)) throw UnsupportedOperationException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
 
@@ -178,8 +178,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftType = getActualTypeOrThrow(expr.left)
                 val rightType = getActualTypeOrThrow(expr.right)
 
-                val leftOk = leftType.isPrimitive && leftType != Type.void
-                val rightOk = rightType.isPrimitive && rightType != Type.void
+                val leftOk = leftType.isPrimitive && leftType != Type.void && leftType != Type.nullType
+                val rightOk = rightType.isPrimitive && rightType != Type.void && rightType != Type.nullType
                 if (!leftOk || !rightOk) throw UnsupportedOperationException("Either $leftType or $rightType isn't concattable")
 
                 Type.str
@@ -195,12 +195,20 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(expr.struct.type, getActualTypeOrThrow(expr.expression), "Struct type is not correct")
                 expr.member.type
             }
+            is NonNullAssertExpression -> {
+                val innerType = getActualTypeOrThrow(expr.expression)
+                if (!innerType.nullable) {
+                    throw UnsupportedOperationException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
+                }
+                innerType.asNonNull()
+            }
 
             //these already have their type determined
             is BooleanLiteral -> Type.bool
             is FloatLiteral -> Type.float
             is IntLiteral -> Type.int
             is StringLiteral -> Type.str
+            is NullExpression -> Type.nullType
             is LocalVariableExpression -> expr.variable.type
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
@@ -246,7 +254,11 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
             BinaryOperator.EQUAL,
             BinaryOperator.NOT_EQUAL -> {
-                if (leftType == rightType || (isNumeric(leftType) && isNumeric(rightType))) {
+                if (leftType == rightType ||
+                    (isNumeric(leftType) && isNumeric(rightType)) ||
+                    (leftType.nullable && rightType == Type.nullType) ||
+                    (rightType.nullable && leftType == Type.nullType)
+                ) {
                     Type.bool
                 } else {
                     throw IllegalArgumentException("Cannot compare $leftType and $rightType for equality")

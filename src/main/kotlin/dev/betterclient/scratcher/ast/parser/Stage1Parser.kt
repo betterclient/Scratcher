@@ -20,6 +20,8 @@ import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
+import dev.betterclient.scratcher.ast.NonNullAssertExpression
+import dev.betterclient.scratcher.ast.NullExpression
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
@@ -260,6 +262,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             )
             is ScratcherLangParser.ScopeExprContext -> parseScopeExpr(ctx)
             is ScratcherLangParser.MemberExprContext -> parseMemberExpr(ctx)
+            is ScratcherLangParser.NullExprContext -> NullExpression
+            is ScratcherLangParser.AssertNonNullContext -> {
+                NonNullAssertExpression(parseExpression(ctx.expression()))
+            }
             else -> throw UnsupportedOperationException("No parser for expr ${ctx.text} yet!")
         }
     }
@@ -267,7 +273,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {
         val structExpr = parseExpression(ctx.expression())
         val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
-            type.sourceAST!!.structs.find { it.type == type }?: throw UnsupportedOperationException("$type is a primitive type(?) at ${ctx.position}")
+            val baseType = type.asNonNull()
+            baseType.sourceAST!!.structs.find { it.type == baseType }?: throw UnsupportedOperationException("$type is a primitive type(?) at ${ctx.position}")
         }
         val memberName = ctx.IDENTIFIER().text
 

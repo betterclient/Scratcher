@@ -17,6 +17,8 @@ object ExpressionTypes {
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
             is ConcatExpression -> Type.str
+            is NullExpression -> Type.nullType
+            is NonNullAssertExpression -> getExpressionType(expr.expression).asNonNull()
             is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }
     }

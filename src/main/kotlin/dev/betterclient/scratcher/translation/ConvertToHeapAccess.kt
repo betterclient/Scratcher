@@ -228,6 +228,7 @@ class ConvertToHeapAccess(
             is FloatLiteral -> expression
             is IntLiteral -> expression
             is StringLiteral -> expression
+            is NullExpression -> expression
             is MemberExpression -> {
                 val parIndex = expression.struct.getIndex(expression.member)
                 val convertedLeft = convertExpression(expression.expression, currentFunction, getFunctionLocals)
@@ -245,7 +246,8 @@ class ConvertToHeapAccess(
                     )
                 }
             }
-            is CallExpression -> throw UnsupportedOperationException("unreachable")
+
+            is CallExpression, is NonNullAssertExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

@@ -44,32 +44,49 @@ class Struct(
 }
 
 //sourceAST = null only for built-in types
-data class Type(val name: String, val sourceAST: ASTFile?, val inner: Type? = null) {
+data class Type(
+    val name: String,
+    val sourceAST: ASTFile?,
+    val inner: Type? = null,
+    val nullable: Boolean = false
+) {
     companion object {
         val str = Type("str", null)
         val int = Type("int", null)
         val float = Type("float", null)
         val bool = Type("bool", null)
         val void = Type("void", null)
+        val nullType = Type("null", null, nullable = true)
     }
     val isPrimitive: Boolean
         get() = sourceAST == null
+
+    fun asNullable() = copy(nullable = true)
+    fun asNonNull() = copy(nullable = false)
 
     /*fun list(): Type {
         return Type("$name[]", this.sourceAST, this)
     }*/
 
     override fun toString(): String {
-        return name
+        return name + if (nullable) "?" else ""
     }
 
     fun isAssignable(other: Type): Boolean {
-        if (other == this) return true
+        if (this == other) return true
+        if (this == nullType) return other.nullable
 
-        return when {
-            this == int && other == float -> true
-            else -> false
+        val baseThis = this.asNonNull()
+        val baseOther = other.asNonNull()
+
+        if (baseThis != baseOther) {
+            if (baseThis == int && baseOther == float) {
+                return other.nullable || !this.nullable
+            }
+            return false
         }
+
+        return other.nullable || !this.nullable
     }
 }
 

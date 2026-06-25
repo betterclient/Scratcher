@@ -114,7 +114,8 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
             is LocalVariableExpression,
             is ParameterExpression,
             is VariableExpression,
-            is Literal -> {}
+            is NonNullAssertExpression,
+            is Literal-> {}
 
             is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }

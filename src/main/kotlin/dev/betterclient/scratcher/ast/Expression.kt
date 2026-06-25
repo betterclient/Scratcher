@@ -66,11 +66,16 @@ data class VariableExpression(
     val sourceAST: ASTFile
 ) : Expression()
 
+data class NonNullAssertExpression(
+    val expression: Expression
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: Int) : Literal()
 data class FloatLiteral(val value: Float) : Literal()
 data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
+object NullExpression : Literal()
 
 //ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
 sealed class TemporaryExpression : Expression()

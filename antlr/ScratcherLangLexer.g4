@@ -21,6 +21,8 @@ BOOL_TYPE  : 'bool';
 
 TRUE  : 'true';
 FALSE : 'false';
+NULL  : 'null';
+NULLABLE : '?';
 
 LPAREN : '(';
 RPAREN : ')';
@@ -34,6 +36,7 @@ ASSIGN : '=';
 
 PLUS  : '+';
 MINUS : '-';
+DOUBLE_BANG : '!!';
 BANG  : '!';
 STAR  : '*';
 SLASH : '/';

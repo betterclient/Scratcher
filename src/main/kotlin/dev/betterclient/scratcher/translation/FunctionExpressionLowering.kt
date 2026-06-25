@@ -1,8 +1,11 @@
 package dev.betterclient.scratcher.translation
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.std.ExceptionLib
 
 class FunctionExpressionLowering(val func: Function) {
     val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), Type.int)
@@ -227,12 +230,24 @@ class FunctionExpressionLowering(val func: Function) {
                     prepend = prepend
                 )
             }
+            is NonNullAssertExpression -> {
+                val callExpr = CallExpression(
+                    func = ExceptionLib.assertNonNull,
+                    arguments = listOf(expression.expression, StringLiteral(if (CompilationConstants.OBFUSCATION) {
+                        "Scratcher runtime error: NullPointerException"
+                    } else {
+                        "Scratcher runtime error: NullPointerException at ${func.name}"
+                    }))
+                )
+                lowerCallExpr(callExpr)
+            }
             is VariableExpression -> ExpressionLowerResult(expression)
             is BooleanLiteral -> ExpressionLowerResult(expression)
             is FloatLiteral -> ExpressionLowerResult(expression)
             is IntLiteral -> ExpressionLowerResult(expression)
             is StringLiteral -> ExpressionLowerResult(expression)
             is LocalVariableExpression -> ExpressionLowerResult(expression)
+            is NullExpression -> ExpressionLowerResult(expression)
 
             is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }

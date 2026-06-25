@@ -95,11 +95,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         ast.structs.forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type())
+                val isNullable = field.NULLABLE() != null
+                if (isNullable && type.isPrimitive) {
+                    throw UnsupportedOperationException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
+                }
+
                 if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
-                        type
+                        type.copy(nullable = isNullable)
                     )
                 )
             }

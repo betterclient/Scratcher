@@ -16,7 +16,7 @@ fun Random.rand(): String {
     var out = ""
     val possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?"
 
-    for (i in 0..20) {
+    for (i in 0..CompilationConstants.NON_MINIFICATION_LENGTH) {
         out += possible.random(this)
     }
 

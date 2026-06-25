@@ -3,13 +3,27 @@ import cast;
 import sensing;
 import mem;
 
-struct User(int a, int b);
+struct User(int a, int b, Info? information);
+struct Info(str name, int age);
 
 void main() {
     int b = 5;
-    User u = User(5, cast::toIntOrDefault(sensing::ask("What should I print?"), 5));
-    looks::say("test: ${u.b}");
+    User u = User(5, cast::toIntOrDefault(sensing::ask("What should I print?"), 5), null);
+    if(u.information == null) {
+        print(u.information!!);
+        mem::free(u.information!!);
+    } else {
+        looks::say("test: ${u.b}");
+    }
     mem::free(u);
+}
+
+Info gen() {
+    return Info("Micheal", 55);
+}
+
+void print(Info info) {
+    looks::say("${info.name} is ${info.age} years old!");
 }
 
 warp int a(bool a) {

@@ -18,6 +18,7 @@ class CodeBuilder internal constructor(
     private val editor: ScratchEditor,
     private val nested: Boolean,
     private val warp: Boolean,
+    private val userAccessible: Boolean,
 ) : DSLListExprs, DSLVariableExprs {
     private val statements = mutableListOf<ScratchStatement>()
     private val arguments = mutableListOf<ScratchFuncArgument>()
@@ -83,7 +84,7 @@ class CodeBuilder internal constructor(
     }
 
     internal fun compileInternal(block: CodeBuilder.() -> Unit): MutableList<ScratchStatement> {
-        val newBuilder = CodeBuilder(name, editor, true, warp)
+        val newBuilder = CodeBuilder(name, editor, true, warp, userAccessible)
         newBuilder.block()
         return newBuilder.statements
     }
@@ -100,7 +101,8 @@ class CodeBuilder internal constructor(
                 code = statements,
                 runWithoutScreenRefresh = warp
             ),
-            returnType = currentReturnType
+            returnType = currentReturnType,
+            userAccessible = userAccessible
         )
     }
 }
@@ -152,18 +154,19 @@ value class DSLControl(private val builder: CodeBuilder) {
     }
 }
 
-fun compile(name: String, editor: ScratchEditor, warp: Boolean, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
+fun compile(name: String, editor: ScratchEditor, warp: Boolean, userAccessible: Boolean, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
     val builder = CodeBuilder(
         name,
         editor,
         nested = false,
-        warp = warp
+        warp = warp,
+        userAccessible = userAccessible
     ).also { it.block() }
     return builder.toFunc()
 }
 
-fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = true, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
-    val func = compile(name, this, warp, block)
+fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = true, userAccessible: Boolean = true, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
+    val func = compile(name, this, warp, userAccessible, block)
     library.functions.add(func)
     return func
 }

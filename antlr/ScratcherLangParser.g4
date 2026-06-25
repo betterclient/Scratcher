@@ -56,7 +56,7 @@ structDecl
     ;
 
 structField
-    : type IDENTIFIER
+    : type NULLABLE? IDENTIFIER
     ;
 
 block
@@ -109,6 +109,8 @@ expression
     | expression AND expression                         # andExpr
     | expression OR expression                          # orExpr
     | literal                                           # literalExpr
+    | NULL                                              # nullExpr
+    | expression DOUBLE_BANG                            # assertNonNull
     | IDENTIFIER                                        # idExpr
     ;
 

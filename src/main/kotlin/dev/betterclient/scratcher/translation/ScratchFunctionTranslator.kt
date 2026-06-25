@@ -16,6 +16,8 @@ import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
+import dev.betterclient.scratcher.ast.NonNullAssertExpression
+import dev.betterclient.scratcher.ast.NullExpression
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
@@ -147,9 +149,9 @@ class ScratchFunctionTranslator(
             ) else {
                 ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
             }
+            is NullExpression -> "-1".scratch
 
             is VariableExpression -> TODO()
-            is MemberExpression -> TODO()
 
             is BooleanLiteral -> {
                 val target = if (CompilationConstants.OBFUSCATION) getUniqueName() else "1"
@@ -168,8 +170,10 @@ class ScratchFunctionTranslator(
             }
 
             is CallExpression,
+            is MemberExpression,
             is TemporaryLocalVariableIndexExpression,
-            is LocalVariableExpression -> throw UnsupportedOperationException("unreachable")
+            is LocalVariableExpression,
+            is NonNullAssertExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 
