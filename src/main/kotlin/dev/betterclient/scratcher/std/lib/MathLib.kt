@@ -1,10 +1,13 @@
 package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.math
 import dev.betterclient.scratcher.std.dsl.round
@@ -14,11 +17,13 @@ object MathLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
         mathOps.forEach { func ->
             func.types.forEach { (inputType, returnType) ->
-                editor.compile(lib, func.functionName) {
-                    val num = arg("number", inputType)
-                    val returnArg = returnArg(returnType)
-
-                    MemoryLib.heap[returnArg] = num.math(func.internal)
+                compileInline(
+                    lib,
+                    func.functionName,
+                    parameters = mutableListOf(Parameter("number", inputType)),
+                    returnType = returnType
+                ) { args ->
+                    OperatorExpressions.MathOperation(func.internal, args[0])
                 }
             }
         }
@@ -31,11 +36,13 @@ object MathLib {
             MemoryLib.heap[returnArg] = (exponent * base.math(MathOp.LN)).math(MathOp.E_POW)
         }
 
-        editor.compile(lib, "round") {
-            val base = arg("value", Type.float)
-            val returnArg = returnArg(Type.int)
-
-            MemoryLib.heap[returnArg] = base.round()
+        compileInline(
+            lib,
+            "round",
+            parameters = mutableListOf(Parameter("value", Type.float)),
+            returnType = Type.int
+        ) { args ->
+            OperatorExpressions.RoundNumber(args[0])
         }
 
         editor.compile(lib, "isNumber") {

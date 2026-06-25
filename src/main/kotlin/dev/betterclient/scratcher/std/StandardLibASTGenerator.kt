@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.std
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
@@ -19,12 +20,12 @@ import dev.betterclient.scratcher.std.lib.SensingLib
 
 object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
+        ExceptionLib.init(exceptLib, editor)
         MemoryLib.init(memoryLib, editor)
         LooksLib.init(looksLib, editor)
         MathLib.init(mathLib, editor)
-        ExceptionLib.init(exceptLib, editor)
         SensingLib.init(sensingLib, editor)
-        CalendarLib.init(calendarLib, editor)
+        CalendarLib.init(calendarLib)
         CastLib.init(castLib, editor)
 
         typeChecker
@@ -47,6 +48,10 @@ object StandardLibASTGenerator {
         "cast" to castLib,
         "calendar" to calendarLib,
     )
+
+    val memLib = ASTFile("mem").also {
+        if (CompilationConstants.MANUAL_MEMORY) lib["mem"] = it
+    }
 
     val typeChecker by lazy {
         compile(

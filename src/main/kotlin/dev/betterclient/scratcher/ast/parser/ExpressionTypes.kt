@@ -16,10 +16,8 @@ object ExpressionTypes {
             is UnaryExpression -> getExpressionType(expr.expression)
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
-            is NewStructExpression -> expr.struct.type
             is ConcatExpression -> Type.str
-            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
-            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 

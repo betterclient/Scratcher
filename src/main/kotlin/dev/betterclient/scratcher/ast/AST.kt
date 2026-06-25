@@ -2,7 +2,10 @@ package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.ScratchExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.opcode.EventListener
+import dev.betterclient.scratcher.translation.ExpressionLowerResult
 import java.io.File
 
 class ASTFile(
@@ -32,7 +35,14 @@ class Struct(
     val sourceAST: ASTFile
 ) {
     val type = Type(name, sourceAST)
+    val sizeOnHeap: Int
+        get() = parameters.size
     var parseInfo: ScratcherLangParser.StructDeclContext? = null
+    lateinit var allocFunc: Function
+
+    fun getIndex(parameter: Parameter): Int {
+        return parameters.indexOf(parameter)
+    }
 }
 
 //sourceAST = null only for built-in types
@@ -80,7 +90,8 @@ open class Function(
     var returnType: Type,
     val code: CodeBlock = CodeBlock(),
     val export: Boolean,
-    val warp: Boolean
+    val warp: Boolean,
+    val userAccessible: Boolean = true
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }
@@ -89,9 +100,21 @@ class StandardLibASTFunction(
     name: String,
     parameters: MutableList<Parameter> = mutableListOf(),
     val precompiledCode: ScratchASTFunction,
-    returnType: Type = Type.void
+    returnType: Type = Type.void,
+    userAccessible: Boolean = true
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, true
+    name, parameters, returnType, CodeBlock(), false, true, userAccessible
+)
+
+class InlineStandardLibFunction(
+    name: String,
+    parameters: MutableList<Parameter> = mutableListOf(),
+    returnType: Type = Type.void,
+    val realCode: (args: List<Expression>) -> ExpressionLowerResult,
+    val useLocal: Boolean = false,
+    userAccessible: Boolean = true
+) : Function(
+    name, parameters, returnType, CodeBlock(), false, true, userAccessible
 )
 
 class CodeBlock(

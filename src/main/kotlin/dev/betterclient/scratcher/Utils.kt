@@ -40,17 +40,14 @@ fun newMinification(): String {
     return sb.reverse().toString()
 }
 
-const val OBFUSCATION = false
-const val OBFUSCATION_MINIFICATION = false
-
 inline fun obfuscate(nonObfuscatedName: String): String {
-    return if (OBFUSCATION) {
+    return if (CompilationConstants.OBFUSCATION) {
         getUniqueName()
     } else nonObfuscatedName
 }
 
 inline fun getUniqueName(): String {
-    return if (OBFUSCATION_MINIFICATION) {
+    return if (CompilationConstants.OBFUSCATION_MINIFICATION) {
         newMinification()
     } else {
         Random.rand()

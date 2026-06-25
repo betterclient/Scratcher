@@ -10,7 +10,9 @@ import org.json.JSONObject
 
 class ScratchList(
     val name: String
-) : ScratchObject()
+) : ScratchObject() {
+    val items: MutableList<String> = mutableListOf()
+}
 
 class ItemOfListOpcode(val list: ScratchList, val index: ScratchValue) : ScratchOpcode() {
     override val asValue = ScratchString(this)

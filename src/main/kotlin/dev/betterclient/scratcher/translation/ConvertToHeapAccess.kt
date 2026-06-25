@@ -1,41 +1,7 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.ast.BinaryExpression
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.ConcatExpression
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.ExpressionStatement
-import dev.betterclient.scratcher.ast.FloatLiteral
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IfStatement
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.LocalVariable
-import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NewStructExpression
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.ParameterExpression
-import dev.betterclient.scratcher.ast.RepeatStatement
-import dev.betterclient.scratcher.ast.ReturnStatement
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.TemporaryCallStatement
-import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
-import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
-import dev.betterclient.scratcher.ast.TemporaryLocalVariableIndexExpression
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.UnaryExpression
-import dev.betterclient.scratcher.ast.VariableAssignmentStatement
-import dev.betterclient.scratcher.ast.VariableExpression
-import dev.betterclient.scratcher.ast.VariableStatement
-import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
@@ -148,10 +114,21 @@ class ConvertToHeapAccess(
                 ))
             }
             is VariableAssignmentStatement -> {
-                listOf(VariableAssignmentStatement(
-                    variable = statement.variable,
-                    struct = statement.struct,
-                    assignment = convertExpression(statement.assignment, currentFunction, getFunctionLocals)
+                val parIndex = statement.struct.getIndex(statement.variable)
+                val convertedTarget = convertExpression(statement.target, currentFunction, getFunctionLocals)
+                val convertedData = convertExpression(statement.assignment, currentFunction, getFunctionLocals)
+
+                listOf(TemporaryHeapSetStatement(
+                    index = if (parIndex == 0) {
+                        convertedTarget
+                    } else {
+                        BinaryExpression(
+                            left = convertedTarget,
+                            right = IntLiteral(parIndex),
+                            operator = BinaryOperator.ADD,
+                        )
+                    },
+                    data = convertedData
                 ))
             }
             is VariableStatement -> {
@@ -175,6 +152,10 @@ class ConvertToHeapAccess(
                     block = statement.block.also { convert(it, currentFunction, getFunctionLocals) }
                 ))
             }
+            is TemporaryScratchStmt -> listOf(TemporaryScratchStmt(
+                inputExprs = statement.inputExprs.map { convertExpression(it, currentFunction, getFunctionLocals) },
+                stmt = statement.stmt
+            ))
         }
     }
 
@@ -236,6 +217,10 @@ class ConvertToHeapAccess(
                 operator = expression.operator,
                 expression = convertExpression(expression.expression, currentFunction, getFunctionLocals)
             )
+            is TemporaryScratchExpr -> TemporaryScratchExpr(
+                inputExprs = expression.inputExprs.map { convertExpression(it, currentFunction, getFunctionLocals) },
+                expression = expression.expression
+            )
             is VariableExpression -> expression
             is TemporaryHeapGetExpression -> expression
             is ParameterExpression -> expression
@@ -243,8 +228,23 @@ class ConvertToHeapAccess(
             is FloatLiteral -> expression
             is IntLiteral -> expression
             is StringLiteral -> expression
-            is MemberExpression -> TODO("heap...")
-            is NewStructExpression -> TODO("heap...")
+            is MemberExpression -> {
+                val parIndex = expression.struct.getIndex(expression.member)
+                val convertedLeft = convertExpression(expression.expression, currentFunction, getFunctionLocals)
+                if (parIndex == 0) {
+                    TemporaryHeapGetExpression(
+                        convertedLeft
+                    )
+                } else {
+                    TemporaryHeapGetExpression(
+                        BinaryExpression(
+                            left = convertedLeft,
+                            right = IntLiteral(parIndex),
+                            operator = BinaryOperator.ADD,
+                        )
+                    )
+                }
+            }
             is CallExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
@@ -275,6 +275,7 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {}
                 is TemporaryHeapSetStatement -> {}
+                is TemporaryScratchStmt -> {}
                 is VariableAssignmentStatement -> {}
             }
         }
@@ -327,6 +328,7 @@ class ConvertToHeapAccess(
                 is TemporaryHeapSetStatement -> {}
                 is VariableAssignmentStatement -> {}
                 is VariableStatement -> {}
+                is TemporaryScratchStmt -> {}
             }
         }
 

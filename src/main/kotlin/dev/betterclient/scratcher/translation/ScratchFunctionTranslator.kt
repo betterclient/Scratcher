@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.OBFUSCATION
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
 import dev.betterclient.scratcher.ast.BooleanLiteral
@@ -16,7 +16,6 @@ import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NewStructExpression
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
@@ -28,6 +27,8 @@ import dev.betterclient.scratcher.ast.TemporaryCallStatement
 import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
 import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
 import dev.betterclient.scratcher.ast.TemporaryLocalVariableIndexExpression
+import dev.betterclient.scratcher.ast.TemporaryScratchExpr
+import dev.betterclient.scratcher.ast.TemporaryScratchStmt
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.UnaryExpression
 import dev.betterclient.scratcher.ast.UnaryOperator
@@ -63,11 +64,11 @@ class ScratchFunctionTranslator(
     fun run() {
         if (original is StandardLibASTFunction) return //these functions will get translated at call site
 
-        scratch.code.addAll(original.code.code.map { translateStatement(it) })
+        scratch.code.addAll(original.code.code.flatMap { translateStatement(it) })
     }
 
-    private fun translateStatement(stmt: Statement): ScratchStatement {
-        return when(stmt) {
+    private fun translateStatement(stmt: Statement): List<ScratchStatement> {
+        val single = when (stmt) {
             is TemporaryCallStatement -> {
                 val func = lookup(stmt.func)
                 CallFunction(
@@ -80,6 +81,7 @@ class ScratchFunctionTranslator(
                     }
                 )
             }
+
             is TemporaryHeapSetStatement -> {
                 ListStatements.ReplaceItem(
                     list = MemoryLib.heap,
@@ -87,30 +89,39 @@ class ScratchFunctionTranslator(
                     index = translateExpr(stmt.index),
                 )
             }
+
             is ReturnStatement -> ControlStatements.Stop(StopMode.THIS_SCRIPT)
             is IfElseStatement -> ControlStatements.IfElse(
                 condition = translateExpr(stmt.condition).asBool(),
-                thenBlock = stmt.thenBlock.code.map { translateStatement(it) },
-                elseBlock = stmt.elseBlock.code.map { translateStatement(it) }
+                thenBlock = stmt.thenBlock.code.flatMap { translateStatement(it) },
+                elseBlock = stmt.elseBlock.code.flatMap { translateStatement(it) }
             )
+
             is IfStatement -> ControlStatements.IfThen(
                 condition = translateExpr(stmt.condition).asBool(),
-                block = stmt.thenBlock.code.map { translateStatement(it) }
+                block = stmt.thenBlock.code.flatMap { translateStatement(it) }
             )
+
             is RepeatStatement -> ControlStatements.RepeatTimes(
                 amount = translateExpr(stmt.amount),
-                block = stmt.block.code.map { translateStatement(it) }
+                block = stmt.block.code.flatMap { translateStatement(it) }
             )
+
             is WhileStatement -> ControlStatements.RepeatUntil(
                 condition = BoolOperatorExpressions.SNotExpression(translateExpr(stmt.condition).asBool()),
-                block = stmt.block.code.map { translateStatement(it) },
+                block = stmt.block.code.flatMap { translateStatement(it) },
             )
 
-            is VariableAssignmentStatement -> TODO("struct...")
+            is TemporaryScratchStmt -> return stmt.stmt(stmt.inputExprs.map { translateExpr(it) })
+
             is TLVariableAssignmentStatement -> TODO("top level...")
 
-            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
+            is VariableAssignmentStatement -> throw UnsupportedOperationException("unreachable")
+            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException(
+                "unreachable"
+            )
         }
+        return listOf(single)
     }
 
     private fun translateExpr(expr: Expression): ScratchExpression {
@@ -137,21 +148,24 @@ class ScratchFunctionTranslator(
                 ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
             }
 
-            is NewStructExpression -> TODO()
             is VariableExpression -> TODO()
             is MemberExpression -> TODO()
 
             is BooleanLiteral -> {
-                val target = if (OBFUSCATION) getUniqueName() else "1"
+                val target = if (CompilationConstants.OBFUSCATION) getUniqueName() else "1"
                 BoolOperatorExpressions.BinaryExpression(
                     operand1 = target.scratch,
-                    operand2 = (if (expr.value) target else {if (OBFUSCATION) getUniqueName() else "2"}).scratch,
+                    operand2 = (if (expr.value) target else {if (CompilationConstants.OBFUSCATION) getUniqueName() else "2"}).scratch,
                     binaryOperator = SBinaryOperator.EQUALS
                 )
             }
             is FloatLiteral -> expr.value.toString().scratch
             is IntLiteral -> expr.value.toString().scratch
             is StringLiteral -> expr.value.scratch
+            is TemporaryScratchExpr -> {
+                val args = expr.inputExprs.map { translateExpr(it) }
+                expr.expression(args)
+            }
 
             is CallExpression,
             is TemporaryLocalVariableIndexExpression,

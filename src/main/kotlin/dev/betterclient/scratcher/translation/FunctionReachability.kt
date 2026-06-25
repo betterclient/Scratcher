@@ -5,7 +5,7 @@ import dev.betterclient.scratcher.ast.Function
 
 class FunctionReachability(val entrypoints: List<ASTEventListener>) {
     fun run(): MutableList<Function> {
-        return entrypoints.flatMap { getAllReachableFunctions(it) }.distinct().toMutableList()
+        return entrypoints.flatMap { getAllReachableFunctions(it) }.distinct().filter { it !is InlineStandardLibFunction }.toMutableList()
     }
 
     private fun getAllReachableFunctions(fromEntrypoint: ASTEventListener): List<Function> {
@@ -72,6 +72,7 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                     addAllReachableFunctions(funcs, statement.assignment)
                 }
                 is VariableAssignmentStatement -> {
+                    addAllReachableFunctions(funcs, statement.target)
                     addAllReachableFunctions(funcs, statement.assignment)
                 }
                 is VariableStatement -> {
@@ -82,8 +83,7 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                     funcs.addAll(getAllReachableFunctions(statement.block))
                 }
 
-                is TemporaryCallStatement -> {}
-                is TemporaryHeapSetStatement -> {}
+                is TemporaryStatement -> {}
             }
         }
         return funcs
@@ -114,11 +114,9 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
             is LocalVariableExpression,
             is ParameterExpression,
             is VariableExpression,
-            is NewStructExpression,
             is Literal -> {}
 
-            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
-            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 }

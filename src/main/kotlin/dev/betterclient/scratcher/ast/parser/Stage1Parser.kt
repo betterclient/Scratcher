@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
@@ -19,7 +20,6 @@ import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NewStructExpression
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.RepeatStatement
@@ -34,7 +34,6 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.OBFUSCATION
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
@@ -92,7 +91,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     ) {
         for (parameter in parameters) {
             if (parameter.type == Type.float) {
-                val func = if (OBFUSCATION) {
+                val func = if (CompilationConstants.OBFUSCATION) {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloatObf" }
                 } else {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloat" }
@@ -101,12 +100,12 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 code.code.add(ExpressionStatement(
                     CallExpression(func, listOfNotNull(
                         ParameterExpression(parameter),
-                        if (OBFUSCATION) null else
+                        if (CompilationConstants.OBFUSCATION) null else
                             StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not a float!")
                     ).toMutableList())
                 ))
             } else if (parameter.type == Type.int) {
-                val func = if (OBFUSCATION) {
+                val func = if (CompilationConstants.OBFUSCATION) {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkIntObf" }
                 } else {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkInt" }
@@ -115,7 +114,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 code.code.add(ExpressionStatement(
                     CallExpression(func, listOfNotNull(
                         ParameterExpression(parameter),
-                        if (OBFUSCATION) null else
+                        if (CompilationConstants.OBFUSCATION) null else
                             StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not an integer!")
                     ).toMutableList())
                 ))
@@ -159,7 +158,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                         LocalVariableAssignmentStatement(variableExpr.variable, assignmentExpr)
                     }
                     is MemberExpression -> {
-                        VariableAssignmentStatement(variableExpr.member, variableExpr.struct, assignmentExpr)
+                        VariableAssignmentStatement(variableExpr.expression, variableExpr.member, variableExpr.struct, assignmentExpr)
                     }
                     is VariableExpression -> {
                         if (!variableExpr.variable.mutable) throw IllegalStateException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
@@ -339,6 +338,9 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         resolvedFunc?.let {
+            if (!it.userAccessible) {
+                throw UnsupportedOperationException("Function ${funcCall.text} is not accessible.")
+            }
             return CallExpression(
                 func = it,
                 arguments = args
@@ -354,7 +356,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 foundArgListTypes
             )
         }?.let {
-            return NewStructExpression(it, args)
+            return CallExpression(it.allocFunc, args)
         }
 
         val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.name }})"

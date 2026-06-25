@@ -1,39 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.BinaryExpression
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.ConcatExpression
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.ExpressionStatement
-import dev.betterclient.scratcher.ast.FloatLiteral
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IfStatement
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NewStructExpression
-import dev.betterclient.scratcher.ast.ParameterExpression
-import dev.betterclient.scratcher.ast.RepeatStatement
-import dev.betterclient.scratcher.ast.ReturnStatement
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.TemporaryCallStatement
-import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
-import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
-import dev.betterclient.scratcher.ast.TemporaryLocalVariableIndexExpression
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.UnaryExpression
-import dev.betterclient.scratcher.ast.UnaryOperator
-import dev.betterclient.scratcher.ast.VariableAssignmentStatement
-import dev.betterclient.scratcher.ast.VariableExpression
-import dev.betterclient.scratcher.ast.VariableStatement
-import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
@@ -126,9 +94,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 is ExpressionStatement -> {
                     //just check if the expressions inside are ok
                     getActualTypeOrThrow(statement.expression)
-                    if (statement.expression is NewStructExpression) {
-                        throw UnsupportedOperationException("Unused new struct in ${ast.simplePath}::${function.name}")
-                    } else if (statement.expression !is CallExpression) {
+                    if (statement.expression !is CallExpression) {
                         throw UnsupportedOperationException("Unsupported expression as top level. ${statement.expression}")
                     }
                 }
@@ -151,6 +117,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment), "Top level variable assignment type is not correct")
                 }
                 is VariableAssignmentStatement -> {
+                    checkType(statement.struct.type, getActualTypeOrThrow(statement.target), "Assigning to the wrong struct type.")
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment), "Struct variable assignment type is not correct")
                 }
                 is VariableStatement -> {
@@ -174,8 +141,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
 
                 //unreachable
-                is TemporaryCallStatement -> {}
-                is TemporaryHeapSetStatement -> {}
+                is TemporaryStatement -> {}
             }
         }
     }
@@ -238,9 +204,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is LocalVariableExpression -> expr.variable.type
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
-            is NewStructExpression -> expr.struct.type
-            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
-            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
+
+            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 
@@ -281,7 +246,6 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
             BinaryOperator.EQUAL,
             BinaryOperator.NOT_EQUAL -> {
-                // Allows comparison between identical types, or mixed numeric types (int and float)
                 if (leftType == rightType || (isNumeric(leftType) && isNumeric(rightType))) {
                     Type.bool
                 } else {

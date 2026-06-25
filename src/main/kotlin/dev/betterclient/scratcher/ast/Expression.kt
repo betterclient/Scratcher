@@ -1,5 +1,7 @@
 package dev.betterclient.scratcher.ast
 
+import dev.betterclient.scratcher.codegen.ast.ScratchExpression
+
 sealed class Expression
 
 data class MemberExpression(
@@ -64,11 +66,6 @@ data class VariableExpression(
     val sourceAST: ASTFile
 ) : Expression()
 
-data class NewStructExpression(
-    val struct: Struct,
-    val args: List<Expression>
-) : Expression()
-
 sealed class Literal : Expression()
 data class IntLiteral(val value: Int) : Literal()
 data class FloatLiteral(val value: Float) : Literal()
@@ -76,10 +73,16 @@ data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
 
 //ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+sealed class TemporaryExpression : Expression()
 data class TemporaryLocalVariableIndexExpression(
     val variable: LocalVariable
-) : Expression()
+) : TemporaryExpression()
 
 data class TemporaryHeapGetExpression(
     val index: Expression,
-) : Expression()
+) : TemporaryExpression()
+
+data class TemporaryScratchExpr(
+    val inputExprs: List<Expression>,
+    val expression: (List<ScratchExpression>) -> ScratchExpression
+) : TemporaryExpression()

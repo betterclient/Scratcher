@@ -1,21 +1,33 @@
 package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.LooksStatements
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 
 object LooksLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        editor.compile(lib, "say") {
-            val message = arg("message", Type.str)
-            looks.say(message)
+        compileInline(
+            lib,
+            "say",
+            parameters = mutableListOf(Parameter("message", Type.str))
+        ) { args ->
+            LooksStatements.Say(args[0], null)
         }
 
-        editor.compile(lib, "sayForSeconds") {
-            val message = arg("message", Type.str)
-            val seconds = arg("seconds", Type.float)
-            looks.say(message, seconds)
+        compileInline(
+            lib,
+            "say",
+            parameters = mutableListOf(
+                Parameter("message", Type.str),
+                Parameter("seconds", Type.float)
+            )
+        ) { args ->
+            LooksStatements.Say(args[0], args[1])
         }
     }
 }

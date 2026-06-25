@@ -16,7 +16,7 @@ value class ScratchEditor(private val editor: JSONEditor) {
     fun addList(list: ScratchList) {
         val obj = editor.workerSprite.getJSONObject("lists")
         obj.put(list.id, JSONArray(
-            listOf(list.name, JSONArray(listOf<Any?>()))
+            listOf(list.name, JSONArray(list.items))
         ))
     }
 

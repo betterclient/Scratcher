@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.MemoryLib
 import dev.betterclient.scratcher.translation.ConvertToHeapAccess
 import dev.betterclient.scratcher.translation.EntrypointReachability
 import dev.betterclient.scratcher.translation.EntrypointTranslator
@@ -50,7 +51,7 @@ fun main() {
 
     val translator = FunctionStructureTranslator()
     //store it as a pair cause we need the original func for the code itself
-    val scratchStubs = reachableFunctions.associateWith { translator.translate(it) }
+    val scratchStubs = reachableFunctions.associateWith { translator.translate(it) }.filterValues { it != null }.mapValues { it.value!! }
 
     println("Translate code")
     scratchStubs.forEach { (normalAST, scratchAST) -> ScratchFunctionTranslator(normalAST, scratchAST) { scratchStubs[it]!! }.run() }
@@ -72,6 +73,7 @@ fun compile(sourceFile: File): ASTFile {
     val context = CompilationContext()
     println("Initial parse")
     val ast = ASTReader(context, sourceFile.readText(), sourceFile.absolutePath).read()
+    MemoryLib.initMem(StandardLibASTGenerator.memLib, ast) //generate alloc(struct)
     println("Code parse")
     Stage1Parser(context, ast).parse()
     println("Static Type Checking")

@@ -1,14 +1,20 @@
 package dev.betterclient.scratcher.std.dsl
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
+import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.TemporaryScratchExpr
+import dev.betterclient.scratcher.ast.TemporaryScratchStmt
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ControlStatements
 import dev.betterclient.scratcher.codegen.ast.LooksStatements
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchType
@@ -18,6 +24,7 @@ import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
 @DslMarker
 @Target(AnnotationTarget.CLASS)
@@ -28,7 +35,7 @@ class CodeBuilder internal constructor(
     private val name: String,
     private val editor: ScratchEditor,
     private val nested: Boolean,
-    private val warp: Boolean
+    private val warp: Boolean,
 ) : DSLListExprs, DSLVariableExprs {
     private val statements = mutableListOf<ScratchStatement>()
     private val arguments = mutableListOf<ScratchFuncArgument>()
@@ -164,12 +171,61 @@ value class DSLControl(private val builder: CodeBuilder) {
 }
 
 fun compile(name: String, editor: ScratchEditor, warp: Boolean, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
-    val builder = CodeBuilder(name, editor, false, warp).also { it.block() }
+    val builder = CodeBuilder(
+        name,
+        editor,
+        nested = false,
+        warp = warp
+    ).also { it.block() }
     return builder.toFunc()
 }
 
 fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = true, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
     val func = compile(name, this, warp, block)
+    library.functions.add(func)
+    return func
+}
+
+fun <T> compileInline(
+    library: ASTFile,
+    name: String,
+    parameters: MutableList<Parameter> = mutableListOf(),
+    returnType: Type = Type.void,
+    useLocal: Boolean = false,
+    userAccessible: Boolean = true,
+    prepend: ((List<ScratchExpression>) -> List<ScratchStatement>)? = null,
+    block: (List<ScratchExpression>) -> T
+): InlineStandardLibFunction {
+    val func = InlineStandardLibFunction(
+        name = name,
+        parameters = parameters,
+        returnType = returnType,
+        useLocal = useLocal,
+        userAccessible = userAccessible,
+        realCode = { args ->
+            val prependList = mutableListOf<Statement>()
+
+            if (prepend != null) {
+                prependList.add(TemporaryScratchStmt(args) { scratchArgs ->
+                    val statements = prepend(scratchArgs)
+                    statements
+                })
+            }
+
+            if (returnType == Type.void) {
+                val stmt = TemporaryScratchStmt(args) { scratchArgs ->
+                    listOf(block(scratchArgs) as ScratchStatement)
+                }
+                ExpressionLowerResult(expression = null, prepend = prependList + stmt)
+            } else {
+                val expr = TemporaryScratchExpr(args) { scratchArgs ->
+                    block(scratchArgs) as ScratchExpression
+                }
+                ExpressionLowerResult(expression = expr, prepend = prependList)
+            }
+        }
+    )
+
     library.functions.add(func)
     return func
 }

@@ -1,12 +1,14 @@
 package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.std.ExceptionLib
 import dev.betterclient.scratcher.std.dsl.and
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.math
 import dev.betterclient.scratcher.std.dsl.or
@@ -107,16 +109,22 @@ object CastLib {
             )
         }
 
-        editor.compile(lib, "toStr") {
-            val value = arg("value", Type.float)
-            val returnArg = returnArg(Type.str)
-            MemoryLib.heap[returnArg] = value
+        compileInline(
+            lib,
+            "toStr",
+            parameters = mutableListOf(Parameter("value", Type.float)),
+            returnType = Type.str,
+        ) { args ->
+            args[0] //just return the str
         }
 
-        editor.compile(lib, "toStr") {
-            val value = boolArg("value")
-            val returnArg = returnArg(Type.str)
-            MemoryLib.heap[returnArg] = value
+        compileInline(
+            lib,
+            "toStr",
+            parameters = mutableListOf(Parameter("value", Type.bool)),
+            returnType = Type.str,
+        ) { args ->
+            args[0]
         }
     }
 }

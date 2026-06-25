@@ -1,5 +1,8 @@
 package dev.betterclient.scratcher.ast
 
+import dev.betterclient.scratcher.codegen.ast.ScratchExpression
+import dev.betterclient.scratcher.codegen.ast.ScratchStatement
+
 sealed class Statement
 
 data class ExpressionStatement(
@@ -17,6 +20,7 @@ data class LocalVariableAssignmentStatement(
 ) : Statement()
 
 data class VariableAssignmentStatement(
+    val target: Expression,
     val variable: Parameter,
     val struct: Struct,
     val assignment: Expression,
@@ -54,12 +58,19 @@ data class RepeatStatement(
 ) : Statement()
 
 //ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+sealed class TemporaryStatement : Statement()
+
 data class TemporaryCallStatement(
     val func: Function,
     val args: MutableList<Expression>
-) : Statement()
+) : TemporaryStatement()
 
 data class TemporaryHeapSetStatement(
     val index: Expression,
     val data: Expression
-) : Statement()
+) : TemporaryStatement()
+
+data class TemporaryScratchStmt(
+    val inputExprs: List<Expression>,
+    val stmt: (List<ScratchExpression>) -> List<ScratchStatement>,
+) : TemporaryStatement()

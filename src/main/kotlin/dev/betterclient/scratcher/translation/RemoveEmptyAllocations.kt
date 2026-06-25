@@ -13,6 +13,7 @@ import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.TemporaryCallStatement
 import dev.betterclient.scratcher.ast.TemporaryHeapSetStatement
+import dev.betterclient.scratcher.ast.TemporaryScratchStmt
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
@@ -36,7 +37,7 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
 
                 is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
                 is ReturnStatement, is TLVariableAssignmentStatement, is TemporaryCallStatement,
-                is TemporaryHeapSetStatement, is VariableAssignmentStatement -> {}
+                is TemporaryHeapSetStatement, is VariableAssignmentStatement, is TemporaryScratchStmt -> {}
             }
         }
 

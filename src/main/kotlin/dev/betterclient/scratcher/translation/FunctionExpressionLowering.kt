@@ -89,9 +89,12 @@ class FunctionExpressionLowering(val func: Function) {
                 }
                 is VariableAssignmentStatement -> {
                     val list = mutableListOf<Statement>()
+                    val targetExpr = lowerExpr(statement.target)
                     val expr = lowerExpr(statement.assignment)
+                    list.addAll(targetExpr.prepend)
                     list.addAll(expr.prepend)
                     list.add(VariableAssignmentStatement(
+                        targetExpr.expression!!,
                         statement.variable,
                         statement.struct,
                         expr.expression!!
@@ -118,8 +121,7 @@ class FunctionExpressionLowering(val func: Function) {
                     ))
                     replacements[statement] = list
                 }
-                is TemporaryCallStatement -> throw UnsupportedOperationException("unreachable")
-                is TemporaryHeapSetStatement -> throw UnsupportedOperationException("unreachable")
+                is TemporaryStatement -> throw UnsupportedOperationException("unreachable")
             }
         }
 
@@ -140,6 +142,34 @@ class FunctionExpressionLowering(val func: Function) {
             prepend.addAll(lowered.prepend)
             lowered.expression!!
         }
+        if (expression.func is InlineStandardLibFunction) {
+            //special handling!!!
+            val func = expression.func
+            return if (isVoid) {
+                val code = func.realCode(argsMapped)
+                ExpressionLowerResult(
+                    null, prepend + code.prepend
+                )
+            } else {
+                if (func.useLocal) {
+                    val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
+                    prepend.add(VariableStatement(IntLiteral(-1), local))
+
+                    val code = func.realCode(argsMapped + TemporaryLocalVariableIndexExpression(local))
+
+                    prepend.add(LocalVariableAssignmentStatement(local, code.expression!!))
+                    ExpressionLowerResult(
+                        LocalVariableExpression(local), prepend + code.prepend
+                    )
+                } else {
+                    val code = func.realCode(argsMapped)
+                    ExpressionLowerResult(
+                        code.expression, prepend + code.prepend
+                    )
+                }
+            }
+        }
+
         if (isVoid) {
             prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
         } else {
@@ -184,14 +214,6 @@ class FunctionExpressionLowering(val func: Function) {
                     prepend = prepend
                 )
             }
-            is NewStructExpression -> {
-                val prepend = mutableListOf<Statement>()
-                val args = expression.args.map { expr -> lowerExpr(expr).also { prepend.addAll(it.prepend) }.expression!! }
-                ExpressionLowerResult(
-                    expression = NewStructExpression(expression.struct, args),
-                    prepend = prepend
-                )
-            }
             is ParameterExpression -> {
                 ExpressionLowerResult(expression)
             }
@@ -210,8 +232,7 @@ class FunctionExpressionLowering(val func: Function) {
             is StringLiteral -> ExpressionLowerResult(expression)
             is LocalVariableExpression -> ExpressionLowerResult(expression)
 
-            is TemporaryLocalVariableIndexExpression -> throw UnsupportedOperationException("unreachable")
-            is TemporaryHeapGetExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
         }
     }
 }

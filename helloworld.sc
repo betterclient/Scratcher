@@ -2,12 +2,15 @@ import looks;
 import cast;
 import math;
 import calendar;
+import mem;
 
 struct User(int a, int b);
 
 void main() {
     int b = 5;
-    looks::say("hi! ${a(cast::toBool("true"))} ${math::floor(b)}, Today is the ${calendar::getDayOfWeek()}th day of the week!");
+    User u = User(5, a(false));
+    looks::say("test: ${u.b}");
+    mem::free(u);
 }
 
 warp int a(bool a) {
