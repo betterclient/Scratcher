@@ -94,7 +94,8 @@ class TLVariable(
     val name: String,
     val mutable: Boolean,
     val type: Type,
-    var defaultValue: Expression? = null
+    var defaultValue: Expression? = null,
+    val sourceAST: ASTFile
 ) {
     var ctx: ScratcherLangParser.ExpressionContext? = null
 }

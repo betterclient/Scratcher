@@ -169,7 +169,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val astVariable = TLVariable(
                     variable.IDENTIFIER().text,
                     variable.isConst == null,
-                    figureOutType(ctx, ast, variable.type())
+                    figureOutType(ctx, ast, variable.type()),
+                    sourceAST = ast
                 )
                 astVariable.ctx = variable.expression()
                 if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${astVariable.name} is type void.")

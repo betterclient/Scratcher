@@ -24,6 +24,7 @@ import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.StringLiteral
+import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.TemporaryCallStatement
 import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
@@ -53,15 +54,19 @@ import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.ScratchStringParameterExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchType
+import dev.betterclient.scratcher.codegen.ast.VariableStatements
 import dev.betterclient.scratcher.codegen.ast.scratch
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.codegen.wrapper.ScratchVariableValue
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
     val original: Function,
     val scratch: ScratchASTFunction,
-    val lookup: (Function) -> ScratchASTFunction
+    val lookup: (Function) -> ScratchASTFunction,
+    val lookupVar: (TLVariable) -> ScratchVariable
 ) {
     fun run() {
         if (original is StandardLibASTFunction) return //these functions will get translated at call site
@@ -116,7 +121,10 @@ class ScratchFunctionTranslator(
 
             is TemporaryScratchStmt -> return stmt.stmt(stmt.inputExprs.map { translateExpr(it) })
 
-            is TLVariableAssignmentStatement -> TODO("top level...")
+            is TLVariableAssignmentStatement -> VariableStatements.SetVariableTo(
+                lookupVar(stmt.variable),
+                translateExpr(stmt.assignment)
+            )
 
             is VariableAssignmentStatement -> throw UnsupportedOperationException("unreachable")
             is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException(
@@ -151,7 +159,7 @@ class ScratchFunctionTranslator(
             }
             is NullExpression -> "-1".scratch
 
-            is VariableExpression -> TODO()
+            is VariableExpression -> ListExpressions.Variable(lookupVar(expr.variable))
 
             is BooleanLiteral -> {
                 val target = if (CompilationConstants.OBFUSCATION) getUniqueName() else "1"

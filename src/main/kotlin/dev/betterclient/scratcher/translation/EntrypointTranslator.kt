@@ -15,7 +15,12 @@ import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
-class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toScratch: (Function) -> ScratchASTFunction) {
+class EntrypointTranslator(
+    val getFunctionLocalSize: (Function) -> Int,
+    val toScratch: (Function) -> ScratchASTFunction,
+    val topLevelInit: ScratchASTFunction,
+    val topLevelInitLocals: Int
+) {
     fun translateAll(editor: ScratchEditor, listeners: List<ASTEventListener>) {
         generateResetEvent(editor, listeners.size)
 
@@ -72,6 +77,22 @@ class EntrypointTranslator(val getFunctionLocalSize: (Function) -> Int, val toSc
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
                 }
+                val index = if (topLevelInitLocals > 0) {
+                    list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
+                    entrypointCount
+                } else -1
+
+                if (index != -1) {
+                    list.add(CallFunction(
+                        MemoryLib.alloc.precompiledCode,
+                        listOf(topLevelInitLocals.toString().scratch, index.toString().scratch)
+                    ))
+                }
+
+                list.add(CallFunction(
+                    topLevelInit,
+                    listOf(index.toString().scratch)
+                ))
             }
         )
 

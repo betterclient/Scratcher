@@ -18,6 +18,7 @@ import dev.betterclient.scratcher.translation.FunctionStructureTranslator
 import dev.betterclient.scratcher.translation.RemoveEmptyAllocations
 import dev.betterclient.scratcher.translation.ReParseLocalVariables
 import dev.betterclient.scratcher.translation.ScratchFunctionTranslator
+import dev.betterclient.scratcher.translation.TopLevelVariableTranslator
 import java.io.File
 
 fun main() {
@@ -31,7 +32,16 @@ fun main() {
 
     println("Reachability")
     val reachableEntrypoints = EntrypointReachability().run(ast)
+    val reachableTopLevelVariables = reachableEntrypoints.flatMap { it.sourceAST.variables }.associateWith { it.defaultValue }
+    reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null } //clear default values as we already know them
     val reachableFunctions = FunctionReachability(reachableEntrypoints).run()
+
+    println("Top level variables")
+    val topLevelTranslator = TopLevelVariableTranslator()
+    val scratchTopLevels = reachableTopLevelVariables.map { (variable, _) -> variable to topLevelTranslator.translate(variable) }.toMap()
+    scratchTopLevels.forEach { (_, scratch)-> editor.addVariable(scratch) }
+    val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
+    reachableFunctions.add(topLevelInit)
 
     //TODO: Fix while bug
 
@@ -55,12 +65,25 @@ fun main() {
     val scratchStubs = reachableFunctions.associateWith { translator.translate(it) }.filterValues { it != null }.mapValues { it.value!! }
 
     println("Translate code")
-    scratchStubs.forEach { (normalAST, scratchAST) -> ScratchFunctionTranslator(normalAST, scratchAST) { scratchStubs[it]!! }.run() }
+    scratchStubs.forEach { (normalAST, scratchAST) ->
+        ScratchFunctionTranslator(
+            original = normalAST,
+            scratch = scratchAST,
+            lookup = {
+                scratchStubs[it]!!
+            },
+            lookupVar = {
+                scratchTopLevels[it]!!
+            }
+        ).run()
+    }
 
     println("Compile entrypoints")
     EntrypointTranslator(
         getFunctionLocalSize = { reachableFunctionsLocalCountsMap[it]!! },
-        toScratch = { scratchStubs[it]!! }
+        toScratch = { scratchStubs[it]!! },
+        topLevelInit = scratchStubs[topLevelInit]!!,
+        topLevelInitLocals = reachableFunctionsLocalCountsMap[topLevelInit]!!,
     ).translateAll(
         editor, reachableEntrypoints
     )
