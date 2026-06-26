@@ -104,14 +104,18 @@ class FunctionExpressionLowering(val func: Function) {
                     replacements[statement] = list
                 }
                 is VariableStatement -> {
-                    val list = mutableListOf<Statement>()
-                    val expr = lowerExpr(statement.defaultValue)
-                    list.addAll(expr.prepend)
-                    list.add(VariableStatement(
-                        expr.expression!!,
-                        statement.variable
-                    ))
-                    replacements[statement] = list
+                    if (statement.defaultValue == null) {
+                        replacements[statement] = listOf(VariableStatement(null, statement.variable))
+                    } else {
+                        val list = mutableListOf<Statement>()
+                        val expr = lowerExpr(statement.defaultValue)
+                        list.addAll(expr.prepend)
+                        list.add(VariableStatement(
+                            expr.expression!!,
+                            statement.variable
+                        ))
+                        replacements[statement] = list
+                    }
                 }
                 is WhileStatement -> {
                     val list = mutableListOf<Statement>()
@@ -155,7 +159,7 @@ class FunctionExpressionLowering(val func: Function) {
             } else {
                 if (func.useLocal) {
                     val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
-                    prepend.add(VariableStatement(IntLiteral(-1), local))
+                    prepend.add(VariableStatement(null, local))
 
                     val code = func.realCode(argsMapped + TemporaryLocalVariableIndexExpression(local))
 
@@ -178,7 +182,7 @@ class FunctionExpressionLowering(val func: Function) {
             prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
         } else {
             val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
-            prepend.add(VariableStatement(IntLiteral(-1), local))
+            prepend.add(VariableStatement(null, local))
             prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
             expr = LocalVariableExpression(local)
         }

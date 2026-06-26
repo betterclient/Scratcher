@@ -77,7 +77,7 @@ data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
 object NullExpression : Literal()
 
-//ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+//ONLY USE FOR LOWERING PHASE
 sealed class TemporaryExpression : Expression()
 data class TemporaryLocalVariableIndexExpression(
     val variable: LocalVariable

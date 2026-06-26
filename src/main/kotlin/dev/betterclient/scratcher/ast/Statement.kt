@@ -10,7 +10,7 @@ data class ExpressionStatement(
 ) : Statement()
 
 data class VariableStatement(
-    val defaultValue: Expression,
+    val defaultValue: Expression?,
     val variable: LocalVariable
 ) : Statement()
 
@@ -57,7 +57,7 @@ data class RepeatStatement(
     val block: CodeBlock
 ) : Statement()
 
-//ONLY USE FOR LOWERING PHASE in FunctionExpressionLowering.kt
+//ONLY USE FOR LOWERING PHASE
 sealed class TemporaryStatement : Statement()
 
 data class TemporaryCallStatement(

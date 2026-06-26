@@ -76,7 +76,9 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                     addAllReachableFunctions(funcs, statement.assignment)
                 }
                 is VariableStatement -> {
-                    addAllReachableFunctions(funcs, statement.defaultValue)
+                    statement.defaultValue?.let {
+                        addAllReachableFunctions(funcs, it)
+                    }
                 }
                 is WhileStatement -> {
                     addAllReachableFunctions(funcs, statement.condition)

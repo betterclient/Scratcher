@@ -133,18 +133,22 @@ class ConvertToHeapAccess(
             }
             is VariableStatement -> {
                 val index = curFunc.indexOf(statement.variable)
-                listOf(TemporaryHeapSetStatement(
-                    index = if (index == 0) {
-                        ParameterExpression(stackPar)
-                    } else {
-                        BinaryExpression(
-                            left = ParameterExpression(stackPar),
-                            right = IntLiteral(index),
-                            operator = BinaryOperator.ADD,
-                        )
-                    },
-                    data = convertExpression(statement.defaultValue, currentFunction, getFunctionLocals)
-                ))
+                if (statement.defaultValue == null) {
+                    listOf()
+                } else {
+                    listOf(TemporaryHeapSetStatement(
+                        index = if (index == 0) {
+                            ParameterExpression(stackPar)
+                        } else {
+                            BinaryExpression(
+                                left = ParameterExpression(stackPar),
+                                right = IntLiteral(index),
+                                operator = BinaryOperator.ADD,
+                            )
+                        },
+                        data = convertExpression(statement.defaultValue, currentFunction, getFunctionLocals)
+                    ))
+                }
             }
             is WhileStatement -> {
                 listOf(WhileStatement(
@@ -281,7 +285,7 @@ class ConvertToHeapAccess(
                 is VariableAssignmentStatement -> {}
             }
         }
-        return vars.toSet().toList() //little trick to remove duplicates
+        return vars.distinct()
     }
 
     fun getTemporary(function: Function) = temporaryExpression.computeIfAbsent(function) { TemporaryHeapGetExpression(IntLiteral(0)) }
@@ -317,9 +321,9 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
+                    val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int) //type doesn't matter here
                     replacements[statement] = listOf(
-                        VariableStatement(IntLiteral(-1), allocVar),
+                        VariableStatement(null, allocVar),
                         TemporaryCallStatement(
                             MemoryLib.alloc,
                             mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))

@@ -121,7 +121,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment), "Struct variable assignment type is not correct")
                 }
                 is VariableStatement -> {
-                    checkType(statement.variable.type, getActualTypeOrThrow(statement.defaultValue), "Local variable default value is not expected type")
+                    statement.defaultValue?.let {
+                        checkType(statement.variable.type, getActualTypeOrThrow(it), "Local variable default value is not expected type")
+                    }
                 }
                 is WhileStatement -> {
                     checkType(Type.bool, getActualTypeOrThrow(statement.condition), "Non bool used as while condition")
