@@ -101,7 +101,7 @@ float rgb(float r, float g, float b) {
 }*/
 
 on GreenFlag {
-    while(test() == 5) {
+    while(test() != 5) {
         looks::say("hi!");
     }
 }

@@ -57,6 +57,10 @@ object BoolOperatorExpressions {
         val operand1: ScratchBoolExpression
     ) : ScratchBoolExpression() {
         override fun lower(): ScratchValue {
+            if (operand1 is SNotExpression) {
+                return operand1.operand1.lower()
+            }
+
             return NotOpcode(operand1.lower().boolean).asValue
         }
     }
