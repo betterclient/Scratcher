@@ -177,6 +177,7 @@ fun <T> compileInline(
     parameters: MutableList<Parameter> = mutableListOf(),
     returnType: Type = Type.void,
     useLocal: Boolean = false,
+    warp: Boolean = true, //used for optimizations
     userAccessible: Boolean = true,
     prepend: ((List<ScratchExpression>) -> List<ScratchStatement>)? = null,
     block: (List<ScratchExpression>) -> T
@@ -187,6 +188,7 @@ fun <T> compileInline(
         returnType = returnType,
         useLocal = useLocal,
         userAccessible = userAccessible,
+        warp = warp,
         realCode = { args ->
             val prependList = mutableListOf<Statement>()
 

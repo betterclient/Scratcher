@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
+import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import dev.betterclient.scratcher.translation.ConvertToHeapAccess
@@ -30,16 +31,22 @@ fun main() {
 
     val ast = compile(File("helloworld.sc"))
 
+    println("Optimizations")
+    Optimizations.apply(ast)
+
     println("Reachability")
     val reachableEntrypoints = EntrypointReachability().run(ast)
-    val reachableTopLevelVariables = reachableEntrypoints.flatMap { it.sourceAST.variables }.associateWith { it.defaultValue }
+    val reachableTopLevelVariables = (reachableEntrypoints.asSequence()
+        .flatMap { it.sourceAST.variables.asSequence() }
+        .plus(StandardLibASTGenerator.optimizationsLib.variables.asSequence())
+        .associateWith { it.defaultValue })
     reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null } //clear default values as we already know them
     val reachableFunctions = FunctionReachability(reachableEntrypoints).run()
 
     println("Top level variables")
     val topLevelTranslator = TopLevelVariableTranslator()
-    val scratchTopLevels = reachableTopLevelVariables.map { (variable, _) -> variable to topLevelTranslator.translate(variable) }.toMap()
-    scratchTopLevels.forEach { (_, scratch)-> editor.addVariable(scratch) }
+    val scratchTopLevels = reachableTopLevelVariables.map { (variable, _) -> variable to topLevelTranslator.translate(variable) }.toMap().toMutableMap()
+    scratchTopLevels.forEach { (_, scratch) -> editor.addVariable(scratch) }
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
 

@@ -2,6 +2,8 @@ package dev.betterclient.scratcher.std
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
@@ -42,6 +44,7 @@ object StandardLibASTGenerator {
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
     val randomLib = ASTFile("random")
+    val optimizationsLib = ASTFile("optimizations")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -54,6 +57,7 @@ object StandardLibASTGenerator {
         "pen" to penLib,
         "motion" to motionLib,
         "random" to randomLib,
+        "optimizations" to optimizationsLib,
     )
 
     val memLib = ASTFile("mem").also {
@@ -72,7 +76,11 @@ object StandardLibASTGenerator {
     }
 
     fun isRestricted(library: ASTFile): Boolean {
-        return library.path == "typecheck" || library == memoryLib
+        return library.path == "typecheck" || library == memoryLib || library == optimizationsLib
+    }
+
+    fun isStandardLib(function: Function): Boolean {
+        return function is StandardLibASTFunction || function is InlineStandardLibFunction
     }
 
     private fun compile(file: String, path: String): ASTFile {

@@ -19,6 +19,7 @@ object LooksLib {
         compileInline(
             lib,
             "say",
+            warp = false,
             parameters = mutableListOf(
                 Parameter("message", Type.str),
                 Parameter("seconds", Type.float)

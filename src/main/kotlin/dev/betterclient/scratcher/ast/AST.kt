@@ -128,9 +128,10 @@ class InlineStandardLibFunction(
     returnType: Type = Type.void,
     val realCode: (args: List<Expression>) -> ExpressionLowerResult,
     val useLocal: Boolean = false,
+    warp: Boolean, //use for opts
     userAccessible: Boolean = true
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, true, userAccessible
+    name, parameters, returnType, CodeBlock(), false, warp, userAccessible
 )
 
 class CodeBlock(

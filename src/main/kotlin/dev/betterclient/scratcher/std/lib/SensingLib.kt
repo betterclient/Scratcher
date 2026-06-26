@@ -15,6 +15,7 @@ object SensingLib {
             name = "ask",
             parameters = mutableListOf(Parameter("message", Type.str)),
             returnType = Type.str,
+            warp = false,
             prepend = { args ->
                 listOf(SensingStatements.Ask(args[0]))
             },

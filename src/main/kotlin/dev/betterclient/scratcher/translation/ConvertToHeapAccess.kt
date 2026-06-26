@@ -321,15 +321,22 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int) //type doesn't matter here
-                    replacements[statement] = listOf(
-                        VariableStatement(null, allocVar),
-                        TemporaryCallStatement(
-                            MemoryLib.alloc,
-                            mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
-                        ),
-                        statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
-                    )
+                    val targetLocalSize = countLocals(statement.func.code).size
+                    if (targetLocalSize == 0) {
+                        replacements[statement] = listOf(
+                            statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
+                        )
+                    } else {
+                        val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
+                        replacements[statement] = listOf(
+                            VariableStatement(null, allocVar),
+                            TemporaryCallStatement(
+                                MemoryLib.alloc,
+                                mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
+                            ),
+                            statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
+                        )
+                    }
                 }
                 is TemporaryHeapSetStatement -> {}
                 is VariableAssignmentStatement -> {}

@@ -49,7 +49,7 @@ object MotionLib {
     }
 
     private fun compileGlideToFunctions(lib: ASTFile) {
-        compileInline(lib, "glideToXY", parameters = mutableListOf(
+        compileInline(lib, "glideToXY", warp = false, parameters = mutableListOf(
             Parameter("x", Type.float),
             Parameter("y", Type.float),
             Parameter("secs", Type.float)
@@ -60,7 +60,7 @@ object MotionLib {
             )
         }
 
-        compileInline(lib, "glideToX", parameters = mutableListOf(
+        compileInline(lib, "glideToX", warp = false, parameters = mutableListOf(
             Parameter("x", Type.float),
             Parameter("secs", Type.float),
         )) {
@@ -70,7 +70,7 @@ object MotionLib {
             )
         }
 
-        compileInline(lib, "glideToY", parameters = mutableListOf(
+        compileInline(lib, "glideToY", warp = false, parameters = mutableListOf(
             Parameter("y", Type.float),
             Parameter("secs", Type.float),
         )) {
@@ -80,7 +80,7 @@ object MotionLib {
             )
         }
 
-        compileInline(lib, "glideToMouse", parameters = mutableListOf(
+        compileInline(lib, "glideToMouse", warp = false, parameters = mutableListOf(
             Parameter("secs", Type.float),
         )) {
             MotionStatements.GlideTo(
@@ -89,7 +89,7 @@ object MotionLib {
             )
         }
 
-        compileInline(lib, "glideToRandom", parameters = mutableListOf(
+        compileInline(lib, "glideToRandom", warp = false, parameters = mutableListOf(
             Parameter("secs", Type.float)
         )) {
             MotionStatements.GlideTo(
