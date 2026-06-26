@@ -120,10 +120,19 @@ class FunctionExpressionLowering(val func: Function) {
                 is WhileStatement -> {
                     val list = mutableListOf<Statement>()
                     val expr = lowerExpr(statement.condition)
-                    list.addAll(expr.prepend)
+
+                    val declarations = expr.prepend.filterIsInstance<VariableStatement>()
+                    val updates = expr.prepend.filter { it !is VariableStatement }
+
+                    list.addAll(declarations)
+                    list.addAll(updates)
+
+                    val loweredBlock = statement.block.also { lowerBlock(it) }
+                    loweredBlock.code.addAll(updates)
+
                     list.add(WhileStatement(
                         expr.expression!!,
-                        statement.block.also { lowerBlock(it) },
+                        loweredBlock,
                     ))
                     replacements[statement] = list
                 }

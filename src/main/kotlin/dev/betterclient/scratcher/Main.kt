@@ -53,8 +53,6 @@ fun main() {
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
 
-    //TODO: Fix while bug
-
     println("Lower expressions")
     reachableFunctions.forEach { FunctionExpressionLowering(it).run() }
     reachableFunctions.forEach { it.returnType = Type.void }

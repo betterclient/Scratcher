@@ -2,6 +2,7 @@ import pen;
 import motion;
 import math;
 import random;
+import looks;
 
 warp void fillTriDecl(
     float x1, float y1,
@@ -78,7 +79,7 @@ float rgb(float r, float g, float b) {
     return colorValue;
 }
 
-on GreenFlag {
+/*on GreenFlag {
     int index = 0;
     while(true) {
         fillTriDecl(
@@ -96,5 +97,19 @@ on GreenFlag {
             index = 0;
         }
         index = index + 1;
+    }
+}*/
+
+on GreenFlag {
+    while(test() == 5) {
+        looks::say("hi!");
+    }
+}
+
+int test() {
+    if(random::random(1, 5) == 5) {
+        return 67;
+    } else {
+        return 5;
     }
 }
