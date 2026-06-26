@@ -17,6 +17,7 @@ import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.lib.*
+import kotlin.system.exitProcess
 
 object StandardLibASTGenerator {
     fun init(editor: ScratchEditor) {
@@ -93,6 +94,20 @@ object StandardLibASTGenerator {
         Stage1Parser(context, ast).parse()
 
         return ast
+    }
+
+    fun print() {
+        lib.forEach { (name, ast) ->
+            if (isRestricted(ast)) return@forEach
+            println("Library: $name")
+            ast.functions.forEach { func ->
+                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType.name} ${func.name} (${func.parameters.joinToString { "${it.type} ${it.name}" }})")
+            }
+            if (name == "mem") {
+                println("   Function: warp free (AnyStruct val)")
+            }
+        }
+        exitProcess(0)
     }
 }
 

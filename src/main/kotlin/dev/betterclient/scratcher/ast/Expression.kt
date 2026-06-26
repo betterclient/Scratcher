@@ -1,6 +1,8 @@
 package dev.betterclient.scratcher.ast
 
 import dev.betterclient.scratcher.codegen.ast.ScratchExpression
+import java.math.BigDecimal
+import java.math.BigInteger
 
 sealed class Expression
 
@@ -71,8 +73,8 @@ data class NonNullAssertExpression(
 ) : Expression()
 
 sealed class Literal : Expression()
-data class IntLiteral(val value: Int) : Literal()
-data class FloatLiteral(val value: Float) : Literal()
+data class IntLiteral(val value: BigInteger) : Literal()
+data class FloatLiteral(val value: BigDecimal) : Literal()
 data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
 object NullExpression : Literal()

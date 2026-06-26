@@ -4,6 +4,8 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.ast.ScratchExpression
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
+import java.math.BigDecimal
+import java.math.BigInteger
 
 enum class VisitMode {
     NONE,
@@ -58,7 +60,7 @@ interface BaseStatementVisitor {
 interface BaseExpressionVisitor {
     fun visitBinaryExpression(left: Expression, right: Expression, operator: BinaryOperator): Expression = BinaryExpression(left, operator, right)
     fun visitCallExpression(func: Function, args: List<Expression>): Expression = CallExpression(func, args)
-    fun visitIntLiteral(int: Int): Expression = IntLiteral(int)
+    fun visitIntLiteral(value: BigInteger): Expression = IntLiteral(value)
     fun visitLocalVariableExpression(variable: LocalVariable): Expression = LocalVariableExpression(variable)
     fun visitMemberExpression(expression: Expression, member: Parameter, struct: Struct): Expression = MemberExpression(expression, member, struct)
     fun visitConcatExpression(left: Expression, right: Expression): Expression = ConcatExpression(left, right)
@@ -66,7 +68,7 @@ interface BaseExpressionVisitor {
     fun visitNonNullAssertExpression(expression: Expression): Expression = NonNullAssertExpression(expression)
     fun visitParameterExpression(parameter: Parameter): Expression = ParameterExpression(parameter)
     fun visitVariableExpression(variable: TLVariable, sourceAST: ASTFile): Expression = VariableExpression(variable, sourceAST)
-    fun visitFloatLiteral(value: Float): Expression = FloatLiteral(value)
+    fun visitFloatLiteral(value: BigDecimal): Expression = FloatLiteral(value)
     fun visitBooleanLiteral(value: Boolean): Expression = BooleanLiteral(value)
     fun visitStringLiteral(value: String): Expression = StringLiteral(value)
     fun visitNullExpression(): Expression = NullExpression

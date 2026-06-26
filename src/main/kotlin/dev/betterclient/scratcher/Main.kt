@@ -30,6 +30,9 @@ fun main() {
     StandardLibASTGenerator.init(editor)
 
     val ast = compile(File("helloworld.sc"))
+    if (CompilationConstants.PRINT_STDLIB) {
+        StandardLibASTGenerator.print()
+    }
 
     println("Optimizations")
     Optimizations.apply(ast)

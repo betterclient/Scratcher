@@ -5,4 +5,5 @@ object CompilationConstants {
     const val OBFUSCATION = false
     const val OBFUSCATION_MINIFICATION = false
     const val NON_MINIFICATION_LENGTH = 20
+    const val PRINT_STDLIB = false //print the stdlib function structures and exit
 }

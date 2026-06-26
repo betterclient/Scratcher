@@ -403,8 +403,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         return when {
             ctx.FALSE() != null -> BooleanLiteral(false)
             ctx.TRUE() != null -> BooleanLiteral(true)
-            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toFloatOrNull()?: throw Exception("${ctx.FLOAT()?.text} is not a float!"))
-            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toIntOrNull()?: throw Exception("${ctx.INT()?.text} is not an int!"))
+            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw Exception("${ctx.FLOAT()?.text} is not a float!"))
+            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw Exception("${ctx.INT()?.text} is not an int!"))
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
             else -> throw UnsupportedOperationException("$ctx is not one of the expected types.")
         }

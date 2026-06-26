@@ -23,12 +23,22 @@ object MathLib {
             }
         }
 
-        editor.compile(lib, "pow") {
-            val base = arg("base", Type.float)
-            val exponent = arg("exponent", Type.float)
-            val returnArg = returnArg(Type.float)
-
-            MemoryLib.heap[returnArg] = (exponent * base.math(MathOp.LN)).math(MathOp.E_POW)
+        compileInline(
+            lib, "pow",
+            parameters = mutableListOf(Parameter("base", Type.float), Parameter("exponent", Type.float)),
+            returnType = Type.float
+        ) {
+            OperatorExpressions.MathOperation(
+                MathOp.E_POW,
+                OperatorExpressions.BinaryExpression(
+                    left = it[1],
+                    right = OperatorExpressions.MathOperation(
+                        MathOp.LN,
+                        it[0]
+                    ),
+                    operator = OperatorExpressions.BinaryOperator.MULTIPLY
+                )
+            )
         }
 
         compileInline(

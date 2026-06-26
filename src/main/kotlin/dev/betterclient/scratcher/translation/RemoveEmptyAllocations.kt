@@ -47,7 +47,7 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
 
                 val isAlloc0 = statement.func == MemoryLib.alloc && //alloc
                         firstArg is IntLiteral && //with literal
-                        firstArg.value == 0 //0!!!!
+                        firstArg.value == 0.toBigInteger() //0!!!!
 
                 val isFree0 = statement.func == MemoryLib.free && //free
                         firstArg is ParameterExpression && //with a parameter

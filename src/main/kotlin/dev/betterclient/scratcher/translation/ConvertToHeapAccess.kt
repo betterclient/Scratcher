@@ -78,7 +78,7 @@ class ConvertToHeapAccess(
                     } else {
                         BinaryExpression(
                             left = ParameterExpression(stackPar),
-                            right = IntLiteral(index),
+                            right = IntLiteral(index.toBigInteger()),
                             operator = BinaryOperator.ADD,
                         )
                     },
@@ -124,7 +124,7 @@ class ConvertToHeapAccess(
                     } else {
                         BinaryExpression(
                             left = convertedTarget,
-                            right = IntLiteral(parIndex),
+                            right = IntLiteral(parIndex.toBigInteger()),
                             operator = BinaryOperator.ADD,
                         )
                     },
@@ -142,7 +142,7 @@ class ConvertToHeapAccess(
                         } else {
                             BinaryExpression(
                                 left = ParameterExpression(stackPar),
-                                right = IntLiteral(index),
+                                right = IntLiteral(index.toBigInteger()),
                                 operator = BinaryOperator.ADD,
                             )
                         },
@@ -171,7 +171,7 @@ class ConvertToHeapAccess(
         if (temporaryExpression.containsValue(expression)) {
             val matchedFunction = temporaryExpression.entries.firstOrNull { it.value === expression }?.key
             if (matchedFunction != null) {
-                return IntLiteral(getFunctionLocals(matchedFunction).size)
+                return IntLiteral(getFunctionLocals(matchedFunction).size.toBigInteger())
             }
         }
 
@@ -186,7 +186,7 @@ class ConvertToHeapAccess(
                     } else {
                         BinaryExpression(
                             left = ParameterExpression(stackPar),
-                            right = IntLiteral(index),
+                            right = IntLiteral(index.toBigInteger()),
                             operator = BinaryOperator.ADD,
                         )
                     }
@@ -212,7 +212,7 @@ class ConvertToHeapAccess(
                 } else {
                     BinaryExpression(
                         left = ParameterExpression(stackPar),
-                        right = IntLiteral(index),
+                        right = IntLiteral(index.toBigInteger()),
                         operator = BinaryOperator.ADD,
                     )
                 }
@@ -244,7 +244,7 @@ class ConvertToHeapAccess(
                     TemporaryHeapGetExpression(
                         BinaryExpression(
                             left = convertedLeft,
-                            right = IntLiteral(parIndex),
+                            right = IntLiteral(parIndex.toBigInteger()),
                             operator = BinaryOperator.ADD,
                         )
                     )
@@ -288,7 +288,7 @@ class ConvertToHeapAccess(
         return vars.distinct()
     }
 
-    fun getTemporary(function: Function) = temporaryExpression.computeIfAbsent(function) { TemporaryHeapGetExpression(IntLiteral(0)) }
+    fun getTemporary(function: Function) = temporaryExpression.computeIfAbsent(function) { TemporaryHeapGetExpression(IntLiteral(0.toBigInteger())) }
 
     private fun addAllocAndFreeStack(
         function: Function,
