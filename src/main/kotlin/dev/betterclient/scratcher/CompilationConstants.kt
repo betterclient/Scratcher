@@ -6,4 +6,5 @@ object CompilationConstants {
     const val OBFUSCATION_MINIFICATION = false
     const val NON_MINIFICATION_LENGTH = 20
     const val PRINT_STDLIB = false //print the stdlib function structures and exit
+    const val DISABLE_TYPE_CHECKER = true //disables the runtime type checker
 }

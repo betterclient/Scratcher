@@ -10,7 +10,9 @@ typealias TCallGraph = Map<Function, List<Function>>
 object Optimizations {
     private val optimizations = listOf(
         OptimizeToGlobals,
-        InlineSingleUseVariables
+        InlineSingleUseVariables,
+        SimplifyDoubleNegation,
+        SimplifyBooleanEquality
     )
 
     fun apply(ast: ASTFile) {
