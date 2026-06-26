@@ -193,3 +193,25 @@ object SensingStatements {
         override fun lower() = listOf(ResetTimerOpcode())
     }
 }
+
+object PenStatements {
+    class PenDown : ScratchStatement() {
+        override fun lower() = listOf(PenDownOpcode())
+    }
+
+    class PenUp : ScratchStatement() {
+        override fun lower() = listOf(PenUpOpcode())
+    }
+
+    class EraseAll : ScratchStatement() {
+        override fun lower() = listOf(PenClearOpcode())
+    }
+
+    class SetColor(val color: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(PenSetColorOpcode(color.lower()))
+    }
+
+    class SetSize(val size: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(PenSetSizeOpcode(size.lower()))
+    }
+}

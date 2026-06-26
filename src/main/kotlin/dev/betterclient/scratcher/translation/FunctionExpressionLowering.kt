@@ -4,7 +4,7 @@ import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.ExceptionLib
+import dev.betterclient.scratcher.std.lib.ExceptionLib
 
 class FunctionExpressionLowering(val func: Function) {
     val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), Type.int)

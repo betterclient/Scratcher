@@ -15,7 +15,6 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.std.ExceptionLib
 import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.div

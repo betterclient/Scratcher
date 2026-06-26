@@ -2,14 +2,17 @@ package dev.betterclient.scratcher.std
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.lib.*
 
@@ -22,6 +25,9 @@ object StandardLibASTGenerator {
         SensingLib.init(sensingLib)
         CalendarLib.init(calendarLib)
         CastLib.init(castLib, editor)
+        PenLib.init(penLib, editor)
+        MotionLib.init(motionLib, editor)
+        RandomLib.init(randomLib, editor)
 
         typeChecker
     }
@@ -33,6 +39,9 @@ object StandardLibASTGenerator {
     val sensingLib = ASTFile("sensing")
     val calendarLib = ASTFile("calendar")
     val castLib = ASTFile("cast")
+    val penLib = ASTFile("pen")
+    val motionLib = ASTFile("motion")
+    val randomLib = ASTFile("random")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -42,6 +51,9 @@ object StandardLibASTGenerator {
         "except" to exceptLib,
         "cast" to castLib,
         "calendar" to calendarLib,
+        "pen" to penLib,
+        "motion" to motionLib,
+        "random" to randomLib,
     )
 
     val memLib = ASTFile("mem").also {
@@ -76,31 +88,13 @@ object StandardLibASTGenerator {
     }
 }
 
-object ExceptionLib {
-    lateinit var panic: StandardLibASTFunction
-    lateinit var assertNonNull: StandardLibASTFunction
+object RandomLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        panic = editor.compile(lib, "panic") {
-            val message = arg("message", Type.str)
-            control.stop(StopMode.OTHER_SCRIPTS_IN_SPRITE)
-            sensing.ask(message)
-            control.stop(StopMode.ALL)
-        }
-
-        assertNonNull = editor.compile(lib, "compiler@assertNonNull", userAccessible = false) {
-            val value = arg("value", Type.int)
-            val errorMsg = arg("error", Type.str)
-            val out = returnArg(Type.int)
-
-            control.ifElse(
-                condition = value equals "-1".sc,
-                thenBlock = {
-                    call(panic, errorMsg)
-                },
-                elseBlock = {
-                    MemoryLib.heap[out] = value
-                }
-            )
+        compileInline(lib, "random", parameters = mutableListOf(
+            Parameter("from", Type.float),
+            Parameter("to", Type.float),
+        ), returnType = Type.float) {
+            OperatorExpressions.Random(it[0], it[1])
         }
     }
 }

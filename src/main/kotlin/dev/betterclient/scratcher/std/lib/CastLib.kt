@@ -5,14 +5,7 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.MathOp
-import dev.betterclient.scratcher.std.ExceptionLib
-import dev.betterclient.scratcher.std.dsl.and
-import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.dsl.math
-import dev.betterclient.scratcher.std.dsl.or
-import dev.betterclient.scratcher.std.dsl.times
+import dev.betterclient.scratcher.std.dsl.*
 
 object CastLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
