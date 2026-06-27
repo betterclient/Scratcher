@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
 import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CallExpression
+import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.ConcatExpression
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.ExpressionStatement
@@ -127,7 +128,7 @@ class ScratchFunctionTranslator(
             )
 
             is VariableAssignmentStatement -> throw UnsupportedOperationException("unreachable")
-            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException(
+            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement -> throw UnsupportedOperationException(
                 "unreachable"
             )
         }

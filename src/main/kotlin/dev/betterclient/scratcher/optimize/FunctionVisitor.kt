@@ -17,26 +17,35 @@ abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
     open fun shouldVisitCodeBlock(block: CodeBlock): VisitMode = VisitMode.ALL
 
     var currentBlock: CodeBlock? = null
-    private set
 
     fun visitCodeBlock(block: CodeBlock): CodeBlock {
         val mode = shouldVisitCodeBlock(block)
         return when(mode) {
             VisitMode.NONE -> block
             VisitMode.READ_ONLY -> {
+                val before = currentBlock
                 currentBlock = block
                 block.code.forEach { visit(it) }
-                currentBlock = null
+                currentBlock = before
                 block
             }
             VisitMode.ALL -> {
+                val before = currentBlock
                 currentBlock = block
-                val updatedCode = block.code.mapNotNull { visit(it) }
+                val updatedCode = block.code.flatMap { flattenStatement(visit(it)) }
                 block.code.clear()
                 block.code.addAll(updatedCode)
-                currentBlock = null
+                currentBlock = before
                 block
             }
+        }
+    }
+
+    private fun flattenStatement(statement: Statement?): List<Statement> {
+        return when (statement) {
+            null -> emptyList()
+            is CompositeStatement -> statement.statements.flatMap { flattenStatement(it) }
+            else -> listOf(statement)
         }
     }
 }
@@ -123,5 +132,6 @@ fun ASTVisitor.visit(statement: Statement): Statement? {
         is TemporaryCallStatement -> this.visitTemporaryCallStatement(statement.func, statement.args.map { visit(it) }.toMutableList())
         is TemporaryHeapSetStatement -> this.visitTemporaryHeapSetStatement(visit(statement.index), visit(statement.data))
         is TemporaryScratchStmt -> this.visitTemporaryScratchStmt(statement.inputExprs.map { visit(it) }, statement.stmt)
+        is CompositeStatement -> statement
     }
 }

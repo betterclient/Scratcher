@@ -79,37 +79,21 @@ float rgb(float r, float g, float b) {
     return colorValue;
 }
 
-/*on GreenFlag {
+on GreenFlag {
     int index = 0;
     while(true) {
-        fillTriDecl(
-            random::random(-240, 240),
-            random::random(-180, 180),
-            random::random(-240, 240),
-            random::random(-180, 180),
-            random::random(-240, 240),
-            random::random(-180, 180),
-            rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)),
-            1
-        );
-        if(index == 50) {
-            pen::eraseAll();
-            index = 0;
+        repeat(50) {
+            fillTriDecl(
+                random::random(-240, 240),
+                random::random(-180, 180),
+                random::random(-240, 240),
+                random::random(-180, 180),
+                random::random(-240, 240),
+                random::random(-180, 180),
+                rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)),
+                1
+            );
         }
-        index = index + 1;
-    }
-}*/
-
-on GreenFlag {
-    while(test() != 5 && true == true) {
-        looks::say("hi!");
-    }
-}
-
-int test() {
-    if(random::random(1, 5) == 5) {
-        return 67;
-    } else {
-        return 5;
+        pen::eraseAll();
     }
 }

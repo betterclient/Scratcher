@@ -160,6 +160,7 @@ class ConvertToHeapAccess(
                 inputExprs = statement.inputExprs.map { convertExpression(it, currentFunction, getFunctionLocals) },
                 stmt = statement.stmt
             ))
+            is CompositeStatement -> statement.statements.flatMap { convertStatement(statement, currentFunction, getFunctionLocals) }
         }
     }
 
@@ -283,6 +284,7 @@ class ConvertToHeapAccess(
                 is TemporaryHeapSetStatement -> {}
                 is TemporaryScratchStmt -> {}
                 is VariableAssignmentStatement -> {}
+                is CompositeStatement -> {}
             }
         }
         return vars.distinct()
@@ -342,6 +344,7 @@ class ConvertToHeapAccess(
                 is VariableAssignmentStatement -> {}
                 is VariableStatement -> {}
                 is TemporaryScratchStmt -> {}
+                is CompositeStatement -> {}
             }
         }
 

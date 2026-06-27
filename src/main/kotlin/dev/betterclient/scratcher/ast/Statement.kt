@@ -60,6 +60,8 @@ data class RepeatStatement(
 //ONLY USE FOR LOWERING PHASE
 sealed class TemporaryStatement : Statement()
 
+class CompositeStatement(val statements: List<Statement>) : TemporaryStatement()
+
 data class TemporaryCallStatement(
     val func: Function,
     val args: MutableList<Expression>
