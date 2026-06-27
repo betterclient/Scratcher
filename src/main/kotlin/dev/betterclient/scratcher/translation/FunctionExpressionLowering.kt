@@ -25,7 +25,7 @@ class FunctionExpressionLowering(val func: Function) {
             when(statement) {
                 is ExpressionStatement -> {
                     if (statement.expression !is CallExpression) throw UnsupportedOperationException("Non CallExpression inside ExpressionStatement")
-                    replacements[statement] = lowerCallExpr(statement.expression).prepend //ignore expression cause its top level
+                    replacements[statement] = lowerCallExpr(statement.expression, ignoreReturn = true).prepend //ignore expression cause its top level
                 }
                 is IfElseStatement -> {
                     val list = mutableListOf<Statement>()
@@ -148,7 +148,7 @@ class FunctionExpressionLowering(val func: Function) {
         code.code.addAll(newCode)
     }
 
-    private fun lowerCallExpr(expression: CallExpression): ExpressionLowerResult {
+    private fun lowerCallExpr(expression: CallExpression, ignoreReturn: Boolean = false): ExpressionLowerResult {
         val isVoid = expression.func.returnType == Type.void
         val prepend = mutableListOf<Statement>()
         var expr: Expression? = null
@@ -190,10 +190,14 @@ class FunctionExpressionLowering(val func: Function) {
         if (isVoid) {
             prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
         } else {
-            val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
-            prepend.add(VariableStatement(null, local))
-            prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
-            expr = LocalVariableExpression(local)
+            if (ignoreReturn) {
+                prepend.add(TemporaryCallStatement(expression.func, (argsMapped + IntLiteral((-1).toBigInteger())).toMutableList()))
+            } else {
+                val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
+                prepend.add(VariableStatement(null, local))
+                prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
+                expr = LocalVariableExpression(local)
+            }
         }
 
         return ExpressionLowerResult(
