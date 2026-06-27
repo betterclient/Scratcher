@@ -14,8 +14,8 @@ object Optimizations {
         ConstantFolding,
         RepeatToWhile,
         DeadCodeElimination,
-        InlineSingleUseAssignment,
-        //TODO: Dead Variable Elimination/
+        SequentialConstantPropagation,
+        InlineSingleUseAssignment
         //TODO: loop unrolling?
     )
 

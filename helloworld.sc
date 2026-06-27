@@ -85,18 +85,22 @@ on GreenFlag {
     rgb(index, 5, 5);
     index = 5;
     while(true) {
-        repeat(50) {
-            fillTriDecl(
-                random::random(-240, 240),
-                random::random(-180, 180),
-                random::random(-240, 240),
-                random::random(-180, 180),
-                random::random(-240, 240),
-                random::random(-180, 180),
-                rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)),
-                1
-            );
-        }
         pen::eraseAll();
+        render();
+    }
+}
+
+warp void render() {
+    repeat(1500) {
+        fillTriDecl(
+            random::random(-240, 240),
+            random::random(-180, 180),
+            random::random(-240, 240),
+            random::random(-180, 180),
+            random::random(-240, 240),
+            random::random(-180, 180),
+            rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)),
+            1
+        );
     }
 }
