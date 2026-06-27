@@ -14,9 +14,9 @@ object Optimizations {
         ConstantFolding,
         RepeatToWhile,
         DeadCodeElimination,
+        InlineSingleUseAssignment,
         SequentialConstantPropagation,
-        InlineSingleUseAssignment
-        //TODO: loop unrolling?
+        DeadStoreElimination
     )
 
     fun apply(ast: ASTFile) {

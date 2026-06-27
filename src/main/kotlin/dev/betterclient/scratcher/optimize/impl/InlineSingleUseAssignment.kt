@@ -13,7 +13,7 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
         func: Function,
         graph: TCallGraph
     ): Boolean {
-        val analysis = SSAAnalysis()
+        val analysis = InlineSingleUseAnalysis()
         analysis.analyze(func)
 
         val propVars = analysis.allVars.filter {
@@ -73,7 +73,7 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
     }
 }
 
-class SSAAnalysis {
+class InlineSingleUseAnalysis {
     val activeVars = mutableMapOf<LocalVariable, SSAVar>()
     val allVars = mutableListOf<SSAVar>()
     val writeCounts = mutableMapOf<LocalVariable, Int>()
@@ -109,7 +109,7 @@ class SSAAnalysis {
                 stmt.defaultValue?.let { exprVisitor.visit(it) }
 
                 if (stmt.defaultValue != null) {
-                    val def = SSAVar(stmt.variable, stmt.defaultValue, stmt)
+                    val def = SSAVar(stmt.variable, stmt.defaultValue)
                     allVars.add(def)
                     removeDependents(setOf(stmt.variable))
                     activeVars[stmt.variable] = def
@@ -123,7 +123,7 @@ class SSAAnalysis {
                 writeCounts[stmt.variable] = (writeCounts[stmt.variable] ?: 0) + 1
                 exprVisitor.visit(stmt.assignment)
 
-                val def = SSAVar(stmt.variable, stmt.assignment, stmt)
+                val def = SSAVar(stmt.variable, stmt.assignment)
                 allVars.add(def)
                 removeDependents(setOf(stmt.variable))
                 activeVars[stmt.variable] = def
@@ -238,7 +238,6 @@ class SSAAnalysis {
 class SSAVar(
     val variable: LocalVariable,
     val definitionExpr: Expression,
-    val definingStatement: Statement,
     var readCount: Int = 0,
     var isInvalid: Boolean = false
 ) {
