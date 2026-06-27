@@ -99,6 +99,8 @@ interface BaseStatementVisitor {
     fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? = TemporaryCallStatement(func, args)
     fun visitTemporaryHeapSetStatement(index: Expression, data: Expression): Statement? = TemporaryHeapSetStatement(index, data)
     fun visitTemporaryScratchStmt(inputExprs: List<Expression>, stmt: (List<ScratchExpression>) -> List<ScratchStatement>): Statement? = TemporaryScratchStmt(inputExprs, stmt)
+
+    fun visitStatement(statement: Statement) {}
 }
 
 interface BaseExpressionVisitor {
@@ -119,6 +121,8 @@ interface BaseExpressionVisitor {
     fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression = TemporaryLocalVariableIndexExpression(variable)
     fun visitTemporaryHeapGetExpression(index: Expression): Expression = TemporaryHeapGetExpression(index)
     fun visitTemporaryScratchExpr(inputExprs: List<Expression>, expression: (List<ScratchExpression>) -> ScratchExpression): Expression = TemporaryScratchExpr(inputExprs, expression)
+
+    fun visitExpr(expression: Expression) {}
 }
 
 object EmptyVisitor : ASTVisitor()
@@ -145,6 +149,7 @@ fun visit(
 }
 
 fun BaseExpressionVisitor.visit(expression: Expression): Expression {
+    visitExpr(expression)
     return when(expression) {
         is BinaryExpression -> this.visitBinaryExpression(visit(expression.left), visit(expression.right), expression.operator)
         is CallExpression -> this.visitCallExpression(expression.func, expression.arguments.map { visit(it) })
@@ -167,6 +172,7 @@ fun BaseExpressionVisitor.visit(expression: Expression): Expression {
 }
 
 fun ASTVisitor.visit(statement: Statement): Statement? {
+    visitStatement(statement)
     return when(statement) {
         is ExpressionStatement -> this.visitExpressionStatement(visit(statement.expression))
         is VariableStatement -> this.visitVariableStatement(statement.defaultValue?.let { visit(it) }, statement.variable)

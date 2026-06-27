@@ -9,12 +9,14 @@ import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.IfElseStatement
 import dev.betterclient.scratcher.ast.IfStatement
+import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ReturnStatement
+import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
 import dev.betterclient.scratcher.ast.Type
@@ -25,11 +27,13 @@ import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
+import dev.betterclient.scratcher.optimize.OptimizationUtils
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.optimize.visitCopy
 import dev.betterclient.scratcher.translation.ExpressionLowerResult
+import java.math.BigInteger
 
 object FunctionInlining : Optimization("Function inlining") {
     val voidMarkerExpr = TemporaryHeapGetExpression(IntLiteral(0.toBigInteger()))
@@ -38,15 +42,20 @@ object FunctionInlining : Optimization("Function inlining") {
         func: Function,
         graph: TCallGraph
     ): Boolean {
-        //val eligible = findEligible(func, graph)
+        val eligible = InlineEligibility.findEligible(func, graph)
 
         if (func.name == "compiler@eventlistener@GreenFlagi0") {
+            var modified = false
+            val inlinedExprs = mutableListOf<Expression>()
             visit(func, object : ASTVisitor() {
                 override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
-                    if (func.name == "a") {
+                    if (eligible.contains(func)) {
+                        modified = true
                         val out = inline(func, args)
                         addStatements(out.prepend)
-                        return out.expression?: voidMarkerExpr
+                        return (out.expression?.also {
+                            inlinedExprs.add(it)
+                        })?: voidMarkerExpr
                     }
 
                     return super.visitCallExpression(func, args)
@@ -56,11 +65,14 @@ object FunctionInlining : Optimization("Function inlining") {
                     if (expression == voidMarkerExpr) {
                         return null
                     }
+                    if (inlinedExprs.contains(expression)) {
+                        return null //ignoring returns, huh? I see how it is
+                    }
 
                     return super.visitExpressionStatement(expression)
                 }
             })
-            return true
+            return modified
         }
 
         return false
@@ -70,9 +82,9 @@ object FunctionInlining : Optimization("Function inlining") {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
-        val argVars = args.associateWith { LocalVariable(getUniqueName(), Type.int) }
-        argVars.forEach { (value, variable) ->
-            prepend.add(VariableStatement(value, variable))
+        val argVars = func.parameters.associateWith { LocalVariable(getUniqueName(), Type.int) }
+        args.forEachIndexed { index, arg ->
+            prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }
         val returnVar = LocalVariable(getUniqueName(), Type.int)
         if (func.returnType != Type.void) {
@@ -85,7 +97,7 @@ object FunctionInlining : Optimization("Function inlining") {
         val out = visitCopy(func, EarlyReturnRewriter(hasReturned))
         visit(out, object : ASTVisitor() {
             override fun visitParameterExpression(parameter: Parameter): Expression {
-                return LocalVariableExpression(argVars.values.toList()[func.parameters.indexOf(parameter)])
+                return LocalVariableExpression(argVars[parameter]!!)
             }
 
             override fun visitReturnStatement(expression: Expression?): Statement? {
@@ -102,20 +114,75 @@ object FunctionInlining : Optimization("Function inlining") {
             prepend
         )
     }
+}
 
-    private fun findEligible(func: Function, graph: TCallGraph): List<Function> {
-        val costs = mutableMapOf<Function, Int>()
-        graph[func]!!.forEach { maybe ->
-            costs[maybe] = costs.getOrDefault(maybe, 0) + calculateCost(maybe)
-        }
+object InlineEligibility {
+    fun findEligible(targetFunc: Function, graph: TCallGraph): List<Function> {
+        val costs = mutableMapOf<Function, BigInteger>() //need big integer to not overflow when we hit a recursive function and try to inline it!
+        visit(targetFunc, object : ASTVisitor() {
+            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+                costs[func] = (costs[func]?: 0.toBigInteger()) + calculateCost(targetFunc, func, graph).toBigInteger()
 
-        return costs.filter { (_, cost) -> cost < 10000 }.keys.toList()
+                return super.visitCallExpression(func, args)
+            }
+        })
+
+        return costs.filter { (_, cost) -> cost <= 10000.toBigInteger() }.keys.toList()
     }
 
-    private fun calculateCost(func: Function): Int {
+    private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
         var currentCost = 0
+        if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
+        if (func.warp != targetFunc.warp) return Int.MAX_VALUE //not happening...
 
-        TODO()
+        visit(targetFunc, object : ASTVisitor() {
+            override fun visitReturnStatement(expression: Expression?): Statement? {
+                currentCost += 500
+                return super.visitReturnStatement(expression)
+            }
+
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+                currentCost += 100
+                return super.visitWhileStatement(condition, block)
+            }
+
+            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {
+                currentCost += 50
+                return super.visitIfStatement(condition, thenBlock)
+            }
+
+            override fun visitIfElseStatement(
+                condition: Expression,
+                thenBlock: CodeBlock,
+                elseBlock: CodeBlock
+            ): Statement? {
+                currentCost += 100
+                return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+            }
+
+            override fun visitExpr(expression: Expression) {
+                currentCost += 20
+            }
+
+            override fun visitStatement(statement: Statement) {
+                currentCost += 50
+            }
+
+            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+                currentCost += 100
+                return super.visitVariableStatement(defaultValue, variable)
+            }
+
+            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+                currentCost += when (func) {
+                    is InlineStandardLibFunction -> 100
+                    is StandardLibASTFunction -> 20
+                    else -> 20
+                }
+
+                return super.visitCallExpression(func, args)
+            }
+        })
 
         return currentCost
     }
