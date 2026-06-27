@@ -16,7 +16,8 @@ object Optimizations {
         DeadCodeElimination,
         InlineSingleUseAssignment,
         SequentialConstantPropagation,
-        DeadStoreElimination
+        DeadStoreElimination,
+        FunctionInlining
     )
 
     fun apply(ast: ASTFile) {

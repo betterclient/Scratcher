@@ -38,8 +38,8 @@ object ConstantFolding : Optimization("Constant Folding") {
                         BinaryOperator.GREATER_THAN -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_THAN)
                         BinaryOperator.LESS_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.LESS_EQUAL)
                         BinaryOperator.GREATER_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_EQUAL)
-                        BinaryOperator.EQUAL -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.EQUAL)
-                        BinaryOperator.NOT_EQUAL -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.NOT_EQUAL)
+                        BinaryOperator.EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.EQUAL)
+                        BinaryOperator.NOT_EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.NOT_EQUAL)
                         BinaryOperator.AND -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.AND)
                         BinaryOperator.OR -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.OR)
                     }
@@ -82,6 +82,33 @@ object ConstantFolding : Optimization("Constant Folding") {
             }
         })
         return modified
+    }
+
+    private fun foldEqualNotEqual(left: Expression, right: Expression, operator: BinaryOperator): BooleanLiteral {
+        val isEqual = when {
+            left is BooleanLiteral && right is BooleanLiteral -> {
+                left.value == right.value
+            }
+            (left is IntLiteral || left is FloatLiteral) && (right is IntLiteral || right is FloatLiteral) -> {
+                val leftValue = (left as? IntLiteral)?.value?.toBigDecimal() ?: (left as FloatLiteral).value
+                val rightValue = (right as? IntLiteral)?.value?.toBigDecimal() ?: (right as FloatLiteral).value
+                leftValue.compareTo(rightValue) == 0
+            }
+            left is StringLiteral && right is StringLiteral -> {
+                left.value == right.value
+            }
+            else -> {
+                left == right
+            }
+        }
+
+        return BooleanLiteral(
+            when (operator) {
+                BinaryOperator.EQUAL -> isEqual
+                BinaryOperator.NOT_EQUAL -> !isEqual
+                else -> throw UnsupportedOperationException("unreachable")
+            }
+        )
     }
 
     private fun foldConstantNumberComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator): BooleanLiteral {
@@ -132,8 +159,6 @@ object ConstantFolding : Optimization("Constant Folding") {
         val rightValue = (right as BooleanLiteral).value
 
         return BooleanLiteral(when (operator) {
-            BinaryOperator.EQUAL -> leftValue == rightValue
-            BinaryOperator.NOT_EQUAL -> leftValue != rightValue
             BinaryOperator.AND -> leftValue && rightValue
             BinaryOperator.OR -> leftValue || rightValue
             else -> throw UnsupportedOperationException("unreachable")

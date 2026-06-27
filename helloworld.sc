@@ -80,6 +80,9 @@ float rgb(float r, float g, float b) {
 }
 
 on GreenFlag {
+    if(a() == 5) {
+        looks::say("yo!");
+    }
     int index = 0;
     index = index + 1;
     rgb(index, 5, 5);
@@ -88,6 +91,13 @@ on GreenFlag {
         pen::eraseAll();
         render();
     }
+}
+
+int a() {
+    if(random::random(5, 10) == 5) {
+        return 67;
+    }
+    return 5;
 }
 
 warp void render() {

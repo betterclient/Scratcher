@@ -10,11 +10,38 @@ import java.math.BigInteger
 enum class VisitMode {
     NONE,
     READ_ONLY,
-    ALL
+    ALL,
+    COPY
 }
 
 abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
     open fun shouldVisitCodeBlock(block: CodeBlock): VisitMode = VisitMode.ALL
+
+    private val statementBuffer = mutableListOf<MutableList<Statement>>()
+    fun addStatements(list: List<Statement>) {
+        val buffer = statementBuffer.lastOrNull()
+        if (buffer != null) {
+            buffer.addAll(list)
+        } else {
+            currentBlock?.code?.addAll(list)
+        }
+    }
+
+    private fun visitStatementWithBuffer(statement: Statement): List<Statement> {
+        val buffer = mutableListOf<Statement>()
+        statementBuffer.add(buffer)
+
+        val visited = visit(statement)
+
+        statementBuffer.removeAt(statementBuffer.lastIndex)
+
+        val result = mutableListOf<Statement>()
+        result.addAll(buffer)
+        if (visited != null) {
+            result.addAll(flattenStatement(visited))
+        }
+        return result
+    }
 
     var currentBlock: CodeBlock? = null
 
@@ -25,18 +52,26 @@ abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
             VisitMode.READ_ONLY -> {
                 val before = currentBlock
                 currentBlock = block
-                block.code.forEach { visit(it) }
+                block.code.forEach { visitStatementWithBuffer(it) }
                 currentBlock = before
                 block
             }
             VisitMode.ALL -> {
                 val before = currentBlock
                 currentBlock = block
-                val updatedCode = block.code.flatMap { flattenStatement(visit(it)) }
+                val updatedCode = block.code.flatMap { visitStatementWithBuffer(it) }
                 block.code.clear()
                 block.code.addAll(updatedCode)
                 currentBlock = before
                 block
+            }
+            VisitMode.COPY -> {
+                val before = currentBlock
+                val out = CodeBlock()
+                currentBlock = out
+                out.code.addAll(block.code.flatMap { visitStatementWithBuffer(it) })
+                currentBlock = before
+                out
             }
         }
     }
@@ -93,6 +128,20 @@ fun visit(
     visitor: ASTVisitor = EmptyVisitor
 ) {
     visitor.visitCodeBlock(func.code)
+}
+
+fun visitCopy(
+    func: Function,
+    visitor: ASTVisitor = EmptyVisitor
+): CodeBlock {
+    return visitor.visitCodeBlock(func.code)
+}
+
+fun visit(
+    block: CodeBlock,
+    visitor: ASTVisitor = EmptyVisitor
+) {
+    visitor.visitCodeBlock(block)
 }
 
 fun BaseExpressionVisitor.visit(expression: Expression): Expression {
