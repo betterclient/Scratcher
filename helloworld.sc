@@ -81,6 +81,9 @@ float rgb(float r, float g, float b) {
 
 on GreenFlag {
     int index = 0;
+    index = index + 1;
+    rgb(index, 5, 5);
+    index = 5;
     while(true) {
         repeat(50) {
             fillTriDecl(
