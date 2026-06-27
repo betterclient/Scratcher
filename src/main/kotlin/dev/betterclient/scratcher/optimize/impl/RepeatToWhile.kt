@@ -21,10 +21,9 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import java.math.BigInteger
 
-object RepeatToWhile : Optimization {
+object RepeatToWhile : Optimization("Convert repeat statements to while") {
     private var counterIndex = 0
 
-    override fun shouldApply(func: Function, callGraph: TCallGraph) = true
     override fun apply(
         func: Function,
         graph: TCallGraph

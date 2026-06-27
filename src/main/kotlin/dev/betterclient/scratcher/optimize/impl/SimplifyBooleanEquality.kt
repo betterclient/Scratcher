@@ -8,8 +8,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 
-object SimplifyBooleanEquality : Optimization {
-    override fun shouldApply(func: Function, callGraph: TCallGraph) = true
+object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
     override fun apply(
         func: Function,
         graph: TCallGraph

@@ -9,9 +9,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.ast.Function
 
-object SimplifyDoubleNegation : Optimization {
-    override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean = true
-
+object SimplifyDoubleNegation : Optimization("Simplify double negation") {
     override fun apply(func: Function, graph: TCallGraph): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {

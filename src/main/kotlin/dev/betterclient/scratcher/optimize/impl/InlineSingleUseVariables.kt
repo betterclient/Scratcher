@@ -8,8 +8,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 
-object InlineSingleUseVariables : Optimization {
-    override fun shouldApply(func: Function, callGraph: TCallGraph) = true
+object InlineSingleUseVariables : Optimization("Inline single use variables") {
     override fun apply(
         func: Function,
         graph: TCallGraph

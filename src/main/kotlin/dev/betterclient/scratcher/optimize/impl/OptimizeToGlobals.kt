@@ -6,7 +6,7 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
-object OptimizeToGlobals : Optimization{
+object OptimizeToGlobals : Optimization("Convert locals to global variables") {
     override fun shouldApply(
         func: Function,
         callGraph: TCallGraph

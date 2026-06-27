@@ -16,8 +16,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 
-object DeadCodeElimination : Optimization {
-    override fun shouldApply(func: Function, callGraph: TCallGraph) = true
+object DeadCodeElimination : Optimization("Dead code elimination") {
     override fun apply(
         func: Function,
         graph: TCallGraph
