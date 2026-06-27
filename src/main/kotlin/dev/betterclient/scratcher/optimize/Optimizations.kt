@@ -13,8 +13,8 @@ object Optimizations {
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
-        RepeatToWhile
-        //TODO: DCE
+        RepeatToWhile,
+        DeadCodeElimination
         //TODO: Dead Variable Elimination/single use assignment inline
         //TODO: loop unrolling?
     )

@@ -32,7 +32,7 @@ object RepeatToWhile : Optimization {
         var modified = false
 
         visit(func, object : ASTVisitor() {
-            override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement? {
+            override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement {
                 val outerBlock = currentBlock ?: throw IllegalStateException("currentBlock is null")
 
                 val counterVar = LocalVariable(
