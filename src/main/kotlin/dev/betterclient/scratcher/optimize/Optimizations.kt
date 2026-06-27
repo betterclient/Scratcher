@@ -9,7 +9,6 @@ typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
     private val optimizations = listOf(
-        OptimizeToGlobals,
         InlineSingleUseVariables,
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
@@ -38,6 +37,14 @@ object Optimizations {
 
             iterations++
         } while (changed && iterations < maxIterations)
+
+        //do optimize to globals last because maybe the locals are gonna get inlined, so optimize them to globals at the very end
+        val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
+        callGraph.forEach { (func, _) ->
+            if(OptimizeToGlobals.shouldApply(func, callGraph)) {
+                OptimizeToGlobals.apply(func, callGraph)
+            }
+        }
     }
 
     private fun applyAll(func: Function, graph: TCallGraph): Boolean {
