@@ -1,9 +1,14 @@
 package dev.betterclient.scratcher.optimize.impl
 
+import dev.betterclient.scratcher.ast.BinaryExpression
+import dev.betterclient.scratcher.ast.BinaryOperator
+import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CodeBlock
+import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.IfElseStatement
+import dev.betterclient.scratcher.ast.IfStatement
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
@@ -13,7 +18,10 @@ import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.UnaryExpression
+import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.VariableStatement
+import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -70,8 +78,12 @@ object FunctionInlining : Optimization("Function inlining") {
         if (func.returnType != Type.void) {
             prepend.add(VariableStatement(null, returnVar))
         }
-        val out = visitCopy(func, object : ASTVisitor() {
-            override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.COPY
+        val hasReturned = LocalVariable(getUniqueName(), Type.bool)
+        prepend.add(VariableStatement(BooleanLiteral(false), hasReturned))
+
+        //returns are something...
+        val out = visitCopy(func, EarlyReturnRewriter(hasReturned))
+        visit(out, object : ASTVisitor() {
             override fun visitParameterExpression(parameter: Parameter): Expression {
                 return LocalVariableExpression(argVars.values.toList()[func.parameters.indexOf(parameter)])
             }
@@ -83,7 +95,6 @@ object FunctionInlining : Optimization("Function inlining") {
                 return null
             }
         })
-        visit(out, EarlyReturnRewriter)
         prepend.addAll(out.code)
 
         return ExpressionLowerResult(
@@ -110,27 +121,88 @@ object FunctionInlining : Optimization("Function inlining") {
     }
 }
 
-object EarlyReturnRewriter : ASTVisitor() {
+class EarlyReturnRewriter(
+    val hasReturned: LocalVariable
+) : ASTVisitor() {
 
-
-    private fun doesBlockGuaranteeReturn(code: List<Statement>): Boolean {
-        for (statement in code) {
-            if (doesStatementGuaranteeReturn(statement)) {
-                return true
-            }
-        }
-        return false
+    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+        return VisitMode.COPY
     }
 
-    private fun doesStatementGuaranteeReturn(statement: Statement): Boolean {
-        return when (statement) {
-            is ReturnStatement -> true
-            is IfElseStatement -> {
-                doesBlockGuaranteeReturn(statement.thenBlock.code) && doesBlockGuaranteeReturn(statement.elseBlock.code)
+    override fun visitCodeBlock(block: CodeBlock): CodeBlock {
+        val mode = shouldVisitCodeBlock(block)
+        if (mode != VisitMode.COPY) {
+            return super.visitCodeBlock(block)
+        }
+
+        val visitedBlock = super.visitCodeBlock(block)
+
+        val processed = sequentiallyWrap(visitedBlock.code)
+        visitedBlock.code.clear()
+        visitedBlock.code.addAll(processed)
+
+        return visitedBlock
+    }
+
+    private fun sequentiallyWrap(statements: List<Statement>): List<Statement> {
+        val rewrittenStatements = mutableListOf<Statement>()
+        var hasPossibleReturnBefore = false
+        val currentDeferred = mutableListOf<Statement>()
+
+        for (stmt in statements) {
+            if (hasPossibleReturnBefore) {
+                currentDeferred.add(stmt)
+            } else {
+                rewrittenStatements.add(stmt)
+                if (containsHasReturnedSet(stmt)) {
+                    hasPossibleReturnBefore = true
+                }
             }
+        }
+
+        if (currentDeferred.isNotEmpty()) {
+            val processedDeferred = sequentiallyWrap(currentDeferred)
+            val innerBlock = CodeBlock(processedDeferred.toMutableList())
+            val condition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned))
+            rewrittenStatements.add(IfStatement(condition, innerBlock))
+        }
+
+        return rewrittenStatements
+    }
+
+    override fun visitReturnStatement(expression: Expression?): Statement {
+        val list = mutableListOf<Statement>()
+        list.add(ReturnStatement(expression?.let { visit(it) }))
+        list.add(LocalVariableAssignmentStatement(hasReturned, BooleanLiteral(true)))
+        return CompositeStatement(list)
+    }
+
+    override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement {
+        val visited = super.visitWhileStatement(condition, block) as WhileStatement
+        if (containsHasReturnedSet(visited.block)) {
+            val loopCondition = BinaryExpression(
+                visited.condition,
+                BinaryOperator.AND,
+                UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned))
+            )
+            return WhileStatement(loopCondition, visited.block)
+        }
+        return visited
+    }
+
+    private fun containsHasReturnedSet(statement: Statement): Boolean {
+        return when (statement) {
+            is LocalVariableAssignmentStatement -> statement.variable == hasReturned
+            is VariableStatement -> statement.variable == hasReturned
+            is IfStatement -> containsHasReturnedSet(statement.thenBlock)
+            is IfElseStatement -> containsHasReturnedSet(statement.thenBlock) || containsHasReturnedSet(statement.elseBlock)
+            is WhileStatement -> containsHasReturnedSet(statement.block)
+            is CompositeStatement -> statement.statements.any { containsHasReturnedSet(it) }
             else -> false
         }
     }
 
-
+    private fun containsHasReturnedSet(block: CodeBlock): Boolean {
+        return block.code.any { containsHasReturnedSet(it) }
+    }
 }

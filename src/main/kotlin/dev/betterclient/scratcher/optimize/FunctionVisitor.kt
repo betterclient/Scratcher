@@ -45,7 +45,7 @@ abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
 
     var currentBlock: CodeBlock? = null
 
-    fun visitCodeBlock(block: CodeBlock): CodeBlock {
+    open fun visitCodeBlock(block: CodeBlock): CodeBlock {
         val mode = shouldVisitCodeBlock(block)
         return when(mode) {
             VisitMode.NONE -> block

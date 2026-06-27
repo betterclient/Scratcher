@@ -97,6 +97,20 @@ int a() {
     if(random::random(5, 10) == 5) {
         return 67;
     }
+    while(random::random(5, 10) != 5) {
+        if(b() != 56) {
+            return 55;
+        }
+
+        looks::say("hi!");
+    }
+    if(random::random(55, 55) == 67) {
+        return 555;
+    }
+    return 5;
+}
+
+int b() {
     return 5;
 }
 

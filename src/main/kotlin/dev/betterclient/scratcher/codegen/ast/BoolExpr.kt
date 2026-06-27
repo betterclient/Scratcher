@@ -46,6 +46,13 @@ object BoolOperatorExpressions {
         val operator: SBoolOperator
     ) : ScratchBoolExpression() {
         override fun lower(): ScratchValue {
+            if (operator == SBoolOperator.AND && operand1 is SNotExpression && operand2 is SNotExpression) {
+                //rewrite!!!
+                return NotOpcode(OrOpcode(
+                    operand1.operand1.lower().boolean, operand2.operand1.lower().boolean
+                ).asValue).asValue
+            }
+
             return when(operator) {
                 SBoolOperator.AND -> AndOpcode(operand1.lower().boolean, operand2.lower().boolean)
                 SBoolOperator.OR -> OrOpcode(operand1.lower().boolean, operand2.lower().boolean)
