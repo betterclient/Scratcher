@@ -1,12 +1,7 @@
 package dev.betterclient.scratcher.optimize.impl
 
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.UnaryExpression
-import dev.betterclient.scratcher.ast.UnaryOperator
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -38,10 +33,57 @@ object SimplifyBooleanEquality : Optimization {
                         }
                     }
                 }
+                if (operator == BinaryOperator.AND || operator == BinaryOperator.OR) {
+                    if (left is BooleanLiteral || right is BooleanLiteral) {
+                        val boolVal = (left as? BooleanLiteral ?: right as BooleanLiteral).value
+                        val value = if (left is BooleanLiteral) right else left
+
+                        val type = ExpressionTypes.getExpressionType(value)
+                        if (type == Type.bool) {
+                            if (operator == BinaryOperator.AND) {
+                                if (boolVal) {
+                                    modified = true
+                                    return value
+                                } else {
+                                    if (!hasSideEffects(value)) {
+                                        modified = true
+                                        return BooleanLiteral(false)
+                                    }
+                                }
+                            } else {
+                                if (!boolVal) {
+                                    modified = true
+                                    return value
+                                } else {
+                                    if (!hasSideEffects(value)) {
+                                        modified = true
+                                        return BooleanLiteral(true)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 return super.visitBinaryExpression(left, right, operator)
             }
         })
         return modified
+    }
+
+    private fun hasSideEffects(expr: Expression): Boolean {
+        return when (expr) {
+            is Literal -> false
+            is LocalVariableExpression -> false
+            is ParameterExpression -> false
+            is VariableExpression -> false
+            is UnaryExpression -> hasSideEffects(expr.expression)
+            is BinaryExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
+            is ConcatExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
+            is MemberExpression -> hasSideEffects(expr.expression)
+            is CallExpression -> true
+            is NonNullAssertExpression -> true
+            is TemporaryExpression -> true
+        }
     }
 }

@@ -12,7 +12,12 @@ object Optimizations {
         OptimizeToGlobals,
         InlineSingleUseVariables,
         SimplifyDoubleNegation,
-        SimplifyBooleanEquality
+        SimplifyBooleanEquality,
+        ConstantFolding,
+        RepeatToWhile
+        //TODO: DCE
+        //TODO: Dead Variable Elimination/single use assignment inline
+        //TODO: loop unrolling?
     )
 
     fun apply(ast: ASTFile) {
