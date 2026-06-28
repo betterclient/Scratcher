@@ -28,6 +28,27 @@ object OptimizationUtils {
         return dfs(target)
     }
 
+    fun hasCalls(target: Function, from: Function, callGraph: TCallGraph): Boolean {
+        val visited = mutableSetOf<Function>()
+
+        fun dfs(current: Function): Boolean {
+            val calls = callGraph[current] ?: return false
+            for (called in calls) {
+                if (called == target) {
+                    return true
+                }
+                if (visited.add(called)) {
+                    if (dfs(called)) {
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+
+        return dfs(from)
+    }
+
     fun isOnlyDirectlyRecursive(func: Function, callGraph: TCallGraph): Boolean {
         val calls = callGraph[func] ?: return false
 
