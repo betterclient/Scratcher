@@ -15,7 +15,7 @@ class FunctionStructureTranslator {
         if (function is InlineStandardLibFunction) return null
 
         return ScratchASTFunction(
-            name = obfuscate(function.name),
+            name = obfuscate("${function.sourceAST.simplePath}::${function.name}"),
             args = function.parameters.map {
                 ScratchFuncArgument(
                     name = obfuscate(it.name),

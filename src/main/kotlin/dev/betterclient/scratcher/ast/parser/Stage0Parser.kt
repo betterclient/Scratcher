@@ -154,6 +154,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = returnType,
                     warp = isWarp,
                     export = isExport,
+                    sourceAST = ast
                 )
                 funcAST.ctx = func.block()
 
@@ -184,6 +185,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = Type.void,
                     export = false,
                     warp = false,
+                    sourceAST = ast
                 )
                 func.ctx = event.block()
 

@@ -12,7 +12,7 @@ on GreenFlag {
 
 warp void render() {
     repeat(1500) {
-        triangle::outline(
+        triangle::fill(
             random::random(-240, 240),
             random::random(-180, 180),
             random::random(-240, 240),

@@ -107,7 +107,8 @@ open class Function(
     val code: CodeBlock = CodeBlock(),
     val export: Boolean,
     val warp: Boolean,
-    val userAccessible: Boolean = true
+    val userAccessible: Boolean = true,
+    val sourceAST: ASTFile
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }
@@ -117,9 +118,10 @@ class StandardLibASTFunction(
     parameters: MutableList<Parameter> = mutableListOf(),
     val precompiledCode: ScratchASTFunction,
     returnType: Type = Type.void,
-    userAccessible: Boolean = true
+    userAccessible: Boolean = true,
+    sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, true, userAccessible
+    name, parameters, returnType, CodeBlock(), false, true, userAccessible, sourceAST
 )
 
 class InlineStandardLibFunction(
@@ -129,9 +131,10 @@ class InlineStandardLibFunction(
     val realCode: (args: List<Expression>) -> ExpressionLowerResult,
     val useLocal: Boolean = false,
     warp: Boolean, //use for opts
-    userAccessible: Boolean = true
+    userAccessible: Boolean = true,
+    sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, warp, userAccessible
+    name, parameters, returnType, CodeBlock(), false, warp, userAccessible, sourceAST
 )
 
 class CodeBlock(

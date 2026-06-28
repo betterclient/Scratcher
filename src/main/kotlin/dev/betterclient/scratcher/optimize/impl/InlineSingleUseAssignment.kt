@@ -107,16 +107,16 @@ class InlineSingleUseAnalysis {
     private fun analyzeStatement(stmt: Statement) {
         when(stmt) {
             is VariableStatement -> {
-                writeCounts[stmt.variable] = (writeCounts[stmt.variable] ?: 0) + 1
-                stmt.defaultValue?.let { exprVisitor.visit(it) }
+                stmt.defaultValue?.let { defaultValue ->
+                    writeCounts[stmt.variable] = (writeCounts[stmt.variable] ?: 0) + 1
+                    exprVisitor.visit(defaultValue)
 
-                if (stmt.defaultValue != null) {
-                    val def = SSAVar(stmt.variable, stmt.defaultValue)
+                    val def = SSAVar(stmt.variable, defaultValue)
                     allVars.add(def)
                     removeDependents(setOf(stmt.variable))
                     activeVars[stmt.variable] = def
 
-                    if (stmt.defaultValue.dependsOn(setOf(stmt.variable))) {
+                    if (defaultValue.dependsOn(setOf(stmt.variable))) {
                         def.isInvalid = true
                     }
                 }

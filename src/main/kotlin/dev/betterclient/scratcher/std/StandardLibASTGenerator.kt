@@ -46,6 +46,7 @@ object StandardLibASTGenerator {
     val motionLib = ASTFile("motion")
     val randomLib = ASTFile("random")
     val optimizationsLib = ASTFile("optimizations")
+    val compilerLib = ASTFile("compiler")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -59,6 +60,7 @@ object StandardLibASTGenerator {
         "motion" to motionLib,
         "random" to randomLib,
         "optimizations" to optimizationsLib,
+        "compiler" to compilerLib
     )
 
     val memLib = ASTFile("mem").also {
@@ -83,7 +85,7 @@ object StandardLibASTGenerator {
     }
 
     fun isRestricted(library: ASTFile): Boolean {
-        return library.path == "typecheck" || library == memoryLib || library == optimizationsLib
+        return library.path == "typecheck" || library == memoryLib || library == optimizationsLib || library == compilerLib
     }
 
     fun isStandardLib(function: Function): Boolean {

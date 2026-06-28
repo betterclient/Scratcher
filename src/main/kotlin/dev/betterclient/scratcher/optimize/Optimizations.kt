@@ -21,6 +21,10 @@ object Optimizations {
         TailCallOptimization
     )
 
+    val applyLast = listOf<Optimization>(
+        OptimizeToGlobals
+    )
+
     fun apply(ast: ASTFile) {
         var changed: Boolean
         var iterations = 0
@@ -46,10 +50,12 @@ object Optimizations {
         }
 
         //do optimize to globals last because maybe the locals are gonna get inlined, so optimize them to globals at the very end
-        val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
-        callGraph.forEach { (func, _) ->
-            if(OptimizeToGlobals.shouldApply(func, callGraph)) {
-                OptimizeToGlobals.apply(func, callGraph)
+        applyLast.forEach {
+            val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
+            callGraph.forEach { (func, _) ->
+                if (it.shouldApply(func, callGraph)) {
+                    it.apply(func, callGraph)
+                }
             }
         }
     }

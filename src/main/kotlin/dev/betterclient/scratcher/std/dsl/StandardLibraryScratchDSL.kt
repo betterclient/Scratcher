@@ -90,7 +90,7 @@ class CodeBuilder internal constructor(
         return newBuilder.statements
     }
 
-    internal fun toFunc(): StandardLibASTFunction {
+    internal fun toFunc(source: ASTFile): StandardLibASTFunction {
         if (nested) throw UnreachableException()
 
         return StandardLibASTFunction(
@@ -103,7 +103,8 @@ class CodeBuilder internal constructor(
                 runWithoutScreenRefresh = warp
             ),
             returnType = currentReturnType,
-            userAccessible = userAccessible
+            userAccessible = userAccessible,
+            sourceAST = source
         )
     }
 }
@@ -155,7 +156,7 @@ value class DSLControl(private val builder: CodeBuilder) {
     }
 }
 
-fun compile(name: String, editor: ScratchEditor, warp: Boolean, userAccessible: Boolean, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
+fun compile(source: ASTFile, name: String, editor: ScratchEditor, warp: Boolean, userAccessible: Boolean, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
     val builder = CodeBuilder(
         name,
         editor,
@@ -163,11 +164,11 @@ fun compile(name: String, editor: ScratchEditor, warp: Boolean, userAccessible: 
         warp = warp,
         userAccessible = userAccessible
     ).also { it.block() }
-    return builder.toFunc()
+    return builder.toFunc(source)
 }
 
 fun ScratchEditor.compile(library: ASTFile, name: String, warp: Boolean = true, userAccessible: Boolean = true, block: CodeBuilder.() -> Unit): StandardLibASTFunction {
-    val func = compile(name, this, warp, userAccessible, block)
+    val func = compile(library, name, this, warp, userAccessible, block)
     library.functions.add(func)
     return func
 }
@@ -211,7 +212,8 @@ fun <T> compileInline(
                 }
                 ExpressionLowerResult(expression = expr, prepend = prependList)
             }
-        }
+        },
+        sourceAST = library
     )
 
     library.functions.add(func)
