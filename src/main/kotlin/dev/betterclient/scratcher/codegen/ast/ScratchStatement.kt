@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.autoSetNext
+import dev.betterclient.scratcher.except.GeneralCompilerException
 
 sealed class ScratchStatement {
     abstract fun lower(): List<ScratchOpcode>
@@ -19,7 +20,7 @@ class CallFunction(
 ) : ScratchStatement() {
     init {
         func.args.zip(args).forEach { (theirs, ours) ->
-            if (theirs.type == ScratchType.BOOL && ours !is ScratchBoolExpression) throw UnsupportedOperationException("Trying to pass non bool expression into bool argument while calling ${func.name}")
+            if (theirs.type == ScratchType.BOOL && ours !is ScratchBoolExpression) throw GeneralCompilerException("Trying to pass non bool expression into bool argument while calling ${func.name}")
         }
     }
 

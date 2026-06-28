@@ -4,6 +4,8 @@ import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.nextBlockPosition
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
+import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.except.NotFoundException
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -99,7 +101,7 @@ enum class Key(val id: String) {
         fun from(eventArg: ScratcherLangParser.EventArgContext): Key {
             val text = eventArg.IDENTIFIER()?.text ?:  eventArg.literal()!!.text.removeSurrounding("\"")
             return Key.entries.find { it.id.equals(text, true) }
-                ?: throw NullPointerException("Unknown key $text")
+                ?: throw NotFoundException("Unknown key $text")
         }
     }
 }

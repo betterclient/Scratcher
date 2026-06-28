@@ -36,6 +36,11 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.except.NotFoundException
+import dev.betterclient.scratcher.except.NotImplementedException
+import dev.betterclient.scratcher.except.TypeException
+import dev.betterclient.scratcher.except.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
@@ -148,7 +153,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val value = parseExpression(child.expression())
 
                 val variable = LocalVariable(name, type)
-                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.simplePath}::${variable.name} is type void.")
+                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is type void.")
                 localVariables.add(variable)
                 VariableStatement(value, variable)
             }
@@ -165,11 +170,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                         VariableAssignmentStatement(variableExpr.expression, variableExpr.member, variableExpr.struct, assignmentExpr)
                     }
                     is VariableExpression -> {
-                        if (!variableExpr.variable.mutable) throw IllegalStateException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
+                        if (!variableExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
 
                         TLVariableAssignmentStatement(variableExpr.variable, variableExpr.sourceAST, assignmentExpr)
                     }
-                    else -> throw IllegalStateException("Tried to assign to non assignable expression $variableExpr")
+                    else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $variableExpr")
                 }
             }
             is ScratcherLangParser.IfStmtContext -> {
@@ -202,7 +207,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     it.code.add(ReturnStatement(returnExpr))
                 })
             }
-            else -> throw IllegalStateException("Unknown statement type: ${child?.text}")
+            else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
     }
 
@@ -215,7 +220,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     ctx.PLUS() != null -> UnaryOperator.PLUS
                     ctx.MINUS() != null -> UnaryOperator.MINUS
                     ctx.BANG() != null -> UnaryOperator.NOT
-                    else -> throw IllegalStateException("Unknown or missing unary operator in expression: ${ctx.text}")
+                    else -> throw NotImplementedException("Unknown or missing unary operator in expression: ${ctx.text}")
                 },
                 expression = parseExpression(ctx.expression())
             )
@@ -227,7 +232,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     ctx.MOD() != null -> BinaryOperator.MODULO
                     ctx.SLASH() != null -> BinaryOperator.DIVIDE
                     ctx.STAR() != null -> BinaryOperator.MULTIPLY
-                    else -> throw IllegalStateException("Unknown binary operator in expression: ${ctx.text}")
+                    else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
                 right = parseExpression(ctx.expression(1)!!),
             )
@@ -236,7 +241,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 operator = when {
                     ctx.PLUS() != null -> BinaryOperator.ADD
                     ctx.MINUS() != null -> BinaryOperator.SUBTRACT
-                    else -> throw IllegalStateException("Unknown binary operator in expression: ${ctx.text}")
+                    else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
@@ -247,7 +252,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     ctx.GT() != null -> BinaryOperator.GREATER_THAN
                     ctx.LE() != null -> BinaryOperator.LESS_EQUAL
                     ctx.LT() != null -> BinaryOperator.LESS_THAN
-                    else -> throw IllegalStateException("Unknown binary operator in expression: ${ctx.text}")
+                    else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
@@ -256,7 +261,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 operator = when {
                     ctx.EQ() != null -> BinaryOperator.EQUAL
                     ctx.NE() != null -> BinaryOperator.NOT_EQUAL
-                    else -> throw IllegalStateException("Unknown binary operator in expression: ${ctx.text}")
+                    else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
@@ -276,7 +281,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             is ScratcherLangParser.AssertNonNullContext -> {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
             }
-            else -> throw UnsupportedOperationException("No parser for expr ${ctx.text} yet!")
+            else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
     }
 
@@ -284,11 +289,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val structExpr = parseExpression(ctx.expression())
         val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
             val baseType = type.asNonNull()
-            baseType.sourceAST!!.structs.find { it.type == baseType }?: throw UnsupportedOperationException("$type is a primitive type(?) at ${ctx.position}")
+            baseType.sourceAST!!.structs.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
         }
         val memberName = ctx.IDENTIFIER().text
 
-        val member = struct.parameters.find { it.name == memberName }?: throw NullPointerException("Struct ${struct.name} does not have $memberName")
+        val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
 
         return MemberExpression(structExpr, member, struct)
     }
@@ -299,7 +304,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val variable = ctx.IDENTIFIER(1)!!.text
 
         return ast.imports[import]?.variables?.find { it.name == variable }?.let { VariableExpression(it, ast.imports[import]!!) }
-            ?: throw NullPointerException("${ctx.text} not found")
+            ?: throw NotFoundException("${ctx.text} not found")
     }
 
     private fun parseIdentifier(text: String): Expression {
@@ -314,7 +319,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             return ParameterExpression(parameterFinding)
         }
 
-        val variable = ast.variables.find { it.name == text }?: throw NullPointerException("Variable $text not found")
+        val variable = ast.variables.find { it.name == text }?: throw NotFoundException("Variable $text not found")
         return VariableExpression(variable, ast)
     }
 
@@ -326,7 +331,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             ast
         } else {
             val import = funcCall.typePath()!!.IDENTIFIER(0)!!.text
-            ast.imports[import]?: throw Exception("Import not found $import for ${funcCall.text}.")
+            ast.imports[import]?: throw NotFoundException("Import not found $import for ${funcCall.text}.")
         }
 
         val funcName = if (funcCall.IDENTIFIER() != null) {
@@ -356,7 +361,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         resolvedFunc?.let {
             if (!it.userAccessible) {
-                throw UnsupportedOperationException("Function ${funcCall.text} is not accessible.")
+                throw NotFoundException("Function ${funcCall.text} is not accessible.")
             }
             return CallExpression(
                 func = it,
@@ -385,7 +390,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             candidates.add("Struct \"${struct.name}\"")
         }
 
-        throw NullPointerException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
+        throw NotFoundException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
     }
 
     private fun matchesArgumentsExactly(
@@ -413,10 +418,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         return when {
             ctx.FALSE() != null -> BooleanLiteral(false)
             ctx.TRUE() != null -> BooleanLiteral(true)
-            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw Exception("${ctx.FLOAT()?.text} is not a float!"))
-            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw Exception("${ctx.INT()?.text} is not an int!"))
+            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(Type.float, Type.nullType, "${ctx.FLOAT()?.text} is not a float!"))
+            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(Type.int, Type.nullType, "${ctx.INT()?.text} is not an int!"))
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
-            else -> throw UnsupportedOperationException("$ctx is not one of the expected types.")
+            else -> throw NotImplementedException("$ctx is not one of the expected types.")
         }
     }
 

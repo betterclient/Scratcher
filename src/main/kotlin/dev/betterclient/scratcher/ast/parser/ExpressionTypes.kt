@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.except.UnreachableException
 
 object ExpressionTypes {
     fun getExpressionType(expr: Expression): Type {
@@ -19,7 +20,7 @@ object ExpressionTypes {
             is ConcatExpression -> Type.str
             is NullExpression -> Type.nullType
             is NonNullAssertExpression -> getExpressionType(expr.expression).asNonNull()
-            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnreachableException()
         }
     }
 

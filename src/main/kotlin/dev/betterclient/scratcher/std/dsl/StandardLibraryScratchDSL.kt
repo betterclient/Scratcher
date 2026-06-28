@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
@@ -90,7 +91,7 @@ class CodeBuilder internal constructor(
     }
 
     internal fun toFunc(): StandardLibASTFunction {
-        if (nested) throw IllegalStateException()
+        if (nested) throw UnreachableException()
 
         return StandardLibASTFunction(
             name = name, //can't obfuscate this one

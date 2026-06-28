@@ -3,6 +3,8 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 
@@ -24,7 +26,7 @@ class FunctionExpressionLowering(val func: Function) {
         for(statement in code.code) {
             when(statement) {
                 is ExpressionStatement -> {
-                    if (statement.expression !is CallExpression) throw UnsupportedOperationException("Non CallExpression inside ExpressionStatement")
+                    if (statement.expression !is CallExpression) throw GeneralCompilerException("Non CallExpression inside ExpressionStatement")
                     replacements[statement] = lowerCallExpr(statement.expression, ignoreReturn = true).prepend //ignore expression cause its top level
                 }
                 is IfElseStatement -> {
@@ -136,7 +138,7 @@ class FunctionExpressionLowering(val func: Function) {
                     ))
                     replacements[statement] = list
                 }
-                is TemporaryStatement -> throw UnsupportedOperationException("unreachable")
+                is TemporaryStatement -> throw UnreachableException()
             }
         }
 
@@ -265,7 +267,7 @@ class FunctionExpressionLowering(val func: Function) {
             is LocalVariableExpression -> ExpressionLowerResult(expression)
             is NullExpression -> ExpressionLowerResult(expression)
 
-            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnreachableException()
         }
     }
 }

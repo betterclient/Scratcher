@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
@@ -56,7 +57,7 @@ class ConvertToHeapAccess(
         val curFunc = getFunctionLocals(currentFunction)
         val stackPar = currentFunction.parameters.first()
         return when (statement) {
-            is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
+            is ExpressionStatement -> throw UnreachableException()
             is IfElseStatement -> {
                 listOf(IfElseStatement(
                     convertExpression(statement.condition, currentFunction, getFunctionLocals),
@@ -252,7 +253,7 @@ class ConvertToHeapAccess(
                 }
             }
 
-            is CallExpression, is NonNullAssertExpression -> throw UnsupportedOperationException("unreachable")
+            is CallExpression, is NonNullAssertExpression -> throw UnreachableException()
         }
     }
 
@@ -260,7 +261,7 @@ class ConvertToHeapAccess(
         val vars = mutableListOf<LocalVariable>()
         for (statement in code.code) {
             when (statement) {
-                is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
+                is ExpressionStatement -> throw UnreachableException()
                 is IfElseStatement -> {
                     vars += countLocals(statement.thenBlock)
                     vars += countLocals(statement.elseBlock)
@@ -318,7 +319,7 @@ class ConvertToHeapAccess(
                     returnStmt = statement
                     break //no reason to break here cause return is guaranteed to be last, but do anyway
                 }
-                is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
+                is ExpressionStatement -> throw UnreachableException()
                 is LocalVariableAssignmentStatement -> {}
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {

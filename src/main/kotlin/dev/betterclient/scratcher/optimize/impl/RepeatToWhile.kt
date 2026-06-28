@@ -14,6 +14,7 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -32,7 +33,7 @@ object RepeatToWhile : Optimization("Convert repeat statements to while") {
 
         visit(func, object : ASTVisitor() {
             override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement {
-                val outerBlock = currentBlock ?: throw IllegalStateException("currentBlock is null")
+                val outerBlock = currentBlock ?: throw GeneralCompilerException("currentBlock is null") //should be unreachable
 
                 val counterVar = LocalVariable(
                     obfuscate("compiler@repeatCounteri" + counterIndex++),

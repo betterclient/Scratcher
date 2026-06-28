@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.Literal
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.UnaryOperator
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
@@ -106,7 +107,7 @@ object ConstantFolding : Optimization("Constant Folding") {
             when (operator) {
                 BinaryOperator.EQUAL -> isEqual
                 BinaryOperator.NOT_EQUAL -> !isEqual
-                else -> throw UnsupportedOperationException("unreachable")
+                else -> throw UnreachableException()
             }
         )
     }
@@ -122,7 +123,7 @@ object ConstantFolding : Optimization("Constant Folding") {
                 BinaryOperator.GREATER_THAN -> leftValue > rightValue
                 BinaryOperator.LESS_EQUAL -> leftValue <= rightValue
                 BinaryOperator.GREATER_EQUAL -> leftValue >= rightValue
-                else -> throw UnsupportedOperationException("unreachable")
+                else -> throw UnreachableException()
             }
         )
     }
@@ -138,7 +139,7 @@ object ConstantFolding : Optimization("Constant Folding") {
                 BinaryOperator.MODULO -> FloatLiteral(leftValue % rightValue)
                 BinaryOperator.ADD -> FloatLiteral(leftValue + rightValue)
                 BinaryOperator.SUBTRACT -> FloatLiteral(leftValue - rightValue)
-                else -> throw UnsupportedOperationException("uncreachable")
+                else -> throw UnreachableException()
             }
         } else {
             val leftValue = (left as IntLiteral).value
@@ -149,7 +150,7 @@ object ConstantFolding : Optimization("Constant Folding") {
                 BinaryOperator.MODULO -> IntLiteral(leftValue % rightValue)
                 BinaryOperator.ADD -> IntLiteral(leftValue + rightValue)
                 BinaryOperator.SUBTRACT -> IntLiteral(leftValue - rightValue)
-                else -> throw UnsupportedOperationException("uncreachable")
+                else -> throw UnreachableException()
             }
         }
     }
@@ -161,7 +162,7 @@ object ConstantFolding : Optimization("Constant Folding") {
         return BooleanLiteral(when (operator) {
             BinaryOperator.AND -> leftValue && rightValue
             BinaryOperator.OR -> leftValue || rightValue
-            else -> throw UnsupportedOperationException("unreachable")
+            else -> throw UnreachableException()
         })
     }
 }

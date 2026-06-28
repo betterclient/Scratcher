@@ -18,6 +18,7 @@ import dev.betterclient.scratcher.ast.TemporaryScratchStmt
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int) {
@@ -36,7 +37,7 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
                 is IfStatement -> run(statement.thenBlock)
                 is RepeatStatement -> run(statement.block)
 
-                is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnsupportedOperationException("unreachable")
+                is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> throw UnreachableException()
                 is ReturnStatement, is TLVariableAssignmentStatement, is TemporaryCallStatement,
                 is TemporaryHeapSetStatement, is VariableAssignmentStatement, is TemporaryScratchStmt, is CompositeStatement -> {}
             }

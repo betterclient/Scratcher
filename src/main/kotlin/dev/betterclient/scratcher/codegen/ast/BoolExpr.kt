@@ -1,8 +1,10 @@
 package dev.betterclient.scratcher.codegen.ast
 
+import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
+import dev.betterclient.scratcher.except.TypeException
 
 sealed class ScratchBoolExpression : ScratchExpression()
 private val ScratchValue?.boolean: ScratchBoolean
@@ -10,7 +12,11 @@ private val ScratchValue?.boolean: ScratchBoolean
 
 class SBoolParameterExpression(val parameter: ScratchFuncArgument) : ScratchBoolExpression() {
     init {
-        if (parameter.type != ScratchType.BOOL) throw UnsupportedOperationException("${parameter.name} is not of bool type")
+        if (parameter.type != ScratchType.BOOL) throw TypeException(
+            expected = Type.bool,
+            found = Type.str,
+            "${parameter.name} is not of bool type"
+        )
     }
 
     override fun lower() = parameter.internal.asValue!!

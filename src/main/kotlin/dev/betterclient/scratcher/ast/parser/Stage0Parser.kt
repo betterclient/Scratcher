@@ -12,6 +12,12 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.read
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
+import dev.betterclient.scratcher.except.CompilerException
+import dev.betterclient.scratcher.except.DuplicateDefinitionException
+import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.except.NotFoundException
+import dev.betterclient.scratcher.except.NotNullableException
+import dev.betterclient.scratcher.except.VoidVariableException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
@@ -43,7 +49,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             structAST.parseInfo = struct
             ctx.types.add(structAST.type)
             ast.structs.find { it.name == structAST.name }?.let {
-                throw UnsupportedOperationException("Duplicate struct definition ${ast.simplePath}::${it.name}")
+                throw DuplicateDefinitionException("Duplicate struct definition ${ast.simplePath}::${it.name}")
             }
 
             ast.structs.add(structAST)
@@ -55,14 +61,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             if (plainStringLiteralCtx == null) {
                 //stdlib import
                 val moduleNode = context.IDENTIFIER(0)
-                    ?: throw NullPointerException("Module identifier not found in import declaration")
+                    ?: throw NotFoundException("Module identifier not found in import declaration")
                 val moduleName = moduleNode.text
 
                 val alias = context.IDENTIFIER(1)?.text
 
                 val stdLib = StandardLibASTGenerator.lib[moduleName]
-                    ?: throw NullPointerException("Standard library module $moduleName not found")
-                if (StandardLibASTGenerator.isRestricted(stdLib)) throw NullPointerException("Standard library module $moduleName is restricted!")
+                    ?: throw NotFoundException("Standard library module $moduleName not found")
+                if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
 
                 val key = alias ?: moduleName
                 ast.imports[key] = stdLib
@@ -75,7 +81,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val importedPath = importedFile.absolutePath
 
                 if (!importedFile.exists()) {
-                    throw Exception("Imported file not found at $importedPath")
+                    throw NotFoundException("Imported file not found at $importedPath")
                 }
 
                 val importedAST = ctx.asts[importedPath] ?: run {
@@ -97,10 +103,10 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val type = figureOutType(ctx, ast, field.type())
                 val isNullable = field.NULLABLE() != null
                 if (isNullable && type.isPrimitive) {
-                    throw UnsupportedOperationException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
+                    throw NotNullableException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
                 }
 
-                if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${struct.name} has an argument with type void.")
+                if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
@@ -116,7 +122,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val func = context.funcDecl()!!
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
                     val type = figureOutType(ctx, ast, it.type())
-                    if (type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
+                    if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                     Parameter(it.IDENTIFIER().text, type)
                 }.toMutableList()
 
@@ -130,7 +136,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 if (duplicate != null) {
                     val sig = parameterList.joinToString(", ") { it.type.name }
-                    throw UnsupportedOperationException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
+                    throw DuplicateDefinitionException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
                 }
 
                 var isWarp = false
@@ -140,14 +146,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                         modifier.EXPORT() != null -> {
                             if (isExport) {
                                 val sig = parameterList.joinToString(", ") { it.type.name }
-                                throw IllegalStateException("Double export in ${ast.simplePath}::$funcName($sig)")
+                                throw GeneralCompilerException("Double export in ${ast.simplePath}::$funcName($sig)")
                             }
                             isExport = true
                         }
                         modifier.WARP() != null -> {
                             if (isWarp) {
                                 val sig = parameterList.joinToString(", ") { it.type.name }
-                                throw IllegalStateException("Double warp in ${ast.simplePath}::$funcName($sig)")
+                                throw GeneralCompilerException("Double warp in ${ast.simplePath}::$funcName($sig)")
                             }
                             isWarp = true
                         }
@@ -173,7 +179,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     sourceAST = ast
                 )
                 astVariable.ctx = variable.expression()
-                if (astVariable.type == Type.void) throw UnsupportedOperationException("${ast.simplePath}::${astVariable.name} is type void.")
+                if (astVariable.type == Type.void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
 
                 ast.variables.add(astVariable)
             } else if (context.eventDecl() != null) {
@@ -181,7 +187,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val listener = when (event.IDENTIFIER().text) {
                     "GreenFlag" if event.eventArg() == null -> EventListener.GreenFlag
                     "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!))
-                    else -> throw UnsupportedOperationException("Unknown event type ${event.text}")
+                    else -> throw GeneralCompilerException("Unknown event type ${event.text}, expected GreenFlag or KeyPressed")
                 }
 
                 val func = Function(
@@ -215,17 +221,17 @@ fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: Scratc
         when (id.size) {
             2 -> {
                 //from other file
-                val otherFile = currentAST.imports[id[0].text]?: throw Exception("Type ${type.text} not found in any imports")
+                val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
                 return context.types.find { id[1].text == it.name && it.sourceAST == otherFile }
-                    ?: throw Exception("Type ${type.text} not found in any imports")
+                    ?: throw NotFoundException("Type ${type.text} not found in any imports")
             }
             1 -> {
                 //current file
                 return context.types.find { id[0].text == it.name && it.sourceAST == currentAST }
-                    ?: throw Exception("Type ${type.text} not found in current file")
+                    ?: throw NotFoundException("Type ${type.text} not found in current file")
             }
             else -> {
-                throw UnsupportedOperationException("Too many :: in type ${type.text}")
+                throw GeneralCompilerException("Too many :: in type ${type.text}")
             }
         }
     }

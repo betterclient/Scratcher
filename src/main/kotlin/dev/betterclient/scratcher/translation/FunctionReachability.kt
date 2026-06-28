@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.except.UnreachableException
 
 class FunctionReachability(val entrypoints: List<ASTEventListener>) {
     fun run(): MutableList<Function> {
@@ -119,7 +120,7 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
             is NonNullAssertExpression,
             is Literal-> {}
 
-            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnreachableException()
         }
     }
 }

@@ -2,6 +2,10 @@ package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.except.TypeAnalysisException
+import dev.betterclient.scratcher.except.TypeException
+import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.except.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
@@ -25,8 +29,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it)
-                if (variable.type == Type.void) throw UnsupportedOperationException("Variable ${ast.simplePath}::${variable.name} is of type void.")
-                if (!actualType.isAssignable(variable.type)) throw UnsupportedOperationException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
+                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
+                if (!actualType.isAssignable(variable.type)) throw TypeAnalysisException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
 
@@ -34,7 +38,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             checkCodeBlock(function, function.code.code)
 
             if (function.returnType != Type.void && !doesBlockGuaranteeReturn(function.code.code)) {
-                throw UnsupportedOperationException("Function ${ast.simplePath}::${function.name} does not have a guaranteed return")
+                throw TypeAnalysisException("Function ${ast.simplePath}::${function.name} does not have a guaranteed return")
             }
             pruneUnreachableCode(function.code.code)
         }
@@ -95,7 +99,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     //just check if the expressions inside are ok
                     getActualTypeOrThrow(statement.expression)
                     if (statement.expression !is CallExpression) {
-                        throw UnsupportedOperationException("Unsupported expression as top level. ${statement.expression}")
+                        throw TypeAnalysisException("Unsupported expression as top level. ${statement.expression}")
                     }
                 }
                 is IfElseStatement -> {
@@ -132,11 +136,11 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 is ReturnStatement -> {
                     if (statement.expression == null) {
                         if (function.returnType != Type.void) {
-                            throw UnsupportedOperationException("Must return a value from a non-void function.")
+                            throw TypeAnalysisException("Must return a value from a non-void function.")
                         }
                     } else {
                         if (function.returnType == Type.void) {
-                            throw UnsupportedOperationException("Cannot return a value from a void function.")
+                            throw TypeAnalysisException("Cannot return a value from a void function.")
                         }
                         checkType(function.returnType, getActualTypeOrThrow(statement.expression), "Return statement type")
                     }
@@ -150,7 +154,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
     fun checkType(expected: Type, found: Type, errorMessage: String) {
         if (!found.isAssignable(expected)) {
-            throw UnsupportedOperationException("$errorMessage, expected $expected, found $found")
+            throw TypeException(expected, found, errorMessage)
         }
     }
 
@@ -164,14 +168,14 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                         if (operandType == Type.int || operandType == Type.float) {
                             operandType
                         } else {
-                            throw UnsupportedOperationException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
+                            throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
                         }
                     }
                     UnaryOperator.NOT -> {
                         if (operandType == Type.bool) {
                             Type.bool
                         } else {
-                            throw UnsupportedOperationException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
+                            throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
                         }
                     }
                 }
@@ -182,7 +186,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
                 val leftOk = leftType.isPrimitive && leftType != Type.void && leftType != Type.nullType
                 val rightOk = rightType.isPrimitive && rightType != Type.void && rightType != Type.nullType
-                if (!leftOk || !rightOk) throw UnsupportedOperationException("Either $leftType or $rightType isn't concattable")
+                if (!leftOk || !rightOk) throw TypeAnalysisException("Either $leftType or $rightType isn't concattable")
 
                 Type.str
             }
@@ -200,7 +204,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is NonNullAssertExpression -> {
                 val innerType = getActualTypeOrThrow(expr.expression)
                 if (!innerType.nullable) {
-                    throw UnsupportedOperationException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
+                    throw TypeAnalysisException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
                 }
                 innerType.asNonNull()
             }
@@ -215,7 +219,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
 
-            is TemporaryExpression -> throw UnsupportedOperationException("unreachable")
+            is TemporaryExpression -> throw UnreachableException()
         }
     }
 
@@ -228,7 +232,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     if (leftType == Type.float || rightType == Type.float) Type.float else Type.int
                 } else {
-                    throw IllegalArgumentException("Operator '+' cannot be applied to $leftType and $rightType")
+                    throw TypeAnalysisException("Operator '+' cannot be applied to $leftType and $rightType")
                 }
             }
 
@@ -239,7 +243,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     if (leftType == Type.float || rightType == Type.float) Type.float else Type.int
                 } else {
-                    throw IllegalArgumentException("Operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
+                    throw TypeAnalysisException("Operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
                 }
             }
 
@@ -250,7 +254,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     Type.bool
                 } else {
-                    throw IllegalArgumentException("Comparison operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
+                    throw TypeAnalysisException("Comparison operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
                 }
             }
 
@@ -263,7 +267,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 ) {
                     Type.bool
                 } else {
-                    throw IllegalArgumentException("Cannot compare $leftType and $rightType for equality")
+                    throw TypeAnalysisException("Cannot compare $leftType and $rightType for equality")
                 }
             }
 
@@ -272,7 +276,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (leftType == Type.bool && rightType == Type.bool) {
                     Type.bool
                 } else {
-                    throw IllegalArgumentException("Logical operator '${expr.operator.symbol}' requires boolean operands, but got $leftType and $rightType")
+                    throw TypeAnalysisException("Logical operator '${expr.operator.symbol}' requires boolean operands, but got $leftType and $rightType")
                 }
             }
         }

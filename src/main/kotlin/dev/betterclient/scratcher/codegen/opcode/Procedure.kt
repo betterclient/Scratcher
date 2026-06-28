@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
+import dev.betterclient.scratcher.except.GeneralCompilerException
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -47,7 +48,7 @@ class ProcedurePrototypeOpcode(
 
     init {
         if (arguments.filter { it is ProcedureArgumentString || it is ProcedureArgumentBoolean }.size != arguments.size) {
-            throw UnsupportedOperationException("Non arguments on the arguments field...")
+            throw GeneralCompilerException("Non arguments on the arguments field...")
         }
         takeOwnership(arguments)
         arguments.forEach { it.shadow = true }

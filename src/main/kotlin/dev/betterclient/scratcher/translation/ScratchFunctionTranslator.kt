@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
@@ -73,10 +74,8 @@ class ScratchFunctionTranslator(
                 translateExpr(stmt.assignment)
             )
 
-            is VariableAssignmentStatement -> throw UnsupportedOperationException("unreachable")
-            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement -> throw UnsupportedOperationException(
-                "unreachable"
-            )
+            is VariableAssignmentStatement -> throw UnreachableException()
+            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement -> throw UnreachableException()
         }
         return listOf(single)
     }
@@ -128,7 +127,7 @@ class ScratchFunctionTranslator(
             is MemberExpression,
             is TemporaryLocalVariableIndexExpression,
             is LocalVariableExpression,
-            is NonNullAssertExpression -> throw UnsupportedOperationException("unreachable")
+            is NonNullAssertExpression -> throw UnreachableException()
         }
     }
 
