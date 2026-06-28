@@ -80,27 +80,10 @@ float rgb(float r, float g, float b) {
 }
 
 on GreenFlag {
-    looks::say(count(15));
-    /*if(a() == 5) {
-        looks::say("yo!");
-    }*/
-    int index = 0;
-    index = index + 1;
-    rgb(index, 5, 5);
-    index = 5;
     while(true) {
         pen::eraseAll();
         render();
     }
-}
-
-int a() {
-    return 5;
-}
-
-str count(int amount) {
-    return "Done!" if amount == 1;
-    return count(amount - 1);
 }
 
 warp void render() {
