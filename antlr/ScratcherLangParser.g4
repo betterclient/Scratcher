@@ -19,6 +19,7 @@ topLevelElement
 
 statement
     : varDecl
+    | returnIfStmt
     | exprStmt
     | assignStmt
     | ifStmt
@@ -65,6 +66,10 @@ block
 
 exprStmt
     : expression SEMI
+    ;
+
+returnIfStmt
+    : RETURN expression? IF LPAREN expression RPAREN SEMI
     ;
 
 assignStmt

@@ -194,6 +194,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val repeatBlock = CodeBlock().also { parseBlock(it, child.block()) }
                 RepeatStatement(amount, repeatBlock)
             }
+            is ScratcherLangParser.ReturnIfStmtContext -> {
+                val returnExpr = if (child.expression().size == 2) parseExpression(child.expression(0)!!) else null
+                val cond = parseExpression(child.expression().last())
+
+                IfStatement(cond, CodeBlock().also {
+                    it.code.add(ReturnStatement(returnExpr))
+                })
+            }
             else -> throw IllegalStateException("Unknown statement type: ${child?.text}")
         }
     }

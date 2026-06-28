@@ -99,7 +99,7 @@ int a() {
 }
 
 str count(int amount) {
-    if(amount == 1) { return "Done!"; }
+    return "Done!" if(amount == 1);
     return count(amount - 1);
 }
 
