@@ -131,7 +131,10 @@ fun visit(
     func: Function,
     visitor: ASTVisitor = EmptyVisitor
 ) {
-    visitor.visitCodeBlock(func.code)
+    val out = visitor.visitCodeBlock(func.code)
+    if (out == func.code) return
+    func.code.code.clear()
+    func.code.code.addAll(out.code)
 }
 
 fun visitCopy(

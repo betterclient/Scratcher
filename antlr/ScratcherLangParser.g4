@@ -69,7 +69,7 @@ exprStmt
     ;
 
 returnIfStmt
-    : RETURN expression? IF LPAREN expression RPAREN SEMI
+    : RETURN expression? IF LPAREN? expression RPAREN? SEMI?
     ;
 
 assignStmt

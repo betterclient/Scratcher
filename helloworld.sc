@@ -81,9 +81,9 @@ float rgb(float r, float g, float b) {
 
 on GreenFlag {
     looks::say(count(15));
-    if(a() == 5) {
+    /*if(a() == 5) {
         looks::say("yo!");
-    }
+    }*/
     int index = 0;
     index = index + 1;
     rgb(index, 5, 5);
@@ -99,7 +99,7 @@ int a() {
 }
 
 str count(int amount) {
-    return "Done!" if(amount == 1);
+    return "Done!" if amount == 1;
     return count(amount - 1);
 }
 
