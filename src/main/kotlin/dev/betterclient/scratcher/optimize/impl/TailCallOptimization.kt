@@ -9,49 +9,35 @@ object TailCallOptimization : Optimization("Tail call optimization") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
         return OptimizationUtils.isOnlyDirectlyRecursive(func, callGraph)
     }
-    override fun apply(
-        func: Function,
-        graph: TCallGraph
-    ): Boolean {
+    override fun apply(func: Function, graph: TCallGraph): Boolean {
         val tailCalls = findTailCalls(func)
         if (countSelfCalls(func) != tailCalls.size) return false
-        //apply time!
 
-        val hasReturnedVar = LocalVariable(obfuscate("TCO@hasReturned"), Type.bool)
         val tcoActiveVar = LocalVariable(obfuscate("TCO@active"), Type.bool)
-        val resultVar = if (func.returnType != Type.void) {
-            LocalVariable(obfuscate("TCO@result"), func.returnType)
-        } else null
         val declarations = mutableListOf<Statement>()
-        declarations.add(VariableStatement(BooleanLiteral(false), hasReturnedVar))
         declarations.add(VariableStatement(BooleanLiteral(true), tcoActiveVar))
-        if (resultVar != null) declarations.add(VariableStatement(IntLiteral((-1).toBigInteger()), resultVar))
 
         val args = func.parameters.associateWith { LocalVariable(obfuscate("TCO@argument@${it.name}"), it.type) }
         args.forEach { (param, variable) -> declarations.add(VariableStatement(ParameterExpression(param), variable)) }
 
         visit(func, object : ASTVisitor() {
             override fun visitCodeBlock(block: CodeBlock): CodeBlock {
-                if (func.code == block) {
-                    return rewriteToLoop(block)
-                }
+                if (func.code == block) return rewriteToLoop(block)
 
                 val processedBlock = super.visitCodeBlock(block)
-
                 val guardedStatements = processedBlock.code.map { stmt ->
                     IfStatement(
                         LocalVariableExpression(tcoActiveVar),
                         CodeBlock().apply { code.add(stmt) }
                     )
                 }
-
                 processedBlock.code.clear()
                 processedBlock.code.addAll(guardedStatements)
                 return processedBlock
             }
 
             private fun rewriteToLoop(block: CodeBlock): CodeBlock {
-                val out = super.visitCodeBlock(block) //weeewooo
+                val out = super.visitCodeBlock(block)
 
                 val guardedBody = out.code.map { stmt ->
                     IfStatement(
@@ -63,76 +49,48 @@ object TailCallOptimization : Optimization("Tail call optimization") {
                 val loopBody = CodeBlock()
                 loopBody.code.add(LocalVariableAssignmentStatement(tcoActiveVar, BooleanLiteral(true)))
                 loopBody.code.addAll(guardedBody)
-                loopBody.code.add(
-                    IfStatement(
-                        LocalVariableExpression(tcoActiveVar),
-                        CodeBlock().apply {
-                            code.add(LocalVariableAssignmentStatement(hasReturnedVar, BooleanLiteral(true)))
-                        }
-                    )
-                )
 
-                val loopCondition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturnedVar))
-                val loop = WhileStatement(loopCondition, loopBody)
+                val loop = WhileStatement(BooleanLiteral(true), loopBody)
 
                 val outBlock = CodeBlock()
                 outBlock.code.addAll(declarations)
                 outBlock.code.add(loop)
 
-                if (resultVar != null) {
-                    outBlock.code.add(ReturnStatement(LocalVariableExpression(resultVar)))
-                } else {
-                    outBlock.code.add(ReturnStatement(null))
-                }
-
                 return outBlock
             }
 
             override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
-                //move all decls up to the top
                 declarations.add(VariableStatement(null, variable))
-
-                if (defaultValue != null) {
-                    return LocalVariableAssignmentStatement(variable, defaultValue)
-                }
-
-                return null
+                return if (defaultValue != null) LocalVariableAssignmentStatement(variable, defaultValue) else null
             }
 
-            override fun visitReturnStatement(expression: Expression?): Statement? {
-                val statements = mutableListOf<Statement>()
-
+            override fun visitReturnStatement(expression: Expression?): Statement {
                 if (expression is CallExpression && expression.func == func) {
-                    val tempVars = mutableListOf<LocalVariable>()
+                    val statements = mutableListOf<Statement>()
 
-                    expression.arguments.forEachIndexed { i, arg ->
-                        val param = func.parameters[i]
-                        val tempVar = LocalVariable(obfuscate("TCOtemp@${param.name}"), param.type)
-                        declarations.add(VariableStatement(null, tempVar))
-
-                        statements.add(LocalVariableAssignmentStatement(tempVar, arg))
-                        tempVars.add(tempVar)
-                    }
-
-                    expression.arguments.forEachIndexed { i, _ ->
-                        val param = func.parameters[i]
+                    if (func.parameters.size == 1) {
+                        val param = func.parameters[0]
                         val shadowVar = args[param]!!
-                        val tempVar = tempVars[i]
-                        statements.add(LocalVariableAssignmentStatement(shadowVar, LocalVariableExpression(tempVar)))
+                        statements.add(LocalVariableAssignmentStatement(shadowVar, expression.arguments[0]))
+                    } else {
+                        val tempVars = expression.arguments.mapIndexed { i, arg ->
+                            val param = func.parameters[i]
+                            val tempVar = LocalVariable(obfuscate("TCOtemp@${param.name}"), param.type)
+                            declarations.add(VariableStatement(null, tempVar))
+                            statements.add(LocalVariableAssignmentStatement(tempVar, arg))
+                            tempVar
+                        }
+                        expression.arguments.forEachIndexed { i, _ ->
+                            val shadowVar = args[func.parameters[i]]!!
+                            statements.add(LocalVariableAssignmentStatement(shadowVar, LocalVariableExpression(tempVars[i])))
+                        }
                     }
 
                     statements.add(LocalVariableAssignmentStatement(tcoActiveVar, BooleanLiteral(false)))
-
-                    return CompositeStatement(statements)
-                } else {
-                    if (expression != null && resultVar != null) {
-                        statements.add(LocalVariableAssignmentStatement(resultVar, expression))
-                    }
-                    statements.add(LocalVariableAssignmentStatement(hasReturnedVar, BooleanLiteral(true)))
-                    statements.add(LocalVariableAssignmentStatement(tcoActiveVar, BooleanLiteral(false)))
-
                     return CompositeStatement(statements)
                 }
+
+                return ReturnStatement(expression)
             }
 
             override fun visitParameterExpression(parameter: Parameter): Expression {
