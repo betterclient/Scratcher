@@ -60,7 +60,9 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
 
     private fun Expression.isSimple(): Boolean {
         return when (this) {
-            is CallExpression -> false
+            is CallExpression -> {
+                func is InlineStandardLibFunction && func.returnType != Type.void && arguments.all { it.isSimple() }
+            }
             is NonNullAssertExpression -> false
             is BinaryExpression -> left.isSimple() && right.isSimple()
             is ConcatExpression -> left.isSimple() && right.isSimple()

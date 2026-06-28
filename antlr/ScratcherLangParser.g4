@@ -106,6 +106,7 @@ expression
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
+    | expression DOUBLE_BANG                            # assertNonNull
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr
     | expression (PLUS | MINUS) expression              # addExpr
@@ -115,7 +116,6 @@ expression
     | expression OR expression                          # orExpr
     | literal                                           # literalExpr
     | NULL                                              # nullExpr
-    | expression DOUBLE_BANG                            # assertNonNull
     | IDENTIFIER                                        # idExpr
     ;
 

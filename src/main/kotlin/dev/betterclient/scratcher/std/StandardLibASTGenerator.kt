@@ -32,7 +32,7 @@ object StandardLibASTGenerator {
         MotionLib.init(motionLib, editor)
         RandomLib.init(randomLib, editor)
 
-        typeChecker
+        rawLibs
     }
 
     val memoryLib = ASTFile("memory")
@@ -72,8 +72,14 @@ object StandardLibASTGenerator {
         ).also { lib["typecheck"] = it }
     }
 
+    val triangle by lazy {
+        compile("/triangle.sc", "triangle").also {
+            lib["triangle"] = it
+        }
+    }
+
     val rawLibs by lazy {
-        listOf(typeChecker)
+        listOf(typeChecker, triangle)
     }
 
     fun isRestricted(library: ASTFile): Boolean {

@@ -1,23 +1,11 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.ast.ASTEventListener
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.CodeBlock
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.Struct
-import dev.betterclient.scratcher.ast.TLVariable
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.read
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
-import dev.betterclient.scratcher.except.CompilerException
-import dev.betterclient.scratcher.except.DuplicateDefinitionException
-import dev.betterclient.scratcher.except.GeneralCompilerException
-import dev.betterclient.scratcher.except.NotFoundException
-import dev.betterclient.scratcher.except.NotNullableException
-import dev.betterclient.scratcher.except.VoidVariableException
+import dev.betterclient.scratcher.except.*
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File

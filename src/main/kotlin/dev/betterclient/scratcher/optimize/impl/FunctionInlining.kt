@@ -44,38 +44,34 @@ object FunctionInlining : Optimization("Function inlining") {
     ): Boolean {
         val eligible = InlineEligibility.findEligible(func, graph)
 
-        if (func.name == "compiler@eventlistener@GreenFlagi0") {
-            var modified = false
-            val inlinedExprs = mutableListOf<Expression>()
-            visit(func, object : ASTVisitor() {
-                override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
-                    if (eligible.contains(func)) {
-                        modified = true
-                        val out = inline(func, args)
-                        addStatements(out.prepend)
-                        return (out.expression?.also {
-                            inlinedExprs.add(it)
-                        })?: voidMarkerExpr
-                    }
-
-                    return super.visitCallExpression(func, args)
+        var modified = false
+        val inlinedExprs = mutableListOf<Expression>()
+        visit(func, object : ASTVisitor() {
+            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+                if (eligible.contains(func)) {
+                    modified = true
+                    val out = inline(func, args)
+                    addStatements(out.prepend)
+                    return (out.expression?.also {
+                        inlinedExprs.add(it)
+                    })?: voidMarkerExpr
                 }
 
-                override fun visitExpressionStatement(expression: Expression): Statement? {
-                    if (expression == voidMarkerExpr) {
-                        return null
-                    }
-                    if (inlinedExprs.contains(expression)) {
-                        return null //ignoring returns, huh? I see how it is
-                    }
+                return super.visitCallExpression(func, args)
+            }
 
-                    return super.visitExpressionStatement(expression)
+            override fun visitExpressionStatement(expression: Expression): Statement? {
+                if (expression == voidMarkerExpr) {
+                    return null
                 }
-            })
-            return modified
-        }
+                if (inlinedExprs.contains(expression)) {
+                    return null //ignoring returns, huh? I see how it is
+                }
 
-        return false
+                return super.visitExpressionStatement(expression)
+            }
+        })
+        return modified
     }
 
     private fun inline(func: Function, args: List<Expression>): ExpressionLowerResult {
@@ -127,7 +123,7 @@ object InlineEligibility {
             }
         })
 
-        return costs.filter { (_, cost) -> cost <= 10000.toBigInteger() }.keys.toList()
+        return costs.filter { (_, cost) -> cost <= 10000.toBigInteger() }.keys.toList().filter { it !is StandardLibASTFunction && it !is InlineStandardLibFunction }
     }
 
     private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
