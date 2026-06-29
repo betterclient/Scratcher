@@ -46,18 +46,19 @@ object Optimizations {
             iterations++
         } while (changed && iterations < maxIterations)
 
-        applyCounts.forEach { (optimization, applyCount) ->
-            println("   \"${optimization.name}\" applied $applyCount times")
-        }
-
         //do optimize to globals last because maybe the locals are gonna get inlined, so optimize them to globals at the very end
         applyLast.forEach {
             val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
             callGraph.forEach { (func, _) ->
                 if (it.shouldApply(func, callGraph)) {
-                    it.apply(func, callGraph, context)
+                    val applied = it.apply(func, callGraph, context)
+                    if(applied) applyCounts[it] = (applyCounts[it]?: 0) + 1
                 }
             }
+        }
+
+        applyCounts.forEach { (optimization, applyCount) ->
+            println("   \"${optimization.name}\" applied $applyCount times")
         }
     }
 
