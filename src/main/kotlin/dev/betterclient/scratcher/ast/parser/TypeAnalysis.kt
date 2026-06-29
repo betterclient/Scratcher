@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.except.TypeException
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.except.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ListLib
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     fun run() {
@@ -191,11 +192,15 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 Type.str
             }
             is CallExpression -> {
-                expr.arguments.forEachIndexed {
-                        index, expression -> checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression), "Call parameter type is not correct")
-                }
+                if (ListLib.listFuncs.contains(expr.func)) {
+                    ListLib.getActualReturnType(this.ctx, expr, ::getActualTypeOrThrow)
+                } else {
+                    expr.arguments.forEachIndexed { index, expression ->
+                        checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression), "Call parameter type is not correct")
+                    }
 
-                expr.func.returnType
+                    expr.func.returnType
+                }
             }
             is MemberExpression -> {
                 checkType(expr.struct.type, getActualTypeOrThrow(expr.expression), "Struct type is not correct")

@@ -18,6 +18,7 @@ FLOAT_TYPE : 'float';
 STR_TYPE   : 'str';
 VOID_TYPE  : 'void';
 BOOL_TYPE  : 'bool';
+LIST       : 'List';
 
 TRUE  : 'true';
 FALSE : 'false';
@@ -28,6 +29,8 @@ LPAREN : '(';
 RPAREN : ')';
 LBRACE : '{' -> pushMode(DEFAULT_MODE);
 RBRACE : '}' -> popMode;
+LBRACK : '[';
+RBRACK : ']';
 COMMA  : ',';
 SEMI   : ';';
 COLONCOLON : '::';

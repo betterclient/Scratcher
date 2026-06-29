@@ -2,13 +2,15 @@ package dev.betterclient.scratcher.optimize.impl
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.*
 
 object SequentialConstantPropagation : Optimization("Sequential constant propagation") {
 
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         val pass = Pass()
         pass.processCodeBlock(func.code)

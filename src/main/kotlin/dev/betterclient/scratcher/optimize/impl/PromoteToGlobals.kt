@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -19,12 +20,13 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object PromoteToGlobals : Optimization("Promote to globals") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
-        return func.warp
+        return func.warp || func.isEventListener
     }
 
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         val eligible = findEligibleLocals(func, graph)
         if (eligible.isEmpty()) return false

@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
 import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import dev.betterclient.scratcher.translation.ConvertToHeapAccess
 import dev.betterclient.scratcher.translation.EntrypointReachability
@@ -29,13 +30,13 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val ast = compile(File("helloworld.sc"))
+    val (ast, context) = compile(File("helloworld.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }
 
     println("Optimizations")
-    Optimizations.apply(ast)
+    Optimizations.apply(ast, context)
 
     println("Reachability")
     val reachableEntrypoints = EntrypointReachability().run(ast)
@@ -67,6 +68,7 @@ fun main() {
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions) //make sure these are here
     reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
+    reachableFunctions.addAll(ListLib.listFuncs)
 
     val translator = FunctionStructureTranslator()
     //store it as a pair cause we need the original func for the code itself
@@ -102,15 +104,15 @@ fun main() {
     println("Compilation successful in ${System.currentTimeMillis() - startTime}ms")
 }
 
-fun compile(sourceFile: File): ASTFile {
+fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
     val context = CompilationContext()
     println("Initial parse")
     val ast = ASTReader(context, sourceFile.readText(), sourceFile.absolutePath).read()
-    MemoryLib.initMem(StandardLibASTGenerator.memLib, ast) //generate alloc(struct)
+    StandardLibASTGenerator.generateFrom(ast)
     println("Code parse")
     Stage1Parser(context, ast).parse()
     println("Static Type Checking")
     TypeAnalysis(context, ast).run()
 
-    return ast
+    return ast to context
 }

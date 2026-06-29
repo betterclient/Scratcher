@@ -64,12 +64,12 @@ data class Type(
     fun asNullable() = copy(nullable = true)
     fun asNonNull() = copy(nullable = false)
 
-    /*fun list(): Type {
+    fun list(): Type {
         return Type("$name[]", this.sourceAST, this)
-    }*/
+    }
 
     override fun toString(): String {
-        return name + if (nullable) "?" else ""
+        return sourceAST?.simplePath + "::" + name + if (nullable) "?" else ""
     }
 
     fun isAssignable(other: Type): Boolean {
@@ -108,7 +108,8 @@ open class Function(
     val export: Boolean,
     val warp: Boolean,
     val userAccessible: Boolean = true,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val isEventListener: Boolean = false
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }

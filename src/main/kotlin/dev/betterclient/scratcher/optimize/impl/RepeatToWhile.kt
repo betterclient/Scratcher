@@ -14,6 +14,7 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
@@ -27,7 +28,8 @@ object RepeatToWhile : Optimization("Convert repeat statements to while") {
 
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         var modified = false
 

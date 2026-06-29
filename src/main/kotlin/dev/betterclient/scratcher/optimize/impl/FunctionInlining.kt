@@ -24,6 +24,7 @@ import dev.betterclient.scratcher.ast.UnaryExpression
 import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -40,7 +41,8 @@ object FunctionInlining : Optimization("Function inlining") {
 
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         val eligible = InlineEligibility.findEligible(func, graph)
 

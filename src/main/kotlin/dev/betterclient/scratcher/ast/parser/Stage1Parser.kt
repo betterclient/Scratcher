@@ -36,12 +36,14 @@ import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.except.DuplicateDefinitionException
 import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.NotFoundException
 import dev.betterclient.scratcher.except.NotImplementedException
 import dev.betterclient.scratcher.except.TypeException
 import dev.betterclient.scratcher.except.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ListLib
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     fun parse() {
@@ -153,7 +155,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val value = parseExpression(child.expression())
 
                 val variable = LocalVariable(name, type)
-                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is type void.")
+                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${currentFunction?.name}::${variable.name} is type void.")
+                if (localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${currentFunction?.name}")
                 localVariables.add(variable)
                 VariableStatement(value, variable)
             }
@@ -281,13 +284,23 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             is ScratcherLangParser.AssertNonNullContext -> {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
             }
+            is ScratcherLangParser.ListCreationExprContext -> {
+                CallExpression(
+                    ListLib.newList,
+                    mutableListOf(
+                        StringLiteral( //so sorry for this but im not bothering adding more expressions just for this one fricking function
+                            figureOutType(this.ctx, ast, ctx.type()).toString()
+                        )
+                    )
+                )
+            }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
     }
 
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {
         val structExpr = parseExpression(ctx.expression())
-        val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
+        val struct = ExpressionTypes.getExpressionType(this.ctx, structExpr).let { type ->
             val baseType = type.asNonNull()
             baseType.sourceAST!!.structs.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
         }
@@ -340,7 +353,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             funcCall.typePath()!!.IDENTIFIER(1)!!.text
         }
 
-        val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(parseExpression(expr)) }?: listOf()
+        val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(this.ctx, parseExpression(expr)) }?: listOf()
         val args = argList?.expression()?.map { parseExpression(it) }?: listOf()
 
         var resolvedFunc = sourceAST.functions.find {
@@ -348,6 +361,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
             matchesArgumentsExactly(expectedArgListTypes, foundArgListTypes)
+        }
+
+        if (sourceAST == StandardLibASTGenerator.listLib && funcName != "newList") {
+            //AAAAAAAAAAAAAAAAAAAAAAAAAAA
+            resolvedFunc = sourceAST.functions.find { it.name == funcName }?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${currentFunction?.name} at ${funcCall.text}")
         }
 
         if (resolvedFunc == null) {
@@ -445,7 +463,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
         val exprsReduced = if (exprs.size == 1) {
-            if (ExpressionTypes.getExpressionType(exprs[0]) == Type.str) {
+            if (ExpressionTypes.getExpressionType(this.ctx, exprs[0]) == Type.str) {
                 exprs[0]
             } else {
                 ConcatExpression(exprs[0], StringLiteral(""))

@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.optimize.impl
 
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -11,7 +12,8 @@ import dev.betterclient.scratcher.optimize.visit
 object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {
@@ -21,7 +23,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                         val boolVal = (left as? BooleanLiteral ?: right as BooleanLiteral).value
                         val value = if (left is BooleanLiteral) right else left
 
-                        val type = ExpressionTypes.getExpressionType(value)
+                        val type = ExpressionTypes.getExpressionType(context, value)
                         if (type == Type.bool) {
                             modified = true
                             return if (operator == BinaryOperator.EQUAL) {
@@ -37,7 +39,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                         val boolVal = (left as? BooleanLiteral ?: right as BooleanLiteral).value
                         val value = if (left is BooleanLiteral) right else left
 
-                        val type = ExpressionTypes.getExpressionType(value)
+                        val type = ExpressionTypes.getExpressionType(context, value)
                         if (type == Type.bool) {
                             if (operator == BinaryOperator.AND) {
                                 if (boolVal) {

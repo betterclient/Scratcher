@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.optimize.impl
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.*
 
@@ -9,7 +10,7 @@ object TailCallOptimization : Optimization("Tail call optimization") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
         return OptimizationUtils.isOnlyDirectlyRecursive(func, callGraph)
     }
-    override fun apply(func: Function, graph: TCallGraph): Boolean {
+    override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
         val tailCalls = findTailCalls(func)
         if (countSelfCalls(func) != tailCalls.size) return false
 

@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.Literal
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.UnaryOperator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -18,7 +19,8 @@ import dev.betterclient.scratcher.optimize.visit
 object ConstantFolding : Optimization("Constant Folding") {
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {

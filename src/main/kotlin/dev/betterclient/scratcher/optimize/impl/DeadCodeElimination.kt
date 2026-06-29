@@ -11,6 +11,7 @@ import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
@@ -19,7 +20,8 @@ import dev.betterclient.scratcher.optimize.visit
 object DeadCodeElimination : Optimization("Dead code elimination") {
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         var modified = false
 

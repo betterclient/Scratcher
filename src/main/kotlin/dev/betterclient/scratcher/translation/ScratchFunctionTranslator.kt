@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
@@ -25,6 +26,13 @@ class ScratchFunctionTranslator(
     private fun translateStatement(stmt: Statement): List<ScratchStatement> {
         val single = when (stmt) {
             is TemporaryCallStatement -> {
+                if (stmt.func == ListLib.newList) {
+                    return listOf(CallFunction(
+                        func = lookup(stmt.func),
+                        args = listOf(translateExpr(stmt.args.last())) //its fake!!! the argument is fake!!
+                    ))
+                }
+
                 val func = lookup(stmt.func)
                 CallFunction(
                     func = func,

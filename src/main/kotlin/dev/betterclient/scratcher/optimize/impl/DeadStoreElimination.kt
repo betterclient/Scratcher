@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.optimize.impl
 
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
@@ -9,7 +10,7 @@ import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 
 object DeadStoreElimination : Optimization("Dead store elimination") {
-    override fun apply(func: Function, graph: TCallGraph): Boolean {
+    override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
         var modified = false
         val readCounts = mutableMapOf<LocalVariable, Int>()
 

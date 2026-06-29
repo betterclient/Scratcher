@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.optimize.impl
 
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.BaseExpressionVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -11,7 +12,8 @@ import dev.betterclient.scratcher.optimize.visit
 object InlineSingleUseAssignment : Optimization("Inline single-use assignments") {
     override fun apply(
         func: Function,
-        graph: TCallGraph
+        graph: TCallGraph,
+        context: CompilationContext
     ): Boolean {
         val analysis = InlineSingleUseAnalysis()
         analysis.analyze(func)

@@ -105,6 +105,7 @@ expression
     : LPAREN expression RPAREN                          # parensExpr
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
+    | LIST LPAREN type RPAREN                           # listCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
     | expression DOUBLE_BANG                            # assertNonNull
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
@@ -129,6 +130,10 @@ argList
     ;
 
 type
+    : baseType (LBRACK RBRACK)*
+    ;
+
+baseType
     : typePath
     | primitiveType
     ;

@@ -12,14 +12,12 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
-import dev.betterclient.scratcher.codegen.opcode.StopMode
-import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.lib.*
 import kotlin.system.exitProcess
 
 object StandardLibASTGenerator {
+    private var editor: ScratchEditor? = null
     fun init(editor: ScratchEditor) {
         ExceptionLib.init(exceptLib, editor)
         MemoryLib.init(memoryLib, editor)
@@ -30,7 +28,8 @@ object StandardLibASTGenerator {
         CastLib.init(castLib, editor)
         PenLib.init(penLib, editor)
         MotionLib.init(motionLib, editor)
-        RandomLib.init(randomLib, editor)
+        RandomLib.init(randomLib)
+        this.editor = editor
 
         rawLibs
     }
@@ -45,6 +44,7 @@ object StandardLibASTGenerator {
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
     val randomLib = ASTFile("random")
+    val listLib = ASTFile("list")
     val optimizationsLib = ASTFile("optimizations")
     val compilerLib = ASTFile("compiler")
 
@@ -59,6 +59,7 @@ object StandardLibASTGenerator {
         "pen" to penLib,
         "motion" to motionLib,
         "random" to randomLib,
+        "list" to listLib,
         "optimizations" to optimizationsLib,
         "compiler" to compilerLib
     )
@@ -117,10 +118,15 @@ object StandardLibASTGenerator {
         }
         exitProcess(0)
     }
+
+    fun generateFrom(startAST: ASTFile) {
+        MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
+        ListLib.init(listLib, editor!!)
+    }
 }
 
 object RandomLib {
-    fun init(lib: ASTFile, editor: ScratchEditor) {
+    fun init(lib: ASTFile) {
         compileInline(lib, "random", parameters = mutableListOf(
             Parameter("from", Type.float),
             Parameter("to", Type.float),

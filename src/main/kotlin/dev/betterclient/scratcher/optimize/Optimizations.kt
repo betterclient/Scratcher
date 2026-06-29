@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.optimize
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.impl.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
@@ -25,7 +26,7 @@ object Optimizations {
         PromoteToGlobals
     )
 
-    fun apply(ast: ASTFile) {
+    fun apply(ast: ASTFile, context: CompilationContext) {
         var changed: Boolean
         var iterations = 0
         val maxIterations = 20
@@ -37,7 +38,7 @@ object Optimizations {
             val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
 
             callGraph.forEach { (func, _) ->
-                if (applyAll(func, callGraph, applyCounts)) {
+                if (applyAll(context, func, callGraph, applyCounts)) {
                     changed = true
                 }
             }
@@ -54,18 +55,18 @@ object Optimizations {
             val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
             callGraph.forEach { (func, _) ->
                 if (it.shouldApply(func, callGraph)) {
-                    it.apply(func, callGraph)
+                    it.apply(func, callGraph, context)
                 }
             }
         }
     }
 
-    private fun applyAll(func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {
+    private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {
         if (StandardLibASTGenerator.isStandardLib(func)) return false
         var funcModified = false
         optimizations.forEach { optimization ->
             if (optimization.shouldApply(func, graph)) {
-                val applied = optimization.apply(func, graph)
+                val applied = optimization.apply(func, graph, context)
                 if (applied)
                     applyCounts[optimization] = (applyCounts[optimization]?: 0) + 1
                 funcModified = true
@@ -77,5 +78,5 @@ object Optimizations {
 
 abstract class Optimization(val name: String) {
     open fun shouldApply(func: Function, callGraph: TCallGraph): Boolean = true
-    abstract fun apply(func: Function, graph: TCallGraph): Boolean
+    abstract fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean
 }

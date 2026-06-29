@@ -8,9 +8,10 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 
 object SimplifyDoubleNegation : Optimization("Simplify double negation") {
-    override fun apply(func: Function, graph: TCallGraph): Boolean {
+    override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {
             override fun visitUnaryExpression(operator: UnaryOperator, expression: Expression): Expression {

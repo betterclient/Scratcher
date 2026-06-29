@@ -93,6 +93,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 if (isNullable && type.isPrimitive) {
                     throw NotNullableException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
                 }
+                if (isNullable && type.inner != null) {
+                    throw NotNullableException("Nullable lists are not allowed, use an empty list instead in ${ast.simplePath}::${struct.name}")
+                }
 
                 if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
@@ -102,6 +105,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     )
                 )
             }
+            checkDuplicates(struct.parameters, "struct ${ast.simplePath}::${struct.name}")
             struct.parseInfo = null
         }
 
@@ -113,6 +117,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                     Parameter(it.IDENTIFIER().text, type)
                 }.toMutableList()
+
+                checkDuplicates(parameterList, "function ${ast.simplePath}::${func.IDENTIFIER().text}")
 
                 val returnType = figureOutType(ctx, ast, func.type())
                 val funcName = func.IDENTIFIER().text
@@ -169,6 +175,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 )
                 astVariable.ctx = variable.expression()
                 if (astVariable.type == Type.void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
+                if (ast.variables.find { it.name == astVariable.name } != null) {
+                    throw DuplicateDefinitionException("Duplicate variable definition ${astVariable.name}")
+                }
 
                 ast.variables.add(astVariable)
             } else if (context.eventDecl() != null) {
@@ -185,7 +194,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = Type.void,
                     export = false,
                     warp = false,
-                    sourceAST = ast
+                    sourceAST = ast,
+                    isEventListener = true
                 )
                 func.ctx = event.block()
 
@@ -200,25 +210,47 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
         return ast
     }
+
+    private fun checkDuplicates(list: List<Parameter>, error: String) {
+        val found = mutableListOf<String>()
+        list.forEach {
+            if (found.contains(it.name)) {
+                throw DuplicateDefinitionException("Duplicate parameter definition ${it.name} in $error")
+            }
+            found.add(it.name)
+        }
+    }
 }
 
 fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: ScratcherLangParser.TypeContext): Type {
-    if (type.primitiveType() != null) {
-        return context.types.find { it.sourceAST == null && it.name == type.primitiveType()!!.text }!! //npe unreachable
+    val listCount = type.LBRACK().size
+    val realType = type.baseType()
+    if (realType.primitiveType() != null) {
+        return context.types.find { it.sourceAST == null && it.name == realType.primitiveType()!!.text }!!.let {  //npe unreachable
+            (1..listCount).fold(it) { currentType, _ ->
+                currentType.list()
+            }
+        }
     } else {
-        val typePath = type.typePath()!!
+        val typePath = realType.typePath()!!
         val id = typePath.IDENTIFIER()
         when (id.size) {
             2 -> {
                 //from other file
                 val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
-                return context.types.find { id[1].text == it.name && it.sourceAST == otherFile }
-                    ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                return context.types.find { id[1].text == it.name && it.sourceAST == otherFile }?.let {
+                    (1..listCount).fold(it) { currentType, _ ->
+                        currentType.list()
+                    }
+                }?: throw NotFoundException("Type ${type.text} not found in any imports")
             }
             1 -> {
                 //current file
-                return context.types.find { id[0].text == it.name && it.sourceAST == currentAST }
-                    ?: throw NotFoundException("Type ${type.text} not found in current file")
+                return context.types.find { id[0].text == it.name && it.sourceAST == currentAST }?.let {
+                    (1..listCount).fold(it) { currentType, _ ->
+                        currentType.list()
+                    }
+                }?: throw NotFoundException("Type ${type.text} not found in current file")
             }
             else -> {
                 throw GeneralCompilerException("Too many :: in type ${type.text}")

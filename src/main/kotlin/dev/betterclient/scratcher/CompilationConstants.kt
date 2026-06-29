@@ -7,4 +7,5 @@ object CompilationConstants {
     const val NON_MINIFICATION_LENGTH = 20
     const val PRINT_STDLIB = false //print the stdlib function structures and exit
     const val DISABLE_TYPE_CHECKER = true //disables the runtime type checker
+    const val DISABLE_INDEX_OUT_OF_BOUNDS = false //disable index out of bounds checking
 }
