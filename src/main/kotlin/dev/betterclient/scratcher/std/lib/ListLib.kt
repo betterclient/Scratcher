@@ -13,6 +13,8 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.NotFoundException
 import dev.betterclient.scratcher.except.TypeException
+import dev.betterclient.scratcher.std.dsl.CodeBuilder
+import dev.betterclient.scratcher.std.dsl.DSLExpression
 import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.gt
@@ -28,9 +30,10 @@ object ListLib {
     lateinit var itemAt: StandardLibASTFunction
     lateinit var clear: StandardLibASTFunction
     lateinit var length: StandardLibASTFunction
+    lateinit var replace: StandardLibASTFunction
 
     val listFuncs by lazy {
-        listOf(newList, add, remove, itemAt, clear, length)
+        listOf(newList, add, remove, itemAt, clear, length, replace)
     }
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
@@ -96,6 +99,18 @@ object ListLib {
             MemoryLib.heap[list] = length + 1.sc
         }
 
+        replace = editor.compile(
+            lib,
+            "replace",
+        ) {
+            val list = arg("list", Type.int)
+            val item = arg("item", Type.int)
+            val index = arg("index", Type.int)
+            checkOutOfBounds(list, index)
+
+            MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index] = item
+        }
+
         remove = editor.compile(
             lib,
             "remove",
@@ -104,22 +119,7 @@ object ListLib {
             val index = arg("index", Type.int)
             val length = MemoryLib.heap[list]
             val dataPtr = MemoryLib.heap[list + 2.sc]
-
-            if(!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
-                control.ifThen(index gt (length - 1.sc)) {
-                    call(
-                        ExceptionLib.panic,
-                        "IndexOutOfBoundsException".sc
-                    )
-                }
-
-                control.ifThen(index lt 0.sc) {
-                    call(
-                        ExceptionLib.panic,
-                        "IndexOutOfBoundsException".sc
-                    )
-                }
-            }
+            checkOutOfBounds(list, index)
 
             val shiftIndex = variable("list::shiftIndex")
             shiftIndex.set(index)
@@ -138,23 +138,7 @@ object ListLib {
             val list = arg("list", Type.int)
             val index = arg("index", Type.int)
             val returnVal = returnArg(Type.int)
-
-            val length = MemoryLib.heap[list]
-            if(!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
-                control.ifThen(index gt (length - 1.sc)) {
-                    call(
-                        ExceptionLib.panic,
-                        "IndexOutOfBoundsException".sc
-                    )
-                }
-
-                control.ifThen(index lt 0.sc) {
-                    call(
-                        ExceptionLib.panic,
-                        "IndexOutOfBoundsException".sc
-                    )
-                }
-            }
+            checkOutOfBounds(list, index)
 
             MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index]
         }
@@ -231,7 +215,44 @@ object ListLib {
                 if (check(expr.arguments[0]).inner == null) throw GeneralCompilerException("Not passing a list to list::length")
                 Type.int
             }
+            replace -> {
+                if (expr.arguments.size != 3) throw GeneralCompilerException("Too many/little arguments on list::replace, requires 3 parameters")
+                val list = check(expr.arguments[0])
+                val added = check(expr.arguments[1])
+                val index = check(expr.arguments[2])
+
+                if(list.inner != added) {
+                    throw GeneralCompilerException("Not adding to a list when calling list::replace")
+                }
+                if (index != Type.int) {
+                    throw TypeException(Type.int, index, "Wrong type passed to list::replace")
+                }
+
+                Type.void
+            }
             else -> Type.nullType
+        }
+    }
+
+    private fun CodeBuilder.checkOutOfBounds(
+        list: DSLExpression,
+        index: DSLExpression
+    ) {
+        val length = MemoryLib.heap[list]
+        if(!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+            control.ifThen(index gt (length - 1.sc)) {
+                call(
+                    ExceptionLib.panic,
+                    "IndexOutOfBoundsException".sc
+                )
+            }
+
+            control.ifThen(index lt 0.sc) {
+                call(
+                    ExceptionLib.panic,
+                    "IndexOutOfBoundsException".sc
+                )
+            }
         }
     }
 }

@@ -21,10 +21,12 @@ statement
     : varDecl
     | returnIfStmt
     | exprStmt
+    | assignIndexStmt
     | assignStmt
     | ifStmt
     | whileStmt
     | repeatStmt
+    | forStmt
     ;
 
 tlVarDecl
@@ -68,12 +70,16 @@ exprStmt
     : expression SEMI
     ;
 
-returnIfStmt
-    : RETURN expression? IF LPAREN? expression RPAREN? SEMI?
-    ;
-
 assignStmt
     : expression ASSIGN expression SEMI
+    ;
+
+assignIndexStmt
+    : expression LBRACK expression RBRACK ASSIGN expression SEMI
+    ;
+
+returnIfStmt
+    : RETURN expression? IF LPAREN? expression RPAREN? SEMI?
     ;
 
 returnStmt
@@ -92,6 +98,10 @@ repeatStmt
     : REPEAT LPAREN expression RPAREN block
     ;
 
+forStmt
+    : FOR LPAREN type IDENTIFIER IN expression RPAREN block
+    ;
+
 eventDecl
     : ON IDENTIFIER ( LPAREN eventArg? RPAREN )? block
     ;
@@ -105,6 +115,7 @@ expression
     : LPAREN expression RPAREN                          # parensExpr
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOT IDENTIFIER                         # memberExpr
+    | expression LBRACK expression RBRACK               # indexExpr
     | LIST LPAREN type RPAREN                           # listCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
     | expression DOUBLE_BANG                            # assertNonNull

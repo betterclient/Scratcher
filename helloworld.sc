@@ -18,6 +18,14 @@ on GreenFlag {
             random::random(-180, 180)
         ));
     }
+    triangles[15] = Triangle(
+        random::random(-240, 240),
+        random::random(-180, 180),
+        random::random(-240, 240),
+        random::random(-180, 180),
+        random::random(-240, 240),
+        triangles[14].y3
+    );
     while(true) {
         pen::eraseAll();
         render(triangles);
@@ -25,15 +33,9 @@ on GreenFlag {
 }
 
 warp void render(Triangle[] triangles) {
-    int len = list::length(triangles);
-    int i = 0;
-    while (i < len) {
-        Triangle t = list::itemAt(triangles, i);
-
+    for(Triangle t in triangles) {
         triangle::fill(
             t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)), 1
         );
-
-        i = i + 1;
     }
 }

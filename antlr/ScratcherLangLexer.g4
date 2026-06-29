@@ -9,6 +9,8 @@ IF     : 'if';
 ELSE   : 'else';
 WHILE  : 'while';
 REPEAT : 'repeat';
+FOR    : 'for';
+IN     : 'in';
 ON     : 'on';
 WARP   : 'warp';
 EXPORT : 'export';

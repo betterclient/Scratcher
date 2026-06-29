@@ -42,8 +42,11 @@ import dev.betterclient.scratcher.except.NotFoundException
 import dev.betterclient.scratcher.except.NotImplementedException
 import dev.betterclient.scratcher.except.TypeException
 import dev.betterclient.scratcher.except.VoidVariableException
+import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
+import java.math.BigInteger
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     fun parse() {
@@ -133,8 +136,9 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext) {
+    private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
         val prevLocalVariables = localVariables.map { it }
+        localVariables.addAll(injectVariables)
         blockCtx.statement().map { parseStatement(it); }.forEach {
             block.code.add(it)
         }
@@ -161,6 +165,18 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 VariableStatement(value, variable)
             }
             is ScratcherLangParser.ExprStmtContext -> ExpressionStatement(parseExpression(child.expression()))
+            is ScratcherLangParser.AssignIndexStmtContext -> {
+                val list = parseExpression(child.expression(0)!!)
+                val index = parseExpression(child.expression(1)!!)
+                val item = parseExpression(child.expression(2)!!)
+
+                ExpressionStatement(
+                    CallExpression(
+                        func = ListLib.replace,
+                        listOf(list, item, index)
+                    )
+                )
+            }
             is ScratcherLangParser.AssignStmtContext -> {
                 val variableExpr = parseExpression(child.expression(0)!!)
                 val assignmentExpr = parseExpression(child.expression(1)!!)
@@ -209,6 +225,65 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 IfStatement(cond, CodeBlock().also {
                     it.code.add(ReturnStatement(returnExpr))
                 })
+            }
+            is ScratcherLangParser.ForStmtContext -> {
+                val list = parseExpression(child.expression())
+                val listVar = LocalVariable(
+                    obfuscate("compiler@forStmtList${getUniqueName()}"),
+                    ExpressionTypes.getExpressionType(this.ctx, list)
+                )
+                val variable = LocalVariable(
+                    name = child.IDENTIFIER().text,
+                    type = figureOutType(this.ctx, ast, child.type())
+                )
+                val indexVariable = LocalVariable(
+                    obfuscate("compiler@forStmtIndex${getUniqueName()}"),
+                    Type.int
+                )
+
+                //is there a way to unsee code that you wrote?
+                //this is a hack for both: hiding these variables from user code and bypassing the single statement limit
+                IfStatement(
+                    condition = BooleanLiteral(true),
+                    thenBlock = CodeBlock().also {
+                        val prevLocalVariables = localVariables.map { variable -> variable }
+                        localVariables.add(listVar)
+                        localVariables.add(indexVariable)
+                        it.code.add(VariableStatement(
+                            list,
+                            listVar
+                        ))
+                        it.code.add(VariableStatement(
+                            IntLiteral(BigInteger.ZERO),
+                            indexVariable
+                        ))
+                        it.code.add(RepeatStatement(
+                            amount = CallExpression(
+                                func = ListLib.length,
+                                arguments = listOf(list)
+                            ),
+                            block = CodeBlock().also { inner ->
+                                parseBlock(inner, child.block(), injectVariables = listOf(variable))
+                                inner.code.add(0, LocalVariableAssignmentStatement(
+                                    variable, CallExpression(
+                                        func = ListLib.itemAt,
+                                        listOf(list, LocalVariableExpression(indexVariable))
+                                    )
+                                ))
+                                inner.code.add(LocalVariableAssignmentStatement(
+                                    indexVariable, BinaryExpression(
+                                        left = LocalVariableExpression(indexVariable),
+                                        right = IntLiteral(1.toBigInteger()),
+                                        operator = BinaryOperator.ADD
+                                    )
+                                ))
+                            }
+                        ))
+                        it.localVariables.addAll(localVariables)
+                        localVariables.clear()
+                        localVariables.addAll(prevLocalVariables)
+                    }
+                )
             }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
@@ -292,6 +367,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                             figureOutType(this.ctx, ast, ctx.type()).toString()
                         )
                     )
+                )
+            }
+            is ScratcherLangParser.IndexExprContext -> {
+                val list = parseExpression(ctx.expression(0)!!)
+                val index = parseExpression(ctx.expression(1)!!)
+                CallExpression(
+                    func = ListLib.itemAt,
+                    listOf(list, index)
                 )
             }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
