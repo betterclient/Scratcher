@@ -227,63 +227,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 })
             }
             is ScratcherLangParser.ForStmtContext -> {
-                val list = parseExpression(child.expression())
-                val listVar = LocalVariable(
-                    obfuscate("compiler@forStmtList${getUniqueName()}"),
-                    ExpressionTypes.getExpressionType(this.ctx, list)
-                )
-                val variable = LocalVariable(
-                    name = child.IDENTIFIER().text,
-                    type = figureOutType(this.ctx, ast, child.type())
-                )
-                val indexVariable = LocalVariable(
-                    obfuscate("compiler@forStmtIndex${getUniqueName()}"),
-                    Type.int
-                )
-
-                //is there a way to unsee code that you wrote?
-                //this is a hack for both: hiding these variables from user code and bypassing the single statement limit
-                IfStatement(
-                    condition = BooleanLiteral(true),
-                    thenBlock = CodeBlock().also {
-                        val prevLocalVariables = localVariables.map { variable -> variable }
-                        localVariables.add(listVar)
-                        localVariables.add(indexVariable)
-                        it.code.add(VariableStatement(
-                            list,
-                            listVar
-                        ))
-                        it.code.add(VariableStatement(
-                            IntLiteral(BigInteger.ZERO),
-                            indexVariable
-                        ))
-                        it.code.add(RepeatStatement(
-                            amount = CallExpression(
-                                func = ListLib.length,
-                                arguments = listOf(list)
-                            ),
-                            block = CodeBlock().also { inner ->
-                                parseBlock(inner, child.block(), injectVariables = listOf(variable))
-                                inner.code.add(0, LocalVariableAssignmentStatement(
-                                    variable, CallExpression(
-                                        func = ListLib.itemAt,
-                                        listOf(list, LocalVariableExpression(indexVariable))
-                                    )
-                                ))
-                                inner.code.add(LocalVariableAssignmentStatement(
-                                    indexVariable, BinaryExpression(
-                                        left = LocalVariableExpression(indexVariable),
-                                        right = IntLiteral(1.toBigInteger()),
-                                        operator = BinaryOperator.ADD
-                                    )
-                                ))
-                            }
-                        ))
-                        it.localVariables.addAll(localVariables)
-                        localVariables.clear()
-                        localVariables.addAll(prevLocalVariables)
-                    }
-                )
+                parseForStatement(child)
             }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
@@ -570,5 +514,74 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             "\\$" -> "$"
             else -> if (esc.startsWith("\\")) esc.substring(1) else esc
         }
+    }
+
+    private fun parseForStatement(child: ScratcherLangParser.ForStmtContext): IfStatement {
+        val list = parseExpression(child.expression())
+        val listVar = LocalVariable(
+            obfuscate("compiler@forStmtList${getUniqueName()}"),
+            ExpressionTypes.getExpressionType(this.ctx, list)
+        )
+        val variable = LocalVariable(
+            name = child.IDENTIFIER().text,
+            type = figureOutType(this.ctx, ast, child.type())
+        )
+        val indexVariable = LocalVariable(
+            obfuscate("compiler@forStmtIndex${getUniqueName()}"),
+            Type.int
+        )
+
+        //is there a way to unsee code that you wrote?
+        //this is a hack for both: hiding these variables from user code and bypassing the single statement limit
+        return IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = CodeBlock().also {
+                val prevLocalVariables = localVariables.map { variable -> variable }
+                localVariables.add(listVar)
+                localVariables.add(indexVariable)
+                it.code.add(
+                    VariableStatement(
+                        list,
+                        listVar
+                    )
+                )
+                it.code.add(
+                    VariableStatement(
+                        IntLiteral(BigInteger.ZERO),
+                        indexVariable
+                    )
+                )
+                it.code.add(
+                    RepeatStatement(
+                        amount = CallExpression(
+                            func = ListLib.length,
+                            arguments = listOf(list)
+                        ),
+                        block = CodeBlock().also { inner ->
+                            parseBlock(inner, child.block(), injectVariables = listOf(variable))
+                            inner.code.add(
+                                0, LocalVariableAssignmentStatement(
+                                    variable, CallExpression(
+                                        func = ListLib.itemAt,
+                                        listOf(list, LocalVariableExpression(indexVariable))
+                                    )
+                                )
+                            )
+                            inner.code.add(
+                                LocalVariableAssignmentStatement(
+                                    indexVariable, BinaryExpression(
+                                        left = LocalVariableExpression(indexVariable),
+                                        right = IntLiteral(1.toBigInteger()),
+                                        operator = BinaryOperator.ADD
+                                    )
+                                )
+                            )
+                        }
+                    ))
+                it.localVariables.addAll(localVariables)
+                localVariables.clear()
+                localVariables.addAll(prevLocalVariables)
+            }
+        )
     }
 }
