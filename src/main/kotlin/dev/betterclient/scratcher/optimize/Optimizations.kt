@@ -23,7 +23,6 @@ object Optimizations {
 
     val applyLast = listOf<Optimization>(
         PromoteToGlobals
-        //OptimizeToGlobals,
     )
 
     fun apply(ast: ASTFile) {

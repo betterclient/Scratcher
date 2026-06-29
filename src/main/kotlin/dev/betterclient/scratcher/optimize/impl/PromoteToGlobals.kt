@@ -1,33 +1,81 @@
 package dev.betterclient.scratcher.optimize.impl
 
+import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.TLVariable
+import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.VariableExpression
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.OptimizationUtils
 import dev.betterclient.scratcher.optimize.TCallGraph
+import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
-object PromoteToGlobals : Optimization("Promoto to globals") {
+object PromoteToGlobals : Optimization("Promote to globals") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
-        return func.warp && OptimizationUtils.filter(func, callGraph) { !it.warp }.isEmpty()
+        return func.warp
     }
 
     override fun apply(
         func: Function,
         graph: TCallGraph
     ): Boolean {
-        var modified = false
         val eligible = findEligibleLocals(func, graph)
+        if (eligible.isEmpty()) return false
+        val globals = eligible.associateWith {
+            val variable = TLVariable(
+                name = obfuscate("compiler@promoteToGlobal@${func.name}::${it.name}"),
+                mutable = true,
+                type = it.type,
+                defaultValue = null,
+                sourceAST = StandardLibASTGenerator.optimizationsLib
+            )
+            StandardLibASTGenerator.optimizationsLib.variables.add(variable)
+            variable
+        }
 
+        visit(func, object : ASTVisitor() {
+            override fun visitLocalVariableAssignmentStatement(
+                variable: LocalVariable,
+                assignment: Expression
+            ): Statement? {
+                globals[variable]?.let {
+                    return TLVariableAssignmentStatement(it, it.sourceAST, assignment)
+                }
 
-        return modified
+                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+            }
+
+            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+                globals[variable]?.let {
+                    return VariableExpression(it, it.sourceAST)
+                }
+
+                return super.visitLocalVariableExpression(variable)
+            }
+
+            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+                globals[variable]?.let { variable ->
+                    defaultValue?.let {
+                        return TLVariableAssignmentStatement(variable, variable.sourceAST, it)
+                    }
+                    return null
+                }
+
+                return super.visitVariableStatement(defaultValue, variable)
+            }
+        })
+
+        return true
     }
 
     private fun findEligibleLocals(current: Function, graph: TCallGraph): List<LocalVariable> {
-        val out = mutableListOf<LocalVariable>()
         val locals = OptimizationUtils.countLocals(current)
         if (!OptimizationUtils.isRecursive(current, graph)) {
             return locals
@@ -35,8 +83,22 @@ object PromoteToGlobals : Optimization("Promoto to globals") {
 
         val variableStates = locals.associateWith { VariableState.NOT_DECLARED }.toMutableMap()
 
-        //this is called liveness analysis(??)
+        //this is called liveness analysis?
         visit(current, object : ASTVisitor() {
+            private val manuallyVisiting = mutableListOf<CodeBlock>()
+            override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+                if (block == current.code || block in manuallyVisiting) {
+                    return VisitMode.READ_ONLY
+                }
+                return VisitMode.NONE
+            }
+
+            private fun visitBlockManually(block: CodeBlock) {
+                manuallyVisiting.add(block)
+                visitCodeBlock(block)
+                manuallyVisiting.remove(block)
+            }
+
             override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
                 if (defaultValue != null) {
                     variableStates[variable] = VariableState.DIRTY
@@ -76,8 +138,69 @@ object PromoteToGlobals : Optimization("Promoto to globals") {
 
                 return super.visitCallExpression(func, args)
             }
+
+            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {
+                val pre = variableStates.toMap()
+                visitBlockManually(thenBlock)
+                merge(pre, variableStates).let {
+                    variableStates.clear()
+                    variableStates.putAll(it)
+                }
+
+                return super.visitIfStatement(condition, thenBlock)
+            }
+
+            override fun visitIfElseStatement(condition: Expression, thenBlock: CodeBlock, elseBlock: CodeBlock): Statement? {
+                val preBranchStates = variableStates.toMap()
+
+                visitBlockManually(thenBlock)
+                val thenStates = variableStates.toMap()
+
+                variableStates.clear()
+                variableStates.putAll(preBranchStates)
+                visitBlockManually(elseBlock)
+                val elseStates = variableStates.toMap()
+
+                variableStates.clear()
+                variableStates.putAll(merge(thenStates, elseStates))
+
+                return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+            }
+
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+                val preLoopStates = variableStates.toMap()
+
+                visitBlockManually(block)
+                val pass1States = merge(preLoopStates, variableStates)
+
+                variableStates.clear()
+                variableStates.putAll(pass1States)
+
+                visitBlockManually(block)
+
+                val finalStates = merge(preLoopStates, variableStates)
+                variableStates.clear()
+                variableStates.putAll(finalStates)
+
+                return super.visitWhileStatement(condition, block)
+            }
         })
 
+        return variableStates.filter { (variable, state) -> variable.type.isPrimitive && state != VariableState.UNSAFE }.keys.toList()
+    }
+
+    private fun merge(left: Map<LocalVariable, VariableState>, right: Map<LocalVariable, VariableState>): Map<LocalVariable, VariableState> {
+        val out = mutableMapOf<LocalVariable, VariableState>()
+        out.putAll(left)
+        out.replaceAll { variable, s1 ->
+            val s2 = right[variable]!!
+            when {
+                s1 == VariableState.UNSAFE || s2 == VariableState.UNSAFE -> VariableState.UNSAFE
+                s1 == VariableState.USED || s2 == VariableState.USED -> VariableState.USED
+                s1 == VariableState.DIRTY || s2 == VariableState.DIRTY -> VariableState.DIRTY
+                else -> VariableState.NOT_DECLARED
+            }
+        }
         return out
     }
 }
