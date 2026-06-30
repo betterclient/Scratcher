@@ -16,11 +16,13 @@ import dev.betterclient.scratcher.except.TypeException
 import dev.betterclient.scratcher.std.dsl.CodeBuilder
 import dev.betterclient.scratcher.std.dsl.DSLExpression
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.concat
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.gt
 import dev.betterclient.scratcher.std.dsl.lt
 import dev.betterclient.scratcher.std.dsl.minus
 import dev.betterclient.scratcher.std.dsl.plus
+import dev.betterclient.scratcher.std.dsl.sc
 import dev.betterclient.scratcher.std.dsl.times
 
 object ListLib {
@@ -63,7 +65,7 @@ object ListLib {
             MemoryLib.heap[out + 3.sc] = name //name
             call(
                 MemoryLib.alloc,
-                1.sc, out + 2.sc, "n$name".sc //listPtr
+                1.sc, "n".sc concat name, out + 2.sc //listPtr
             )
         }
 
@@ -83,7 +85,9 @@ object ListLib {
                 oldDataPtr.set(MemoryLib.heap[list + 2.sc])
                 call(
                     MemoryLib.alloc,
-                    capacity, MemoryLib.heap[list + 3.sc], list + 2.sc
+                    capacity,
+                    "n".sc concat MemoryLib.heap[list + 3.sc],
+                    list + 2.sc
                 )
                 val copyIndex = variable("list::copyIndex")
                 copyIndex.set(0.sc)

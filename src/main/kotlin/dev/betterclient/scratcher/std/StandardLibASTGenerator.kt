@@ -10,8 +10,11 @@ import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
+import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.ControlStatements
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
+import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.lib.*
 import kotlin.system.exitProcess
@@ -28,7 +31,7 @@ object StandardLibASTGenerator {
         CastLib.init(castLib, editor)
         PenLib.init(penLib, editor)
         MotionLib.init(motionLib, editor)
-        RandomLib.init(randomLib)
+        UtilsLib.init(utilsLib)
         this.editor = editor
 
         rawLibs
@@ -43,10 +46,12 @@ object StandardLibASTGenerator {
     val castLib = ASTFile("cast")
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
-    val randomLib = ASTFile("random")
+    val utilsLib = ASTFile("utils")
     val listLib = ASTFile("list")
+    //TODO: string library
     val optimizationsLib = ASTFile("optimizations")
     val compilerLib = ASTFile("compiler")
+    val gcLib = ASTFile("gc_internal")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -58,10 +63,11 @@ object StandardLibASTGenerator {
         "calendar" to calendarLib,
         "pen" to penLib,
         "motion" to motionLib,
-        "random" to randomLib,
+        "utils" to utilsLib,
         "list" to listLib,
         "optimizations" to optimizationsLib,
-        "compiler" to compilerLib
+        "compiler" to compilerLib,
+        "gc_internal" to gcLib,
     )
 
     val memLib = ASTFile("mem").also {
@@ -69,10 +75,9 @@ object StandardLibASTGenerator {
     }
 
     val typeChecker by lazy {
-        compile(
-            "/TypeChecker.sc",
-            "typecheck"
-        ).also { lib["typecheck"] = it }
+        compile("/TypeChecker.sc", "typecheck").also {
+            lib["typecheck"] = it
+        }
     }
 
     val triangle by lazy {
@@ -81,12 +86,28 @@ object StandardLibASTGenerator {
         }
     }
 
+    var bypassRestrictions = false
+    val gc by lazy {
+        bypassRestrictions = true //gc needs gc_internal
+        val out = compile("/gc.sc", "gc").also {
+            if (!CompilationConstants.MANUAL_MEMORY) lib["gc"] = it
+        }
+        bypassRestrictions = false
+        out
+    }
+
     val rawLibs by lazy {
         listOf(typeChecker, triangle)
     }
 
     fun isRestricted(library: ASTFile): Boolean {
-        return library.path == "typecheck" || library == memoryLib || library == optimizationsLib || library == compilerLib
+        if (bypassRestrictions) return false
+        return library.path == "typecheck" ||
+                library == memoryLib ||
+                library == optimizationsLib ||
+                library == compilerLib ||
+                library.path == "gc" ||
+                library == gcLib
     }
 
     fun isStandardLib(function: Function): Boolean {
@@ -101,6 +122,7 @@ object StandardLibASTGenerator {
             fullPath = path
         ).read()
         Stage1Parser(context, ast).parse()
+        if (path == "gc") TypeAnalysis(context, ast).run() //yea
 
         return ast
     }
@@ -122,16 +144,24 @@ object StandardLibASTGenerator {
     fun generateFrom(startAST: ASTFile) {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
         ListLib.init(listLib, editor!!)
+        GCLib.init(gcLib)
+        gc
     }
 }
 
-object RandomLib {
+object UtilsLib {
     fun init(lib: ASTFile) {
         compileInline(lib, "random", parameters = mutableListOf(
             Parameter("from", Type.float),
             Parameter("to", Type.float),
         ), returnType = Type.float) {
             OperatorExpressions.Random(it[0], it[1])
+        }
+
+        compileInline(lib, "wait", parameters = mutableListOf(
+            Parameter("seconds", Type.float)
+        )) {
+            ControlStatements.Wait(it[0])
         }
     }
 }

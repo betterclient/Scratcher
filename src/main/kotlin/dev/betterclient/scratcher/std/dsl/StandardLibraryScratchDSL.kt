@@ -13,6 +13,15 @@ import dev.betterclient.scratcher.translation.ExpressionLowerResult
 @Target(AnnotationTarget.CLASS)
 annotation class StandardLibraryScratchDSL
 
+val String.sc
+    get() = DSLFromCreator { this.scratch }
+
+val Int.sc
+    get() = DSLFromCreator { this.toString().scratch }
+
+val Float.sc
+    get() = DSLFromCreator { this.toString().scratch }
+
 @StandardLibraryScratchDSL
 class CodeBuilder internal constructor(
     private val name: String,
@@ -29,15 +38,6 @@ class CodeBuilder internal constructor(
     val looks get() = DSLLooks(this)
     val control get() = DSLControl(this)
     val sensing get() = DSLSensing(this)
-
-    val String.sc
-        get() = DSLFromCreator { this.scratch }
-
-    val Int.sc
-        get() = DSLFromCreator { this.toString().scratch }
-
-    val Float.sc
-        get() = DSLFromCreator { this.toString().scratch }
 
     fun arg(name: String, type: Type): DSLExpression {
         return DSLArgumentExpression(

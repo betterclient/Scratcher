@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.equals
+import dev.betterclient.scratcher.std.dsl.sc
 
 object ExceptionLib {
     lateinit var panic: StandardLibASTFunction

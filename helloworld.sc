@@ -1,5 +1,5 @@
 import triangle;
-import random;
+import utils;
 import looks;
 import list;
 import pen;
@@ -10,20 +10,20 @@ on GreenFlag {
     Triangle[] triangles = List(Triangle);
     repeat(150) {
         list::add(triangles, Triangle(
-            random::random(-240, 240),
-            random::random(-180, 180),
-            random::random(-240, 240),
-            random::random(-180, 180),
-            random::random(-240, 240),
-            random::random(-180, 180)
+            utils::random(-240, 240),
+            utils::random(-180, 180),
+            utils::random(-240, 240),
+            utils::random(-180, 180),
+            utils::random(-240, 240),
+            utils::random(-180, 180)
         ));
     }
     triangles[15] = Triangle(
-        random::random(-240, 240),
-        random::random(-180, 180),
-        random::random(-240, 240),
-        random::random(-180, 180),
-        random::random(-240, 240),
+        utils::random(-240, 240),
+        utils::random(-180, 180),
+        utils::random(-240, 240),
+        utils::random(-180, 180),
+        utils::random(-240, 240),
         triangles[14].y3
     );
     while(true) {
@@ -35,7 +35,7 @@ on GreenFlag {
 warp void render(Triangle[] triangles) {
     for(Triangle t in triangles) {
         triangle::fill(
-            t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(random::random(0, 255), random::random(0, 255), random::random(0, 255)), 1
+            t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
         );
     }
 }

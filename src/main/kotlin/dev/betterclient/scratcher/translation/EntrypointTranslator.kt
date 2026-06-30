@@ -74,7 +74,9 @@ class EntrypointTranslator(
             args = listOf(),
             code = mutableListOf<ScratchStatement>(
                 ListStatements.ClearList(MemoryLib.heap),
-                ListStatements.ClearList(MemoryLib.freeList)
+                ListStatements.ClearList(MemoryLib.freeList),
+                ListStatements.ClearList(MemoryLib.allocNameList),
+                ListStatements.ClearList(MemoryLib.allocAddressList),
             ).also { list ->
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))

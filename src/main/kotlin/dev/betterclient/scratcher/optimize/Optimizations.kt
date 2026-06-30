@@ -26,7 +26,7 @@ object Optimizations {
         PromoteToGlobals
     )
 
-    fun apply(ast: ASTFile, context: CompilationContext) {
+    fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
         var changed: Boolean
         var iterations = 0
         val maxIterations = 20
@@ -57,6 +57,7 @@ object Optimizations {
             }
         }
 
+        if (!print) return
         applyCounts.forEach { (optimization, applyCount) ->
             println("   \"${optimization.name}\" applied $applyCount times")
         }

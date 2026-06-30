@@ -30,6 +30,7 @@ import dev.betterclient.scratcher.std.dsl.math
 import dev.betterclient.scratcher.std.dsl.minus
 import dev.betterclient.scratcher.std.dsl.or
 import dev.betterclient.scratcher.std.dsl.plus
+import dev.betterclient.scratcher.std.dsl.sc
 
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))

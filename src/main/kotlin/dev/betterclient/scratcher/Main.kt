@@ -7,20 +7,11 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
+import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
-import dev.betterclient.scratcher.std.lib.MemoryLib
-import dev.betterclient.scratcher.translation.ConvertToHeapAccess
-import dev.betterclient.scratcher.translation.EntrypointReachability
-import dev.betterclient.scratcher.translation.EntrypointTranslator
-import dev.betterclient.scratcher.translation.FunctionExpressionLowering
-import dev.betterclient.scratcher.translation.FunctionReachability
-import dev.betterclient.scratcher.translation.FunctionStructureTranslator
-import dev.betterclient.scratcher.translation.RemoveEmptyAllocations
-import dev.betterclient.scratcher.translation.ReParseLocalVariables
-import dev.betterclient.scratcher.translation.ScratchFunctionTranslator
-import dev.betterclient.scratcher.translation.TopLevelVariableTranslator
+import dev.betterclient.scratcher.translation.*
 import java.io.File
 
 fun main() {
@@ -37,9 +28,10 @@ fun main() {
 
     println("Optimizations")
     Optimizations.apply(ast, context)
+    if (!CompilationConstants.MANUAL_MEMORY) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Reachability")
-    val reachableEntrypoints = EntrypointReachability().run(ast)
+    val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
     val reachableTopLevelVariables = (reachableEntrypoints.asSequence()
         .flatMap { it.sourceAST.variables.asSequence() }
         .plus(StandardLibASTGenerator.optimizationsLib.variables.asSequence())
@@ -98,6 +90,8 @@ fun main() {
     ).translateAll(
         editor, reachableEntrypoints
     )
+
+    GCLib.populateList(editor)
 
     println("Compile to scratch")
     scratchStubs.map { it.value }.forEach { editor.addFunction(it) }

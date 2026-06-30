@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.gc.GCInfo
 import dev.betterclient.scratcher.gc.StackGCInfo
+import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
@@ -33,7 +34,7 @@ class ConvertToHeapAccess(
         println("Count locals")
         val newFuncs = functions
             .filter { it !is StandardLibASTFunction }
-            .associateWith { countLocals(it.code) }
+            .associateWith { countLocals(it, it.code) }
 
         println("Convert to heap")
         for (function in newFuncs.keys) {
@@ -272,11 +273,11 @@ class ConvertToHeapAccess(
         }
     }
 
-    private fun countLocals(code: CodeBlock): Pair<List<LocalVariable>, GCInfo> {
+    private fun countLocals(function: Function, code: CodeBlock): Pair<List<LocalVariable>, GCInfo> {
         val out = countInternalLocals(code)
         return out to StackGCInfo(out.map {
             it.type
-        })
+        }, function).also { addGC(it) }
     }
 
     private fun countInternalLocals(code: CodeBlock): List<LocalVariable> {
@@ -348,7 +349,7 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val (targetLocals, _) = countLocals(statement.func.code)
+                    val (targetLocals, _) = countLocals(statement.func, statement.func.code)
                     if (targetLocals.isEmpty()) {
                         replacements[statement] = listOf(
                             statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
