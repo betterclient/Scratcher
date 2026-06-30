@@ -50,18 +50,20 @@ object ListLib {
             userAccessible = false
         ) {
             val returnArg = returnArg(Type.int)
+            val name = arg("name", Type.str)
 
             call(
                 MemoryLib.alloc,
-                3.sc, returnArg
+                4.sc, name, returnArg
             )
             val out = MemoryLib.heap[returnArg]
 
             MemoryLib.heap[out] = 0.sc //length
             MemoryLib.heap[out + 1.sc] = 1.sc //capacity
+            MemoryLib.heap[out + 3.sc] = name //name
             call(
                 MemoryLib.alloc,
-                1.sc, out + 2.sc //listPtr
+                1.sc, out + 2.sc, "n$name".sc //listPtr
             )
         }
 
@@ -81,7 +83,7 @@ object ListLib {
                 oldDataPtr.set(MemoryLib.heap[list + 2.sc])
                 call(
                     MemoryLib.alloc,
-                    capacity, list + 2.sc
+                    capacity, MemoryLib.heap[list + 3.sc], list + 2.sc
                 )
                 val copyIndex = variable("list::copyIndex")
                 copyIndex.set(0.sc)
@@ -169,7 +171,7 @@ object ListLib {
     fun getActualReturnType(context: CompilationContext, expr: CallExpression, check: (Expression) -> Type): Type {
         return when(expr.func) {
             newList -> {
-                if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::newList")
+                if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::newList")
                 val type = (expr.arguments[0] as StringLiteral).value.let { typeStr ->
                     context.types.find { it.toString() == typeStr }?: throw NotFoundException("Type not found: $typeStr")
                 }

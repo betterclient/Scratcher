@@ -304,11 +304,15 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
             }
             is ScratcherLangParser.ListCreationExprContext -> {
+                val list = figureOutType(this.ctx, ast, ctx.type())
                 CallExpression(
                     ListLib.newList,
                     mutableListOf(
                         StringLiteral( //so sorry for this but im not bothering adding more expressions just for this one fricking function
-                            figureOutType(this.ctx, ast, ctx.type()).toString()
+                            list.toString()
+                        ),
+                        StringLiteral(
+                            "l"
                         )
                     )
                 )

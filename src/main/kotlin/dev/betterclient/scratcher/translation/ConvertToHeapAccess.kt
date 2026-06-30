@@ -3,15 +3,20 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.gc.GCInfo
+import dev.betterclient.scratcher.gc.StackGCInfo
+import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import kotlin.collections.plus
 
 class ConvertToHeapAccess(
     val functions: List<Function>
 ) {
     private val temporaryExpression = mutableMapOf<Function, TemporaryHeapGetExpression>() //used as a marker
+    private val temporaryNameExpression = mutableMapOf<Function, TemporaryHeapGetExpression>()
 
-    fun run(): Map<Function, Int> {
+    fun run(): Map<Function, Pair<Int, GCInfo>> {
         println("Add stack parameter")
         val stacks = functions.filter { it !is StandardLibASTFunction }.map { func ->
             Parameter(obfuscate("compiler@stack"), Type.int).also { func.parameters.add(0, it) } to func
@@ -35,13 +40,16 @@ class ConvertToHeapAccess(
             convert(function.code, function) { newFuncs[it]!! }
         }
 
-        return newFuncs.mapValues { it.value.size }
+        return newFuncs.mapValues { (_, data) ->
+            val (list, info) = data
+            list.size to info
+        }
     }
 
     private fun convert(
         block: CodeBlock,
         currentFunction: Function,
-        getFunctionLocals: (Function) -> List<LocalVariable>,
+        getFunctionLocals: (Function) -> Pair<List<LocalVariable>, GCInfo>,
     ) {
         block.code.map { convertStatement(it, currentFunction, getFunctionLocals) }.reduceOrNull { a, b -> a + b }?.let {
             block.code.clear()
@@ -52,9 +60,9 @@ class ConvertToHeapAccess(
     private fun convertStatement(
         statement: Statement,
         currentFunction: Function,
-        getFunctionLocals: (Function) -> List<LocalVariable>
+        getFunctionLocals: (Function) -> Pair<List<LocalVariable>, GCInfo>
     ): List<Statement> {
-        val curFunc = getFunctionLocals(currentFunction)
+        val curFunc = getFunctionLocals(currentFunction).first
         val stackPar = currentFunction.parameters.first()
         return when (statement) {
             is ExpressionStatement -> throw UnreachableException()
@@ -168,16 +176,23 @@ class ConvertToHeapAccess(
     private fun convertExpression(
         expression: Expression,
         currentFunction: Function,
-        getFunctionLocals: (Function) -> List<LocalVariable>
+        getFunctionLocals: (Function) -> Pair<List<LocalVariable>, GCInfo>
     ): Expression {
         if (temporaryExpression.containsValue(expression)) {
             val matchedFunction = temporaryExpression.entries.firstOrNull { it.value === expression }?.key
             if (matchedFunction != null) {
-                return IntLiteral(getFunctionLocals(matchedFunction).size.toBigInteger())
+                return IntLiteral(getFunctionLocals(matchedFunction).first.size.toBigInteger())
             }
         }
 
-        val curFunc = getFunctionLocals(currentFunction)
+        if (temporaryNameExpression.containsValue(expression)) {
+            val matchedFunction = temporaryExpression.entries.firstOrNull { it.value === expression }?.key
+            if (matchedFunction != null) {
+                return StringLiteral(getFunctionLocals(matchedFunction).second.name.toString())
+            }
+        }
+
+        val curFunc = getFunctionLocals(currentFunction).first
         val stackPar = currentFunction.parameters.first()
         return when(expression) {
             is LocalVariableExpression -> {
@@ -257,23 +272,30 @@ class ConvertToHeapAccess(
         }
     }
 
-    private fun countLocals(code: CodeBlock): List<LocalVariable> {
+    private fun countLocals(code: CodeBlock): Pair<List<LocalVariable>, GCInfo> {
+        val out = countInternalLocals(code)
+        return out to StackGCInfo(out.map {
+            it.type
+        })
+    }
+
+    private fun countInternalLocals(code: CodeBlock): List<LocalVariable> {
         val vars = mutableListOf<LocalVariable>()
         for (statement in code.code) {
             when (statement) {
                 is ExpressionStatement -> throw UnreachableException()
                 is IfElseStatement -> {
-                    vars += countLocals(statement.thenBlock)
-                    vars += countLocals(statement.elseBlock)
+                    vars += countInternalLocals(statement.thenBlock)
+                    vars += countInternalLocals(statement.elseBlock)
                 }
                 is IfStatement -> {
-                    vars += countLocals(statement.thenBlock)
+                    vars += countInternalLocals(statement.thenBlock)
                 }
                 is RepeatStatement -> {
-                    vars += countLocals(statement.block)
+                    vars += countInternalLocals(statement.block)
                 }
                 is WhileStatement -> {
-                    vars += countLocals(statement.block)
+                    vars += countInternalLocals(statement.block)
                 }
                 is VariableStatement -> {
                     vars.add(statement.variable)
@@ -292,6 +314,8 @@ class ConvertToHeapAccess(
     }
 
     fun getTemporary(function: Function) = temporaryExpression.computeIfAbsent(function) { TemporaryHeapGetExpression(IntLiteral(0.toBigInteger())) }
+    fun getNameTemporary(function: Function) = temporaryNameExpression.computeIfAbsent(function) { TemporaryHeapGetExpression(IntLiteral(0.toBigInteger())) }
+
 
     private fun addAllocAndFreeStack(
         function: Function,
@@ -324,8 +348,8 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val targetLocalSize = countLocals(statement.func.code).size
-                    if (targetLocalSize == 0) {
+                    val (targetLocals, _) = countLocals(statement.func.code)
+                    if (targetLocals.isEmpty()) {
                         replacements[statement] = listOf(
                             statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
                         )
@@ -335,7 +359,7 @@ class ConvertToHeapAccess(
                             VariableStatement(null, allocVar),
                             TemporaryCallStatement(
                                 MemoryLib.alloc,
-                                mutableListOf(getTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
+                                mutableListOf(getTemporary(statement.func), getNameTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
                             ),
                             statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
                         )

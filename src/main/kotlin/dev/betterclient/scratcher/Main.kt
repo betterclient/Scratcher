@@ -64,7 +64,7 @@ fun main() {
     val reachableFunctionsLocalCountsMap = ConvertToHeapAccess(reachableFunctions).run()
 
     println("Remove empty allocations")
-    reachableFunctions.forEach { RemoveEmptyAllocations(it, reachableFunctionsLocalCountsMap[it]?: 0).run() }
+    reachableFunctions.forEach { RemoveEmptyAllocations(it, reachableFunctionsLocalCountsMap[it]?.first?: 0).run() }
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions) //make sure these are here
     reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
@@ -77,6 +77,7 @@ fun main() {
     println("Translate code")
     scratchStubs.forEach { (normalAST, scratchAST) ->
         ScratchFunctionTranslator(
+            compilationContext = context,
             original = normalAST,
             scratch = scratchAST,
             lookup = {
@@ -108,6 +109,7 @@ fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
     val context = CompilationContext()
     println("Initial parse")
     val ast = ASTReader(context, sourceFile.readText(), sourceFile.absolutePath).read()
+    context.generateGCNames()
     StandardLibASTGenerator.generateFrom(ast)
     println("Code parse")
     Stage1Parser(context, ast).parse()

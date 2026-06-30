@@ -3,15 +3,19 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
+import dev.betterclient.scratcher.except.NotFoundException
 import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
+    val compilationContext: CompilationContext,
     val original: Function,
     val scratch: ScratchASTFunction,
     val lookup: (Function) -> ScratchASTFunction,
@@ -27,9 +31,13 @@ class ScratchFunctionTranslator(
         val single = when (stmt) {
             is TemporaryCallStatement -> {
                 if (stmt.func == ListLib.newList) {
+                    val typeName = (stmt.args[0] as StringLiteral).value
+                    val lCount = typeName.count { char -> char == '[' } + 1
+                    val type = compilationContext.types.find { it.toString() == typeName.replace("[]", "") }
+                        ?: throw NotFoundException("Not able to find $typeName in types list?")
                     return listOf(CallFunction(
                         func = lookup(stmt.func),
-                        args = listOf(translateExpr(stmt.args.last())) //its fake!!! the argument is fake!!
+                        args = listOf(translateExpr(stmt.args.last()), "${"l".repeat(lCount)}${findGC(type)}".scratch) //its fake!!! the argument is fake!!
                     ))
                 }
 

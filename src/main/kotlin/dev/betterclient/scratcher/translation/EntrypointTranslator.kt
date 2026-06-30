@@ -12,14 +12,16 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.EventListener
+import dev.betterclient.scratcher.gc.GCInfo
+import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class EntrypointTranslator(
-    val getFunctionLocalSize: (Function) -> Int,
+    val getFunctionLocalSize: (Function) -> Pair<Int, GCInfo>,
     val toScratch: (Function) -> ScratchASTFunction,
     val topLevelInit: ScratchASTFunction,
-    val topLevelInitLocals: Int
+    val topLevelInitLocals: Pair<Int, GCInfo>
 ) {
     fun translateAll(editor: ScratchEditor, listeners: List<ASTEventListener>) {
         generateResetEvent(editor, listeners.size)
@@ -38,7 +40,7 @@ class EntrypointTranslator(
         reservedIndex: Int
     ) {
         val func = listener.ctx ?: return
-        val localSize = getFunctionLocalSize(func)
+        val (localSize, gc) = getFunctionLocalSize(func)
         val exec = if (localSize == 0) {
             listOf(CallFunction(
                 toScratch(func), listOf("-1".scratch)
@@ -47,7 +49,7 @@ class EntrypointTranslator(
             listOf(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
-                    listOf(localSize.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
+                    listOf(localSize.toString().scratch, gc.name.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
@@ -77,7 +79,7 @@ class EntrypointTranslator(
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
                 }
-                val index = if (topLevelInitLocals > 0) {
+                val index = if (topLevelInitLocals.first > 0) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch)) //reserve for initLocals
                     entrypointCount
                 } else -1
@@ -85,7 +87,7 @@ class EntrypointTranslator(
                 if (index != -1) {
                     list.add(CallFunction(
                         MemoryLib.alloc.precompiledCode, //alloc for initLocals
-                        listOf(topLevelInitLocals.toString().scratch, index.toString().scratch)
+                        listOf(topLevelInitLocals.first.toString().scratch, topLevelInitLocals.second.name.toString().scratch, index.toString().scratch)
                     ))
                 }
 

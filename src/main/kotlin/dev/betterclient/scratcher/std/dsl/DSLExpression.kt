@@ -97,6 +97,14 @@ infix fun DSLExpression.equals(other: DSLExpression) = DSLBoolFromCreator {
     )
 }
 
+infix fun DSLExpression.concat(right: DSLExpression) = DSLFromCreator {
+    OperatorExpressions.BinaryExpression(
+        left = this.lower(),
+        right = right.lower(),
+        operator = OperatorExpressions.BinaryOperator.STRING_CONCAT
+    )
+}
+
 operator fun DSLExpression.plus(right: DSLExpression) = DSLFromCreator {
     OperatorExpressions.BinaryExpression(
         left = this.lower(),

@@ -1,16 +1,30 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
 import dev.betterclient.scratcher.except.*
+import dev.betterclient.scratcher.gc.GCInfo
+import dev.betterclient.scratcher.gc.StructGCInfo
+import dev.betterclient.scratcher.gc.addGC
+import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
+import java.util.Stack
 
 class CompilationContext {
+    fun generateGCNames() {
+        if (CompilationConstants.MANUAL_MEMORY) return
+
+        asts.values.flatMap { it.structs }.forEach {
+            addGC(StructGCInfo(it.type, it))
+        }
+    }
+
     var eventListenerIndex: Int = 0
     val asts = mutableMapOf<String, ASTFile>()
     val types = mutableListOf(

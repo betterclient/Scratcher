@@ -19,6 +19,9 @@ class CallFunction(
     val args: List<ScratchExpression>
 ) : ScratchStatement() {
     init {
+        if (func.args.size != args.size) {
+            throw GeneralCompilerException("??? while calling ${func.name}")
+        }
         func.args.zip(args).forEach { (theirs, ours) ->
             if (theirs.type == ScratchType.BOOL && ours !is ScratchBoolExpression) throw GeneralCompilerException("Trying to pass non bool expression into bool argument while calling ${func.name}")
         }

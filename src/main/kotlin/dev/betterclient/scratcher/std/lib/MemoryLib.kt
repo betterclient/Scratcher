@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.std.lib
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
@@ -14,9 +15,12 @@ import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.gc.findGC
+import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.dsl.compile
 import dev.betterclient.scratcher.std.dsl.compileInline
+import dev.betterclient.scratcher.std.dsl.concat
 import dev.betterclient.scratcher.std.dsl.div
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.gt
@@ -30,12 +34,18 @@ import dev.betterclient.scratcher.std.dsl.plus
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))
     val freeList = ScratchList(obfuscate("FreeList"))
+    val allocAddressList = ScratchList(obfuscate("AllocAddressList"))
+    val allocNameList = ScratchList(obfuscate("AllocNameList"))
     lateinit var free: StandardLibASTFunction
     lateinit var alloc: StandardLibASTFunction
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
         editor.addList(heap)
         editor.addList(freeList)
+        if (!CompilationConstants.MANUAL_MEMORY) {
+            editor.addList(allocAddressList)
+            editor.addList(allocNameList)
+        }
 
         free = editor.compile(lib, "free") {
             val index = arg("index", Type.int)
@@ -45,6 +55,24 @@ object MemoryLib {
             val left = variable("left")
             val right = variable("right")
             val middle = variable("middle")
+
+            if (!CompilationConstants.MANUAL_MEMORY) {
+                val searchIndex = variable("searchIndex")
+                searchIndex.set(1.sc)
+                control.repeatUntil(searchIndex gt allocAddressList.length) {
+                    control.ifElse(
+                        condition = allocAddressList[searchIndex] equals index,
+                        thenBlock = {
+                            allocAddressList.remove(searchIndex)
+                            allocNameList.remove(searchIndex)
+                            searchIndex.set(allocAddressList.length + 1.sc)
+                        },
+                        elseBlock = {
+                            searchIndex.changeBy(1.sc)
+                        }
+                    )
+                }
+            }
 
             left.set(1.sc)
             right.set(freeList.length)
@@ -71,15 +99,18 @@ object MemoryLib {
 
         alloc = editor.compile(lib, "alloc") {
             val size = arg("size", Type.int)
+            val name = arg("name", Type.str)
             val returnIndex = arg("returnIndex", Type.int)
 
             val variable = variable("variable")
             val maxSearchIndex = variable("maxSearchIndex")
             val allocatedAddress = variable("allocatedAddress")
 
-            control.ifThen(size equals 0.sc) {
-                //OH NO!!!
-                call(ExceptionLib.panic, "Scratcher Runtime error: Alloc called with size 0! (this is probably a bug in the compiler)".sc)
+            if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+                control.ifThen(size equals 0.sc) {
+                    //OH NO!!!
+                    call(ExceptionLib.panic, "Scratcher Runtime error: Alloc called with size 0! (this is probably a bug in the compiler)".sc)
+                }
             }
 
             allocatedAddress.set((-1).sc)
@@ -112,6 +143,10 @@ object MemoryLib {
                 }
             }
 
+            if (!CompilationConstants.MANUAL_MEMORY) {
+                allocAddressList.add(allocatedAddress)
+                allocNameList.add(name)
+            }
             heap[returnIndex] = allocatedAddress
         }
     }
@@ -139,7 +174,7 @@ object MemoryLib {
 
                     val allocCall = CallFunction(
                         alloc.precompiledCode,
-                        listOf(struct.sizeOnHeap.toString().scratch, lastArg)
+                        listOf(struct.sizeOnHeap.toString().scratch, findGC(struct).toString().scratch, lastArg)
                     )
 
                     val replaceStatements = otherArgs.mapIndexed { index, arg ->
