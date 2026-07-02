@@ -32,15 +32,14 @@ object StandardLibASTGenerator {
         PenLib.init(penLib, editor)
         MotionLib.init(motionLib, editor)
         UtilsLib.init(utilsLib)
+        StringLib.init(strLib, editor)
         this.editor = editor
 
         rawLibs
     }
 
-    val memoryLib = ASTFile("memory")
     val looksLib = ASTFile("looks")
     val mathLib = ASTFile("math")
-    val exceptLib = ASTFile("except")
     val sensingLib = ASTFile("sensing")
     val calendarLib = ASTFile("calendar")
     val castLib = ASTFile("cast")
@@ -48,10 +47,13 @@ object StandardLibASTGenerator {
     val motionLib = ASTFile("motion")
     val utilsLib = ASTFile("utils")
     val listLib = ASTFile("list")
-    //TODO: string library
+    val strLib = ASTFile("string")
+
+    val memoryLib = ASTFile("memory")
     val optimizationsLib = ASTFile("optimizations")
     val compilerLib = ASTFile("compiler")
     val gcLib = ASTFile("gc_internal")
+    val exceptLib = ASTFile("except")
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -65,6 +67,7 @@ object StandardLibASTGenerator {
         "motion" to motionLib,
         "utils" to utilsLib,
         "list" to listLib,
+        "string" to strLib,
         "optimizations" to optimizationsLib,
         "compiler" to compilerLib,
         "gc_internal" to gcLib,

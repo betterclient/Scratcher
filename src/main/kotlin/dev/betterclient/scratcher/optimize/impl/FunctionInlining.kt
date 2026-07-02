@@ -80,15 +80,15 @@ object FunctionInlining : Optimization("Function inlining") {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
-        val argVars = func.parameters.associateWith { LocalVariable(getUniqueName(), Type.int) }
+        val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", Type.int) }
         args.forEachIndexed { index, arg ->
             prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }
-        val returnVar = LocalVariable(getUniqueName(), Type.int)
+        val returnVar = LocalVariable("FunctionInlining@return${getUniqueName()}", Type.int)
         if (func.returnType != Type.void) {
             prepend.add(VariableStatement(null, returnVar))
         }
-        val hasReturned = LocalVariable(getUniqueName(), Type.bool)
+        val hasReturned = LocalVariable("FunctionInlining@hasReturned${getUniqueName()}", Type.bool)
         prepend.add(VariableStatement(BooleanLiteral(false), hasReturned))
 
         //returns are something...
@@ -125,7 +125,7 @@ object InlineEligibility {
             }
         })
 
-        return costs.filter { (_, cost) -> cost <= 10000.toBigInteger() }.keys.toList().filter { it !is StandardLibASTFunction && it !is InlineStandardLibFunction }
+        return costs.filter { (_, cost) -> cost <= 5000.toBigInteger() }.keys.toList().filter { it !is StandardLibASTFunction && it !is InlineStandardLibFunction }
     }
 
     private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
@@ -135,12 +135,12 @@ object InlineEligibility {
 
         visit(targetFunc, object : ASTVisitor() {
             override fun visitReturnStatement(expression: Expression?): Statement? {
-                currentCost += 500
+                currentCost += 600
                 return super.visitReturnStatement(expression)
             }
 
             override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
-                currentCost += 100
+                currentCost += 300
                 return super.visitWhileStatement(condition, block)
             }
 

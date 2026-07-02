@@ -33,9 +33,11 @@ object ListLib {
     lateinit var clear: StandardLibASTFunction
     lateinit var length: StandardLibASTFunction
     lateinit var replace: StandardLibASTFunction
+    lateinit var contains: StandardLibASTFunction
+    lateinit var reserve: StandardLibASTFunction
 
     val listFuncs by lazy {
-        listOf(newList, add, remove, itemAt, clear, length, replace)
+        listOf(newList, add, remove, itemAt, clear, length, replace, contains, reserve)
     }
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
@@ -85,7 +87,7 @@ object ListLib {
                 oldDataPtr.set(MemoryLib.heap[list + 2.sc])
                 call(
                     MemoryLib.alloc,
-                    capacity,
+                    capacity * 2.sc,
                     "n".sc concat MemoryLib.heap[list + 3.sc],
                     list + 2.sc
                 )
@@ -164,6 +166,74 @@ object ListLib {
             val returnArg = returnArg(Type.int)
             MemoryLib.heap[returnArg] = MemoryLib.heap[list]
         }
+
+        contains = editor.compile(
+            lib,
+            "contains",
+        ) {
+            val list = arg("list", Type.int)
+            val item = arg("item", Type.int)
+            val returnVal = returnArg(Type.int)
+
+            val length = MemoryLib.heap[list]
+            val dataPtr = MemoryLib.heap[list + 2.sc]
+
+            val found = variable("list::contains::found")
+            found.set("false".sc)
+
+            val searchIndex = variable("list::contains::index")
+            searchIndex.set(0.sc)
+
+            control.repeat(length) {
+                control.ifThen(MemoryLib.heap[dataPtr + searchIndex] equals item) {
+                    found.set("true".sc)
+                }
+                searchIndex.set(searchIndex + 1.sc)
+            }
+
+            MemoryLib.heap[returnVal] = found
+        }
+
+        reserve = editor.compile(
+            lib,
+            "reserve"
+        ) {
+            val list = arg("list", Type.int)
+            val newCapacity = arg("newCapacity", Type.int)
+
+            val length = MemoryLib.heap[list]
+            val capacity = MemoryLib.heap[list + 1.sc]
+
+            control.ifThen(newCapacity gt capacity) {
+                val oldDataPtr = variable("list::reserve::oldData")
+                oldDataPtr.set(MemoryLib.heap[list + 2.sc])
+
+                val oldCapacity = variable("list::reserve::oldCapacity")
+                oldCapacity.set(capacity)
+
+                MemoryLib.heap[list + 1.sc] = newCapacity
+
+                call(
+                    MemoryLib.alloc,
+                    newCapacity,
+                    "n".sc concat MemoryLib.heap[list + 3.sc],
+                    list + 2.sc
+                )
+
+                val copyIndex = variable("list::reserve::copyIndex")
+                copyIndex.set(0.sc)
+                control.repeat(length) {
+                    MemoryLib.heap[MemoryLib.heap[list + 2.sc] + copyIndex] = MemoryLib.heap[oldDataPtr + copyIndex]
+                    copyIndex.set(copyIndex + 1.sc)
+                }
+
+                call(
+                    MemoryLib.free,
+                    oldDataPtr,
+                    oldCapacity
+                )
+            }
+        }
     }
 
     private fun figureOutReachableStructs(out: MutableMap<ASTFile, List<Struct>>, ast: ASTFile) {
@@ -232,6 +302,28 @@ object ListLib {
                 }
                 if (index != Type.int) {
                     throw TypeException(Type.int, index, "Wrong type passed to list::replace")
+                }
+
+                Type.void
+            }
+            contains -> {
+                if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::contains, requires 2 parameters")
+                val list = check(expr.arguments[0])
+                val item = check(expr.arguments[1])
+
+                if(list.inner != item) {
+                    throw GeneralCompilerException("Comparing wrong type to list elements when calling list::contains")
+                }
+
+                Type.bool
+            }
+            reserve -> {
+                if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::reserve, requires 2 parameters")
+                val list = check(expr.arguments[0])
+                val capacity = check(expr.arguments[1])
+
+                if (list.inner == null || capacity != Type.int) {
+                    throw GeneralCompilerException("Invalid arguments passed to list::reserve")
                 }
 
                 Type.void

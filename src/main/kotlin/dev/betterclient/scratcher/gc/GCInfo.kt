@@ -15,20 +15,25 @@ sealed class GCInfo {
 }
 data class StructGCInfo(val type: Type, val struct: Struct) : GCInfo() {
     override fun toGCList(): String {
-        return struct.parameters.map {
-            if (it.type.isPrimitive) {
+        return struct.parameters.map { itt ->
+            val type = itt.type
+            if (type.isPrimitive) {
                 "p"
-            } else findGC(it.type)
-        }.joinToString("")
+            } else if (type.inner != null) {
+                "${"l".repeat(type.name.count { '[' == it })}${findGC(type.raw())}"
+            } else findGC(type)
+        }.joinToString("-")
     }
 }
 data class StackGCInfo(val stack: List<Type>, val func: Function) : GCInfo() {
     override fun toGCList(): String {
-        return stack.map {
-            if (it.isPrimitive) {
+        return stack.map { type ->
+            if (type.isPrimitive) {
                 "p"
-            } else findGC(it)
-        }.joinToString("")
+            } else if (type.inner != null) {
+                "${"l".repeat(type.name.count { '[' == it })}${findGC(type.raw())}"
+            } else findGC(type)
+        }.joinToString("-")
     }
 }
 
@@ -40,5 +45,7 @@ fun findGC(struct: Struct): Int {
 }
 
 fun findGC(type: Type): Int {
+    if (type.isPrimitive) return 0 //list of primitives would be l0
+
     return gcNames.find { it is StructGCInfo && it.type == type }?.name ?: -999
 }

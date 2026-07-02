@@ -80,7 +80,7 @@ object OperatorExpressions {
         val str: ScratchExpression,
         val index: ScratchExpression
     ) : ScratchExpression() {
-        override fun lower() = LetterOfOpcode(str.lower(), index.lower()).asValue
+        override fun lower() = LetterOfOpcode(index.lower(), str.lower()).asValue
     }
 
     class StringLength(

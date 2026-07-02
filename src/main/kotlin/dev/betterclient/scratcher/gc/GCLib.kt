@@ -7,18 +7,26 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
+import dev.betterclient.scratcher.codegen.ast.ListStatements
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
+//this just contains helper functions, actual gc implemented in resources/gc.sc
 object GCLib {
+    val markedList = ScratchList(obfuscate("GC: Marked"))
     val gcList = ScratchList(obfuscate("Type metadata"))
     fun init(lib: ASTFile) {
         accessFunctions(lib, MemoryLib.allocAddressList, "AllocAddressList")
         accessFunctions(lib, MemoryLib.allocNameList, "AllocNameList")
+        accessFunctions(lib, MemoryLib.freeList, "FreeList")
+
+        markedListFunctions(lib)
 
         compileInline(
             lib,
@@ -29,8 +37,79 @@ object GCLib {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
                 gcList,
-                ((originalIndex * 3.sc) + 1.sc).lower()
+                (((originalIndex - 1.sc) * 3.sc) + 2.sc).lower()
             )
+        }
+        compileInline(
+            lib,
+            "getInternalNames",
+            parameters = mutableListOf(Parameter("type", Type.str)),
+            returnType = Type.str
+        ) {
+            val originalIndex = DSLFromCreator { it[0] }
+            ListExpressions.ItemAtIndex(
+                gcList,
+                (((originalIndex - 1.sc) * 3.sc) + 3.sc).lower()
+            )
+        }
+
+        compileInline(
+            lib,
+            "getHeap",
+            parameters = mutableListOf(Parameter("index", Type.int)),
+            returnType = Type.int
+        ) {
+            ListExpressions.ItemAtIndex(MemoryLib.heap, it[0])
+        }
+
+        compileInline(
+            lib,
+            "getHeapSize",
+            returnType = Type.int
+        ) {
+            ListExpressions.LengthOfList(MemoryLib.heap)
+        }
+
+        compileInline(
+            lib,
+            "freeHeap",
+            parameters = mutableListOf(Parameter("index", Type.int))
+        ) {
+            CallFunction(
+                func = MemoryLib.free.precompiledCode,
+                args = listOf(it[0], "1".scratch)
+            )
+        }
+    }
+
+    private fun markedListFunctions(lib: ASTFile) {
+        accessFunctions(lib, markedList, "Marked")
+        compileInline(
+            lib,
+            "addMarked",
+            parameters = mutableListOf(Parameter("index", Type.int))
+        ) {
+            ListStatements.AddToList(
+                markedList,
+                it[0]
+            )
+        }
+        compileInline(
+            lib,
+            "isMarked",
+            parameters = mutableListOf(Parameter("item", Type.int)),
+            returnType = Type.bool
+        ) {
+            ListExpressions.ContainsItemInList(
+                markedList,
+                it[0]
+            )
+        }
+        compileInline(
+            lib,
+            "clearMarked"
+        ) {
+            ListStatements.ClearList(markedList)
         }
     }
 
@@ -73,5 +152,6 @@ object GCLib {
             }
         )
         editor.addList(gcList)
+        editor.addList(markedList)
     }
 }

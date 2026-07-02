@@ -16,8 +16,32 @@ class ConvertToHeapAccess(
 ) {
     private val temporaryExpression = mutableMapOf<Function, TemporaryHeapGetExpression>() //used as a marker
     private val temporaryNameExpression = mutableMapOf<Function, TemporaryHeapGetExpression>()
+    private lateinit var hasLocalsMap: Map<Function, Boolean>
 
     fun run(): Map<Function, Pair<Int, GCInfo>> {
+        val mutableHasLocalsMap = functions.associateWith { func ->
+            countInternalLocals(func.code).isNotEmpty()
+        }.toMutableMap()
+
+        val callsMap = functions.associateWith { func ->
+            getCalls(func.code)
+        }
+
+        var changed = true
+        while (changed) {
+            changed = false
+            for (func in functions) {
+                if (mutableHasLocalsMap[func] != true) {
+                    val calls = callsMap[func] ?: emptyList()
+                    if (calls.any { mutableHasLocalsMap[it] == true }) {
+                        mutableHasLocalsMap[func] = true
+                        changed = true
+                    }
+                }
+            }
+        }
+        hasLocalsMap = mutableHasLocalsMap
+
         println("Add stack parameter")
         val stacks = functions.filter { it !is StandardLibASTFunction }.map { func ->
             Parameter(obfuscate("compiler@stack"), Type.int).also { func.parameters.add(0, it) } to func
@@ -187,7 +211,7 @@ class ConvertToHeapAccess(
         }
 
         if (temporaryNameExpression.containsValue(expression)) {
-            val matchedFunction = temporaryExpression.entries.firstOrNull { it.value === expression }?.key
+            val matchedFunction = temporaryNameExpression.entries.firstOrNull { it.value === expression }?.key
             if (matchedFunction != null) {
                 return StringLiteral(getFunctionLocals(matchedFunction).second.name.toString())
             }
@@ -349,8 +373,8 @@ class ConvertToHeapAccess(
                 is TLVariableAssignmentStatement -> {}
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    val (targetLocals, _) = countLocals(statement.func, statement.func.code)
-                    if (targetLocals.isEmpty()) {
+                    
+                    if (hasLocalsMap[statement.func] != true) {
                         replacements[statement] = listOf(
                             statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
                         )
@@ -395,5 +419,37 @@ class ConvertToHeapAccess(
         }
         block.code.clear()
         block.code.addAll(newCode)
+    }
+
+
+    private fun getCalls(code: CodeBlock): List<Function> {
+        val list = mutableListOf<Function>()
+        getCalls(code, list)
+        return list
+    }
+
+    private fun getCalls(code: CodeBlock, list: MutableList<Function>) {
+        code.code.forEach { getCalls(it, list) }
+    }
+
+    private fun getCalls(statement: Statement, list: MutableList<Function>) {
+        when (statement) {
+            is TemporaryCallStatement -> {
+                if (statement.func !is StandardLibASTFunction && statement.func !is InlineStandardLibFunction) {
+                    list.add(statement.func)
+                }
+            }
+            is IfStatement -> getCalls(statement.thenBlock, list)
+            is IfElseStatement -> {
+                getCalls(statement.thenBlock, list)
+                getCalls(statement.elseBlock, list)
+            }
+            is WhileStatement -> getCalls(statement.block, list)
+            is RepeatStatement -> getCalls(statement.block, list)
+            is CompositeStatement -> {
+                statement.statements.forEach { getCalls(it, list) }
+            }
+            else -> {}
+        }
     }
 }

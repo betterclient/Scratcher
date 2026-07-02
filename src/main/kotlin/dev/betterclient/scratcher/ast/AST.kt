@@ -59,7 +59,7 @@ data class Type(
         val nullType = Type("null", null, nullable = true)
     }
     val isPrimitive: Boolean
-        get() = sourceAST == null
+        get() = sourceAST == null && inner == null
 
     fun asNullable() = copy(nullable = true)
     fun asNonNull() = copy(nullable = false)
@@ -87,6 +87,12 @@ data class Type(
         }
 
         return other.nullable || !this.nullable
+    }
+
+    fun raw(): Type {
+        var inner = this
+        while (inner.inner != null) inner = inner.inner
+        return inner
     }
 }
 

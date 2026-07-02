@@ -93,6 +93,7 @@ object MemoryLib {
             currentIndex.set(index)
             control.repeat(size) {
                 freeList.insert(left, currentIndex)
+                heap[currentIndex] = (-1).sc
                 currentIndex.changeBy(1.sc)
                 left.changeBy(1.sc)
             }

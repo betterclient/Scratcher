@@ -543,23 +543,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val prevLocalVariables = localVariables.map { variable -> variable }
                 localVariables.add(listVar)
                 localVariables.add(indexVariable)
-                it.code.add(
-                    VariableStatement(
-                        list,
-                        listVar
-                    )
-                )
-                it.code.add(
-                    VariableStatement(
-                        IntLiteral(BigInteger.ZERO),
-                        indexVariable
-                    )
-                )
+                it.code.add(VariableStatement(list, listVar))
+                it.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), indexVariable))
+                it.code.add(VariableStatement(null, variable))
                 it.code.add(
                     RepeatStatement(
                         amount = CallExpression(
                             func = ListLib.length,
-                            arguments = listOf(list)
+                            arguments = listOf(LocalVariableExpression(listVar))
                         ),
                         block = CodeBlock().also { inner ->
                             parseBlock(inner, child.block(), injectVariables = listOf(variable))
@@ -567,7 +558,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                                 0, LocalVariableAssignmentStatement(
                                     variable, CallExpression(
                                         func = ListLib.itemAt,
-                                        listOf(list, LocalVariableExpression(indexVariable))
+                                        listOf(LocalVariableExpression(listVar), LocalVariableExpression(indexVariable))
                                     )
                                 )
                             )

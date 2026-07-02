@@ -164,6 +164,10 @@ class ContainsItemInListOpcode(
     override val asValue = ScratchBoolean(this)
     override val opcode = "data_listcontainsitem"
 
+    init {
+        takeOwnership(listOfNotNull(item.value))
+    }
+
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject().put("ITEM", item.toOperand()))
         base.put("fields", JSONObject().put("LIST", JSONArray(listOf(

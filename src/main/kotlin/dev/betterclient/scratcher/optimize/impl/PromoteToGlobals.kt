@@ -80,7 +80,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
     private fun findEligibleLocals(current: Function, graph: TCallGraph): List<LocalVariable> {
         val locals = OptimizationUtils.countLocals(current)
         if (!OptimizationUtils.isRecursive(current, graph)) {
-            return locals
+            return locals.filter { variable -> variable.type.isPrimitive }
         }
 
         val variableStates = locals.associateWith { VariableState.NOT_DECLARED }.toMutableMap()
