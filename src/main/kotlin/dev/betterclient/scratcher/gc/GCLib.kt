@@ -15,6 +15,7 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
+import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 //this just contains helper functions, actual gc implemented in resources/gc.sc
@@ -78,6 +79,26 @@ object GCLib {
             CallFunction(
                 func = MemoryLib.free.precompiledCode,
                 args = listOf(it[0], "1".scratch)
+            )
+        }
+
+        freeFunc(lib, Type.str.list(), "StrArray")
+        freeFunc(lib, Type.int.list(), "IntArray")
+    }
+
+    private fun freeFunc(
+        lib: ASTFile,
+        type: Type,
+        name: String
+    ) {
+        compileInline(
+            lib,
+            "free$name",
+            parameters = mutableListOf(Parameter("array", type)),
+        ) {
+            CallFunction(
+                func = ListLib.free.precompiledCode,
+                args = listOf(it[0])
             )
         }
     }

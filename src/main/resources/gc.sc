@@ -8,11 +8,11 @@ import cast;
 on GreenFlag {
     while(true) {
         utils::wait(1); //collect every second, TODO: expose collect as a function... maybe in utils?
-        collect();
+        looks::say("GC: Freed ${collect()} elements!");
     }
 }
 
-warp void collect() {
+warp int collect() {
     self::clearMarked();
     int[] roots = findRoots();
     return if(list::length(roots) == 0); //????
@@ -20,6 +20,7 @@ warp void collect() {
     for(int a in roots) {
         markRoot(a);
     }
+    self::freeIntArray(roots);
 
     //mark the already freed items
     int freeIndex = 1;
@@ -28,10 +29,10 @@ warp void collect() {
         freeIndex = freeIndex + 1;
     }
 
-    sweep();
+    return sweep();
 }
 
-warp void sweep() {
+warp int sweep() {
     int freed = 0;
     int index = 1;
     repeat(self::getHeapSize()) {
@@ -41,15 +42,13 @@ warp void sweep() {
         }
         index = index + 1;
     }
-    looks::say("GC: Freed ${freed} objects!");
+    return freed;
 }
 
 warp void markRoot(int addr) {
     return if(addr == -1);
     return if(cast::toStr(addr) == "");
     return if(cast::toStr(addr) == "reserved");
-
-    //self::addMarked(addr);
 
     str name = findName(addr);
     str insideTypes = self::getInternalNames(name);
@@ -59,6 +58,7 @@ warp void markRoot(int addr) {
          markType(addr + typeIndex, type);
          typeIndex = typeIndex + 1;
     }
+    //self::freeStrArray(types); freeing this breaks everything????????????
 }
 
 warp void markType(int addr, str type) {
@@ -110,7 +110,6 @@ warp void markList(int addr, str type) {
             self::addMarked(data + index);
         }
 
-
         index = index + 1;
     }
 }
@@ -131,6 +130,7 @@ warp void markStruct(int addr, str type) {
 
         typeIndex = typeIndex + 1;
     }
+    self::freeStrArray(types);
 }
 
 warp str findName(int addr) {

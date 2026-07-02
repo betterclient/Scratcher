@@ -35,9 +35,10 @@ object ListLib {
     lateinit var replace: StandardLibASTFunction
     lateinit var contains: StandardLibASTFunction
     lateinit var reserve: StandardLibASTFunction
+    lateinit var free: StandardLibASTFunction
 
     val listFuncs by lazy {
-        listOf(newList, add, remove, itemAt, clear, length, replace, contains, reserve)
+        listOf(newList, add, remove, itemAt, clear, length, replace, contains, reserve, free)
     }
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
@@ -234,6 +235,28 @@ object ListLib {
                 )
             }
         }
+
+        free = editor.compile(
+            lib,
+            "free",
+            userAccessible = false
+        ) {
+            val list = arg("list", Type.int)
+            val capacity = MemoryLib.heap[list + 1.sc]
+            val dataPtr = MemoryLib.heap[list + 2.sc]
+
+            //dataPtr
+            call(
+                MemoryLib.free,
+                dataPtr, capacity
+            )
+
+            //arr
+            call(
+                MemoryLib.free,
+                list, 4.sc
+            )
+        }
     }
 
     private fun figureOutReachableStructs(out: MutableMap<ASTFile, List<Struct>>, ast: ASTFile) {
@@ -326,6 +349,11 @@ object ListLib {
                     throw GeneralCompilerException("Invalid arguments passed to list::reserve")
                 }
 
+                Type.void
+            }
+            free -> {
+                if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::free, requires 1 parameter")
+                if (check(expr.arguments[0]).inner == null) throw GeneralCompilerException("Not passing a list to list::free")
                 Type.void
             }
             else -> Type.nullType
