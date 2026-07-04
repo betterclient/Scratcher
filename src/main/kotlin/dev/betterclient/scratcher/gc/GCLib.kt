@@ -187,6 +187,8 @@ object GCLib {
     }
 
     fun gcFuncs(): List<ASTEventListener> {
+        if (!CompilationConstants.AUTOMATIC_GC) return listOf()
+
         return if (!CompilationConstants.MANUAL_MEMORY) {
             StandardLibASTGenerator.gc.eventListeners
         } else listOf()
@@ -221,22 +223,6 @@ object GCLib {
     }
 
     fun initCaller(gc: ASTFile, gcLib: ASTFile) {
-        gcLib.functions.add(
-            InlineStandardLibFunction(
-                "collect",
-                warp = true,
-                sourceAST = gcLib,
-                returnType = Type.int,
-                realCode = {
-                    ExpressionLowerResult(
-                        CallExpression(
-                            func = gc.functions.find { it.name == "collect" }!!,
-                            arguments = listOf()
-                        ),
-                        listOf()
-                    )
-                }
-            )
-        )
+        gcLib.functions.add(gc.functions.find { it.name == "collect" }!!)
     }
 }

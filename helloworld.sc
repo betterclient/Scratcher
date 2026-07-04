@@ -27,7 +27,7 @@ on GreenFlag {
         utils::random(-240, 240),
         triangles[14].y3
     );
-    gc::collect();
+    looks::say("Collecting! Freed: ${ gc::collect() }!");
     while(true) {
         pen::eraseAll();
         render(triangles);

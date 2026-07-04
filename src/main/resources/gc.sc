@@ -3,12 +3,11 @@ import list;
 import utils;
 import string;
 import cast;
-import looks;
 
 on GreenFlag {
     while(true) {
         utils::wait(1); //collect every second
-        looks::say("GC: Freed ${collect()} objects!");
+        collect();
     }
 }
 
