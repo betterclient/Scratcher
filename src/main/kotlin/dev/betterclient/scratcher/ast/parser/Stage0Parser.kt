@@ -67,6 +67,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 val stdLib = StandardLibASTGenerator.lib[moduleName]
                     ?: throw NotFoundException("Standard library module $moduleName not found")
+                if (moduleName == "gc" && CompilationConstants.MANUAL_MEMORY) throw GeneralCompilerException("GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
                 if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
 
                 val key = alias ?: moduleName
