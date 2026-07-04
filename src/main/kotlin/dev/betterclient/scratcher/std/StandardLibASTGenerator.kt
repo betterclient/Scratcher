@@ -20,6 +20,7 @@ import dev.betterclient.scratcher.std.lib.*
 import kotlin.system.exitProcess
 
 object StandardLibASTGenerator {
+    const val GC_LIB_NAME = "gc_impl"
     private var editor: ScratchEditor? = null
     fun init(editor: ScratchEditor) {
         ExceptionLib.init(exceptLib, editor)
@@ -52,7 +53,8 @@ object StandardLibASTGenerator {
     val memoryLib = ASTFile("memory")
     val optimizationsLib = ASTFile("optimizations")
     val compilerLib = ASTFile("compiler")
-    val gcLib = ASTFile("gc_internal")
+    val gcInternalsLib = ASTFile("gc_internal")
+    val gcLib = ASTFile("gc")
     val exceptLib = ASTFile("except")
 
     val lib = mutableMapOf(
@@ -70,7 +72,8 @@ object StandardLibASTGenerator {
         "string" to strLib,
         "optimizations" to optimizationsLib,
         "compiler" to compilerLib,
-        "gc_internal" to gcLib,
+        "gc_internal" to gcInternalsLib,
+        "gc" to gcLib
     )
 
     val memLib = ASTFile("mem").also {
@@ -92,8 +95,8 @@ object StandardLibASTGenerator {
     var bypassRestrictions = false
     val gc by lazy {
         bypassRestrictions = true //gc needs gc_internal
-        val out = compile("/gc.sc", "gc").also {
-            if (!CompilationConstants.MANUAL_MEMORY) lib["gc"] = it
+        val out = compile("/gc.sc", GC_LIB_NAME).also {
+            if (!CompilationConstants.MANUAL_MEMORY) lib[GC_LIB_NAME] = it
         }
         bypassRestrictions = false
         out
@@ -105,12 +108,13 @@ object StandardLibASTGenerator {
 
     fun isRestricted(library: ASTFile): Boolean {
         if (bypassRestrictions) return false
+        if(CompilationConstants.MANUAL_MEMORY && library == gcLib) return true
         return library.path == "typecheck" ||
                 library == memoryLib ||
                 library == optimizationsLib ||
                 library == compilerLib ||
-                library.path == "gc" ||
-                library == gcLib
+                library.path == GC_LIB_NAME ||
+                library == gcInternalsLib
     }
 
     fun isStandardLib(function: Function): Boolean {
@@ -125,7 +129,7 @@ object StandardLibASTGenerator {
             fullPath = path
         ).read()
         Stage1Parser(context, ast).parse()
-        if (path == "gc") TypeAnalysis(context, ast).run() //yea
+        if (path == GC_LIB_NAME) TypeAnalysis(context, ast).run() //yea
 
         return ast
     }
@@ -147,8 +151,9 @@ object StandardLibASTGenerator {
     fun generateFrom(startAST: ASTFile) {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
         ListLib.init(listLib, editor!!)
-        GCLib.init(gcLib)
+        GCLib.init(gcInternalsLib)
         gc
+        GCLib.initCaller(gc, gcLib)
     }
 }
 

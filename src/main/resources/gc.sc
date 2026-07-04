@@ -1,26 +1,26 @@
 import gc_internal as self;
 import list;
 import utils;
-import looks;
 import string;
 import cast;
+import looks;
 
 on GreenFlag {
     while(true) {
-        utils::wait(1); //collect every second, TODO: expose collect as a function... maybe in utils?
-        looks::say("GC: Freed ${collect()} elements!");
+        utils::wait(1); //collect every second
+        looks::say("GC: Freed ${collect()} objects!");
     }
 }
 
 warp int collect() {
     self::clearMarked();
-    int[] roots = findRoots();
-    return if(list::length(roots) == 0); //????
+    return 0 if(self::lengthOfRoots() == 0); //????
 
-    for(int a in roots) {
-        markRoot(a);
+    int rootIndex = 1;
+    repeat(self::lengthOfRoots()) {
+        markRoot(cast::toIntOrDefault(self::getRoots(rootIndex), -1));
+        rootIndex = rootIndex + 1;
     }
-    self::freeIntArray(roots);
 
     //mark the already freed items
     int freeIndex = 1;
@@ -51,39 +51,40 @@ warp void markRoot(int addr) {
     return if(cast::toStr(addr) == "reserved");
 
     str name = findName(addr);
-    str insideTypes = self::getInternalNames(name);
-    str[] types = split(insideTypes, "-");
+    return if(name == "0");
+
+    int start = self::getFieldsStart(name);
+    int count = self::getFieldsCount(name);
     int typeIndex = 0;
-    for(str type in types) {
-         markType(addr + typeIndex, type);
-         typeIndex = typeIndex + 1;
+    repeat(count) {
+        str type = self::getFieldType(start + typeIndex);
+        markType(addr + typeIndex, type);
+        typeIndex = typeIndex + 1;
     }
     //self::freeStrArray(types); freeing this breaks everything????????????
 }
 
 warp void markType(int addr, str type) {
     return if !isValid(addr);
-    self::addMarked(addr);
-    return if(string::contains(type, "n")); //markList already marks the entire dataPtr
 
-    if(type == "p") { //primitive
-        self::addMarked(addr);
-        return;
-    }
+    self::addMarked(addr);
+
+    return if(string::contains(type, "n"));
+    return if(type == "p");
 
     return if(self::getHeap(addr) == -1);
 
-    if(string::contains(type, "l")) { //list
+    if(string::contains(type, "l")) {
         markList(self::getHeap(addr), type);
-    } else { //struct
+    } else {
         markStruct(self::getHeap(addr), type);
     }
 }
 
 warp void markList(int addr, str type) {
     return if !isValid(addr);
-    int capacity = self::getHeap(addr + 1); //store capacity
-    self::addMarked(addr); //length
+    int capacity = self::getHeap(addr + 1);
+    self::addMarked(addr);  //length
     self::addMarked(addr + 1); //capacity
     self::addMarked(addr + 2); //dataPtr
     self::addMarked(addr + 3); //name
@@ -109,77 +110,38 @@ warp void markList(int addr, str type) {
         } else {
             self::addMarked(data + index);
         }
-
         index = index + 1;
     }
 }
 
 warp void markStruct(int addr, str type) {
     return if !isValid(addr);
+    return if(self::isStack(type)); //stacks already mark themselves
 
-    str internalTypes = self::getInternalNames(type);
-    str[] types = split(internalTypes, "-");
+    int start = self::getFieldsStart(type);
+    int count = self::getFieldsCount(type);
     int typeIndex = 0;
-    for(str type in types) {
+    repeat(count) {
         int actualAddr = addr + typeIndex;
-        if(type == "p" || type == "0") {
+        str fieldType = self::getFieldType(start + typeIndex);
+        if(fieldType == "p" || fieldType == "0") {
             self::addMarked(actualAddr);
         } else {
-            markType(actualAddr, type);
+            markType(actualAddr, fieldType);
         }
-
         typeIndex = typeIndex + 1;
     }
-    self::freeStrArray(types);
 }
 
 warp str findName(int addr) {
     int index = 1;
     repeat(self::lengthOfAllocAddressList()) {
-        str name = self::getAllocNameList(index);
-        int address = self::getAllocAddressList(index);
-        if(address == addr) {
-            return name;
+        if(self::getAllocAddressList(index) == addr) {
+            return self::getAllocNameList(index);
         }
-
         index = index + 1;
     }
     return "0";
-}
-
-warp int[] findRoots() {
-    int index = 1;
-    int[] roots = List(int);
-    repeat(self::lengthOfAllocAddressList()) {
-        str name = self::getAllocNameList(index);
-        int address = self::getAllocAddressList(index);
-        if(!(string::contains(name, "l") || string::contains(name, "nl"))) {
-            if(self::isStack(name)) {
-                list::add(roots, address);
-            }
-        }
-
-        index = index + 1;
-    }
-    return roots;
-}
-
-warp str[] split(str input, str delimiter) {
-    str current = "";
-    int index = 1;
-    str[] out = List(str);
-    repeat(string::length(input)) {
-        str char = string::charAt(input, index);
-        if(char == delimiter) {
-            list::add(out, current);
-            current = "";
-        } else {
-            current = string::concat(current, char);
-        }
-        index = index + 1;
-    }
-    list::add(out, current);
-    return out;
 }
 
 warp bool isValid(int addr) {

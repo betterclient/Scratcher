@@ -3,6 +3,7 @@ import utils;
 import looks;
 import list;
 import pen;
+import gc;
 
 struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
 
@@ -26,6 +27,7 @@ on GreenFlag {
         utils::random(-240, 240),
         triangles[14].y3
     );
+    gc::collect();
     while(true) {
         pen::eraseAll();
         render(triangles);

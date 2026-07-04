@@ -3,6 +3,8 @@ package dev.betterclient.scratcher.gc
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.CallExpression
+import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.Type
@@ -17,15 +19,20 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
 //this just contains helper functions, actual gc implemented in resources/gc.sc
 object GCLib {
     val markedList = ScratchList(obfuscate("GC: Marked"))
     val gcList = ScratchList(obfuscate("Type metadata"))
+    val fieldsList = ScratchList(obfuscate("Type fields"))
+    val rootsList = ScratchList(obfuscate("GC: Roots"))
+
     fun init(lib: ASTFile) {
         accessFunctions(lib, MemoryLib.allocAddressList, "AllocAddressList")
         accessFunctions(lib, MemoryLib.allocNameList, "AllocNameList")
         accessFunctions(lib, MemoryLib.freeList, "FreeList")
+        accessFunctions(lib, rootsList, "Roots")
 
         markedListFunctions(lib)
 
@@ -38,20 +45,43 @@ object GCLib {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
                 gcList,
+                (((originalIndex - 1.sc) * 3.sc) + 1.sc).lower()
+            )
+        }
+
+        compileInline(
+            lib,
+            "getFieldsStart",
+            parameters = mutableListOf(Parameter("type", Type.str)),
+            returnType = Type.int
+        ) {
+            val originalIndex = DSLFromCreator { it[0] }
+            ListExpressions.ItemAtIndex(
+                gcList,
                 (((originalIndex - 1.sc) * 3.sc) + 2.sc).lower()
             )
         }
+
         compileInline(
             lib,
-            "getInternalNames",
+            "getFieldsCount",
             parameters = mutableListOf(Parameter("type", Type.str)),
-            returnType = Type.str
+            returnType = Type.int
         ) {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
                 gcList,
                 (((originalIndex - 1.sc) * 3.sc) + 3.sc).lower()
             )
+        }
+
+        compileInline(
+            lib,
+            "getFieldType",
+            parameters = mutableListOf(Parameter("index", Type.int)),
+            returnType = Type.str
+        ) {
+            ListExpressions.ItemAtIndex(fieldsList, it[0])
         }
 
         compileInline(
@@ -163,16 +193,50 @@ object GCLib {
     }
 
     fun populateList(editor: ScratchEditor) {
+        val fields = mutableListOf<String>()
+        var currentFieldIndex = 1
+
         gcList.items.addAll(
-            gcNames.flatMapIndexed { index, info ->
+            gcNames.flatMap { info ->
+                val typeFields = info.toGCList().split("-").filter { it.isNotEmpty() }
+                val start = currentFieldIndex
+                val count = typeFields.size
+                fields.addAll(typeFields)
+                currentFieldIndex += count
+
                 listOf(
-                    (index + 1).toString(),
                     (info is StackGCInfo).toString(),
-                    info.toGCList()
+                    start.toString(),
+                    count.toString()
                 )
             }
         )
+
+        fieldsList.items.addAll(fields)
+
         editor.addList(gcList)
+        editor.addList(fieldsList)
         editor.addList(markedList)
+        editor.addList(rootsList)
+    }
+
+    fun initCaller(gc: ASTFile, gcLib: ASTFile) {
+        gcLib.functions.add(
+            InlineStandardLibFunction(
+                "collect",
+                warp = true,
+                sourceAST = gcLib,
+                returnType = Type.int,
+                realCode = {
+                    ExpressionLowerResult(
+                        CallExpression(
+                            func = gc.functions.find { it.name == "collect" }!!,
+                            arguments = listOf()
+                        ),
+                        listOf()
+                    )
+                }
+            )
+        )
     }
 }

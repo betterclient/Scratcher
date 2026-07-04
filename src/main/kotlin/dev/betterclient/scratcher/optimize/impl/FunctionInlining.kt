@@ -15,6 +15,7 @@ import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Statement
@@ -84,7 +85,7 @@ object FunctionInlining : Optimization("Function inlining") {
         args.forEachIndexed { index, arg ->
             prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }
-        val returnVar = LocalVariable("FunctionInlining@return${getUniqueName()}", Type.int)
+        val returnVar = LocalVariable("FunctionInlining@return${getUniqueName()}", func.returnType)
         if (func.returnType != Type.void) {
             prepend.add(VariableStatement(null, returnVar))
         }
@@ -262,6 +263,7 @@ class EarlyReturnRewriter(
             is IfStatement -> containsHasReturnedSet(statement.thenBlock)
             is IfElseStatement -> containsHasReturnedSet(statement.thenBlock) || containsHasReturnedSet(statement.elseBlock)
             is WhileStatement -> containsHasReturnedSet(statement.block)
+            is RepeatStatement -> containsHasReturnedSet(statement.block)
             is CompositeStatement -> statement.statements.any { containsHasReturnedSet(it) }
             else -> false
         }

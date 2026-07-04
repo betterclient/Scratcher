@@ -190,6 +190,6 @@ fun ASTVisitor.visit(statement: Statement): Statement? {
         is TemporaryCallStatement -> this.visitTemporaryCallStatement(statement.func, statement.args.map { visit(it) }.toMutableList())
         is TemporaryHeapSetStatement -> this.visitTemporaryHeapSetStatement(visit(statement.index), visit(statement.data))
         is TemporaryScratchStmt -> this.visitTemporaryScratchStmt(statement.inputExprs.map { visit(it) }, statement.stmt)
-        is CompositeStatement -> statement
+        is CompositeStatement -> CompositeStatement(statement.statements.mapNotNull { visit(it) })
     }
 }

@@ -47,5 +47,6 @@ fun findGC(struct: Struct): Int {
 fun findGC(type: Type): Int {
     if (type.isPrimitive) return 0 //list of primitives would be l0
 
-    return gcNames.find { it is StructGCInfo && it.type == type }?.name ?: -999
+    val nonNullType = type.asNonNull()
+    return gcNames.find { it is StructGCInfo && it.type.asNonNull() == nonNullType }?.name ?: -999
 }

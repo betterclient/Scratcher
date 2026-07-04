@@ -13,6 +13,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.gc.GCInfo
+import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.MemoryLib
@@ -51,6 +52,10 @@ class EntrypointTranslator(
                     MemoryLib.alloc.precompiledCode,
                     listOf(localSize.toString().scratch, gc.name.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
+                ListStatements.AddToList(
+                    GCLib.rootsList,
+                    ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
+                ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
                         ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
@@ -77,6 +82,7 @@ class EntrypointTranslator(
                 ListStatements.ClearList(MemoryLib.freeList),
                 ListStatements.ClearList(MemoryLib.allocNameList),
                 ListStatements.ClearList(MemoryLib.allocAddressList),
+                ListStatements.ClearList(GCLib.rootsList)
             ).also { list ->
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))

@@ -1,36 +1,15 @@
 package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.CompilationConstants
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.Struct
-import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.ast.CallFunction
-import dev.betterclient.scratcher.codegen.ast.ListExpressions
-import dev.betterclient.scratcher.codegen.ast.ListStatements
-import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
-import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.findGC
-import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.concat
-import dev.betterclient.scratcher.std.dsl.div
-import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.dsl.gt
-import dev.betterclient.scratcher.std.dsl.gte
-import dev.betterclient.scratcher.std.dsl.lt
-import dev.betterclient.scratcher.std.dsl.math
-import dev.betterclient.scratcher.std.dsl.minus
-import dev.betterclient.scratcher.std.dsl.or
-import dev.betterclient.scratcher.std.dsl.plus
-import dev.betterclient.scratcher.std.dsl.sc
+import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.std.dsl.*
 
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))

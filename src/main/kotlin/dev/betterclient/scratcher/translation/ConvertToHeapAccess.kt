@@ -2,12 +2,16 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.codegen.ast.ListExpressions
+import dev.betterclient.scratcher.codegen.ast.ListStatements
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.gc.GCInfo
+import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.StackGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import kotlin.collections.plus
 
@@ -380,12 +384,17 @@ class ConvertToHeapAccess(
                         )
                     } else {
                         val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
-                        replacements[statement] = listOf(
+                        replacements[statement] = listOfNotNull(
                             VariableStatement(null, allocVar),
                             TemporaryCallStatement(
                                 MemoryLib.alloc,
                                 mutableListOf(getTemporary(statement.func), getNameTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
                             ),
+                            TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                                listOf(
+                                    ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
+                                )
+                            },
                             statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
                         )
                     }
@@ -402,14 +411,27 @@ class ConvertToHeapAccess(
             MemoryLib.free,
             args = mutableListOf(ParameterExpression(par), getTemporary(function))
         )
-        if (returnStmt == null && block == function.code) {
-            block.code.add(
-                freeStmt
+        val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(par))) { scratchExpressions ->
+            listOf(
+                ListStatements.DeleteItem(
+                    GCLib.rootsList,
+                    ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])
+                )
             )
+        }
+
+        val exitStatements = mutableListOf<Statement>()
+        exitStatements.add(freeStmt)
+        if (deleteStmt != null) {
+            exitStatements.add(deleteStmt)
+        }
+
+        if (returnStmt == null && block == function.code) {
+            block.code.addAll(exitStatements)
         } else if (returnStmt != null) {
             val index = block.code.indexOf(returnStmt)
             if (index != -1) {
-                block.code.add(index, freeStmt)
+                block.code.addAll(index, exitStatements)
             }
         }
 
