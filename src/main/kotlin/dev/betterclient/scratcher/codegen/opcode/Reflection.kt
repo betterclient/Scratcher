@@ -7,7 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class SensingOfObjectMenuOpcode : ScratchOpcode() {
-    override val asValue = ScratchString(this)
+    override val asValue = null
     override val opcode = "sensing_of_object_menu"
     override var shadow = true
 
@@ -15,7 +15,7 @@ class SensingOfObjectMenuOpcode : ScratchOpcode() {
         base.put("inputs", JSONObject())
         base.put("fields", JSONObject().apply {
             put("OBJECT", JSONArray().apply {
-                put("_stage_")
+                put("Scratcher Worker Sprite")
                 put(JSONObject.NULL)
             })
         })
@@ -34,7 +34,7 @@ class ReadVariable(val name: ScratchValue) : ScratchOpcode() {
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject().apply {
             put("PROPERTY", name.toOperand())
-            put("OBJECT", ScratchString(objectMenu).toOperand())
+            put("OBJECT", JSONArray(listOf(1, objectMenu.id)))
         })
         base.put("fields", JSONObject())
     }

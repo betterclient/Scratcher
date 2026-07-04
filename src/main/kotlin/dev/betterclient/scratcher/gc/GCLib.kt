@@ -3,17 +3,26 @@ package dev.betterclient.scratcher.gc
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CallExpression
+import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionStatement
+import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.ParameterExpression
+import dev.betterclient.scratcher.ast.StringLiteral
+import dev.betterclient.scratcher.ast.TLVariable
+import dev.betterclient.scratcher.ast.TemporaryCallStatement
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
+import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
@@ -27,12 +36,14 @@ object GCLib {
     val gcList = ScratchList(obfuscate("Type metadata"))
     val fieldsList = ScratchList(obfuscate("Type fields"))
     val rootsList = ScratchList(obfuscate("GC: Roots"))
+    val reflectList = ScratchList(obfuscate("GC: TLReflect"))
 
     fun init(lib: ASTFile) {
         accessFunctions(lib, MemoryLib.allocAddressList, "AllocAddressList")
         accessFunctions(lib, MemoryLib.allocNameList, "AllocNameList")
         accessFunctions(lib, MemoryLib.freeList, "FreeList")
         accessFunctions(lib, rootsList, "Roots")
+        accessFunctions(lib, reflectList, "Reflect")
 
         markedListFunctions(lib)
 
@@ -114,6 +125,26 @@ object GCLib {
 
         freeFunc(lib, Type.str.list(), "StrArray")
         freeFunc(lib, Type.int.list(), "IntArray")
+
+        lib.functions.add(InlineStandardLibFunction(
+            "isReflectGC",
+            returnType = Type.bool,
+            sourceAST = lib,
+            useLocal = false,
+            warp = true,
+            realCode = {
+                ExpressionLowerResult(BooleanLiteral(CompilationConstants.REFLECT_GC))
+            }
+        ))
+
+        compileInline(
+            lib,
+            "reflect",
+            returnType = Type.int,
+            parameters = mutableListOf(Parameter("varName", Type.str))
+        ) {
+            ListExpressions.ReflectVariable(it[0])
+        }
     }
 
     private fun freeFunc(
@@ -220,9 +251,50 @@ object GCLib {
         editor.addList(fieldsList)
         editor.addList(markedList)
         editor.addList(rootsList)
+        editor.addList(reflectList)
     }
 
     fun initCaller(gc: ASTFile, gcLib: ASTFile) {
         gcLib.functions.add(gc.functions.find { it.name == "collect" }!!)
+    }
+
+    fun generate(vars: List<TLVariable>, translate: (TLVariable) -> ScratchVariable) {
+        val eligible = vars.filter { !it.type.isPrimitive }
+        val markTypeFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markType" }!!
+        val original = StandardLibASTGenerator.gc.functions.find { it.name == "markTopLevels" }!!
+        if (CompilationConstants.REFLECT_GC) {
+            reflectList.items.addAll(eligible.flatMap { variable ->
+                listOf(
+                    if (variable.type.inner != null) {
+                        "${"l".repeat(variable.type.name.count { it == '[' })}${findGC(variable.type.raw())}"
+                    } else {
+                        findGC(variable.type).toString()
+                    },
+                    translate(variable).name
+                )
+            })
+            return
+        }
+
+        original.code.code.clear()
+        original.code.code.addAll(
+            eligible.map { variable ->
+                val typeStr = if (variable.type.inner != null) {
+                    "${"l".repeat(variable.type.name.count { it == '[' })}${findGC(variable.type.raw())}"
+                } else {
+                    findGC(variable.type).toString()
+                }
+
+                ExpressionStatement(
+                    CallExpression(
+                        func = markTypeFunc,
+                        arguments = listOf(
+                            VariableExpression(variable, variable.sourceAST),
+                            StringLiteral(typeStr)
+                        )
+                    )
+                )
+            }
+        )
     }
 }

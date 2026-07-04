@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.TemporaryScratchStmt
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate

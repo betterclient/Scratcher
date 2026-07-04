@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.optimize.impl
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
 import dev.betterclient.scratcher.ast.BooleanLiteral
@@ -34,6 +35,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.optimize.visitCopy
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.translation.ExpressionLowerResult
 import java.math.BigInteger
 
@@ -131,6 +133,7 @@ object InlineEligibility {
 
     private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
         var currentCost = 0
+        if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc && !CompilationConstants.REFLECT_GC) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
         if (func.warp != targetFunc.warp) return Int.MAX_VALUE //not happening...
 

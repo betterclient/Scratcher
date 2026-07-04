@@ -26,6 +26,7 @@ import dev.betterclient.scratcher.codegen.opcode.MathOpOpcode
 import dev.betterclient.scratcher.codegen.opcode.ModOpcode
 import dev.betterclient.scratcher.codegen.opcode.MultiplyOpcode
 import dev.betterclient.scratcher.codegen.opcode.RandomOpcode
+import dev.betterclient.scratcher.codegen.opcode.ReadVariable
 import dev.betterclient.scratcher.codegen.opcode.RoundOpcode
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
@@ -161,5 +162,9 @@ object ListExpressions {
 
     class Variable(val variable: ScratchVariable) : ScratchExpression() {
         override fun lower() = ScratchVariableValue(variable)
+    }
+
+    class ReflectVariable(val name: ScratchExpression) : ScratchExpression() {
+        override fun lower() = ReadVariable(name.lower()).asValue
     }
 }

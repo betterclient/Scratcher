@@ -45,6 +45,7 @@ fun main() {
     scratchTopLevels.forEach { (_, scratch) -> editor.addVariable(scratch) }
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
+    GCLib.generate(reachableTopLevelVariables.keys.toList(), { scratchTopLevels[it]!! })
 
     println("Lower expressions")
     reachableFunctions.forEach { FunctionExpressionLowering(it).run() }

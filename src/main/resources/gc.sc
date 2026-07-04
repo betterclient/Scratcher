@@ -20,6 +20,7 @@ warp int collect() {
         markRoot(cast::toIntOrDefault(self::getRoots(rootIndex), -1));
         rootIndex = rootIndex + 1;
     }
+    markTopLevels();
 
     //mark the already freed items
     int freeIndex = 1;
@@ -83,7 +84,7 @@ warp void markType(int addr, str type) {
 warp void markList(int addr, str type) {
     return if !isValid(addr);
     int capacity = self::getHeap(addr + 1);
-    self::addMarked(addr);  //length
+    self::addMarked(addr); //length
     self::addMarked(addr + 1); //capacity
     self::addMarked(addr + 2); //dataPtr
     self::addMarked(addr + 3); //name
@@ -149,4 +150,21 @@ warp bool isValid(int addr) {
     return false if(self::isMarked(addr));
 
     return cast::toStr(addr) != "reserved";
+}
+
+warp void markTopLevels() {
+    return if(!self::isReflectGC());
+
+    str currentType = "";
+    int index = 1;
+    repeat(self::lengthOfReflect()) {
+        str obj = self::getReflect(index);
+        if(index % 2 == 0) {
+            markType(self::reflect(obj), currentType);
+        } else {
+            currentType = obj;
+        }
+
+        index = index + 1;
+    }
 }
