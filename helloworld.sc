@@ -3,11 +3,8 @@ import utils;
 import looks;
 import list;
 import pen;
-import gc;
 
 struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
-
-Triangle a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
     Triangle[] triangles = List(Triangle);
@@ -22,7 +19,7 @@ on GreenFlag {
         ));
     }
     triangles[15] = Triangle(
-        utils::random(-240, 240),
+        genRandom(0),
         utils::random(-180, 180),
         utils::random(-240, 240),
         utils::random(-180, 180),
@@ -36,10 +33,15 @@ on GreenFlag {
 }
 
 warp void render(Triangle[] triangles) {
-    looks::say("X1 ${a.x1}");
     for(Triangle t in triangles) {
         triangle::fill(
             t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
         );
     }
+}
+
+warp float genRandom(int depth) {
+    return utils::random(-240, 240) if depth == 0;
+    return genRandom(depth - 1) if depth == 1;
+    return 5;
 }

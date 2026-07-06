@@ -14,6 +14,7 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import kotlin.collections.plus
+import kotlin.math.exp
 
 class ConvertToHeapAccess(
     val functions: List<Function>
@@ -94,7 +95,11 @@ class ConvertToHeapAccess(
         val curFunc = getFunctionLocals(currentFunction).first
         val stackPar = currentFunction.parameters.first()
         return when (statement) {
-            is ExpressionStatement -> throw UnreachableException()
+            is ExpressionStatement -> listOf(
+                ExpressionStatement(
+                    convertExpression(statement.expression, currentFunction, getFunctionLocals),
+                )
+            )
             is IfElseStatement -> {
                 listOf(IfElseStatement(
                     convertExpression(statement.condition, currentFunction, getFunctionLocals),
@@ -296,8 +301,14 @@ class ConvertToHeapAccess(
                     )
                 }
             }
+            is CallExpression -> {
+                CallExpression(
+                    func = expression.func,
+                    arguments = expression.arguments.map { convertExpression(it, currentFunction, getFunctionLocals) }
+                )
+            }
 
-            is CallExpression, is NonNullAssertExpression -> throw UnreachableException()
+            is NonNullAssertExpression -> throw UnreachableException()
         }
     }
 
@@ -312,7 +323,6 @@ class ConvertToHeapAccess(
         val vars = mutableListOf<LocalVariable>()
         for (statement in code.code) {
             when (statement) {
-                is ExpressionStatement -> throw UnreachableException()
                 is IfElseStatement -> {
                     vars += countInternalLocals(statement.thenBlock)
                     vars += countInternalLocals(statement.elseBlock)
@@ -336,7 +346,8 @@ class ConvertToHeapAccess(
                 is TemporaryHeapSetStatement -> {}
                 is TemporaryScratchStmt -> {}
                 is VariableAssignmentStatement -> {}
-                is CompositeStatement -> {}
+                is CompositeStatement, is ExpressionStatement
+                    -> {}
             }
         }
         return vars.distinct()
@@ -372,12 +383,57 @@ class ConvertToHeapAccess(
                     returnStmt = statement
                     break //no reason to break here cause return is guaranteed to be last, but do anyway
                 }
-                is ExpressionStatement -> throw UnreachableException()
-                is LocalVariableAssignmentStatement -> {}
-                is TLVariableAssignmentStatement -> {}
+                is ExpressionStatement -> {
+                    val expr = statement.expression
+                    if (expr is CallExpression && expr.func !is StandardLibASTFunction && expr.func !is InlineStandardLibFunction) {
+                        if (hasLocalsMap[expr.func] != true) {
+                            replacements[statement] = listOf(
+                                ExpressionStatement(CallExpression(expr.func, listOf(NullExpression) + expr.arguments))
+                            )
+                        } else {
+                            val allocVar = LocalVariable(obfuscate("stackAllocationFor${expr.func.name}Call"), Type.int)
+                            replacements[statement] = listOfNotNull(
+                                VariableStatement(null, allocVar),
+                                TemporaryCallStatement(MemoryLib.alloc, mutableListOf(getTemporary(expr.func), getNameTemporary(expr.func), TemporaryLocalVariableIndexExpression(allocVar))),
+                                TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                                    listOf(ListStatements.AddToList(GCLib.rootsList, scratchArgs[0]))
+                                },
+                                ExpressionStatement(CallExpression(expr.func, listOf(LocalVariableExpression(allocVar)) + expr.arguments)),
+                                TemporaryCallStatement(MemoryLib.free, mutableListOf(LocalVariableExpression(allocVar), getTemporary(expr.func))),
+                                TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchExpressions ->
+                                    listOf(ListStatements.DeleteItem(GCLib.rootsList, ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])))
+                                }
+                            )
+                        }
+                    }
+                }
+                is LocalVariableAssignmentStatement -> {
+                    val expr = statement.assignment
+                    if (expr is CallExpression && expr.func !is StandardLibASTFunction && expr.func !is InlineStandardLibFunction) {
+                        if (hasLocalsMap[expr.func] != true) {
+                            replacements[statement] = listOf(
+                                LocalVariableAssignmentStatement(statement.variable, CallExpression(expr.func, listOf(NullExpression) + expr.arguments))
+                            )
+                        } else {
+                            val allocVar = LocalVariable(obfuscate("stackAllocationFor${expr.func.name}Call"), Type.int)
+                            replacements[statement] = listOfNotNull(
+                                VariableStatement(null, allocVar),
+                                TemporaryCallStatement(MemoryLib.alloc, mutableListOf(getTemporary(expr.func), getNameTemporary(expr.func), TemporaryLocalVariableIndexExpression(allocVar))),
+                                TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                                    listOf(ListStatements.AddToList(GCLib.rootsList, scratchArgs[0]))
+                                },
+                                LocalVariableAssignmentStatement(statement.variable, CallExpression(expr.func, listOf(LocalVariableExpression(allocVar)) + expr.arguments)),
+                                TemporaryCallStatement(MemoryLib.free, mutableListOf(LocalVariableExpression(allocVar), getTemporary(expr.func))),
+                                TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchExpressions ->
+                                    listOf(ListStatements.DeleteItem(GCLib.rootsList, ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])))
+                                }
+                            )
+                        }
+                    }
+                }
                 is TemporaryCallStatement -> {
                     if (statement.func is StandardLibASTFunction) continue
-                    
+
                     if (hasLocalsMap[statement.func] != true) {
                         replacements[statement] = listOf(
                             statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
@@ -395,10 +451,18 @@ class ConvertToHeapAccess(
                                     ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
                                 )
                             },
-                            statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
+                            statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList()),
+                            TemporaryCallStatement(
+                                MemoryLib.free,
+                                mutableListOf(LocalVariableExpression(allocVar), getTemporary(statement.func))
+                            ),
+                            TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchExpressions ->
+                                listOf(ListStatements.DeleteItem(GCLib.rootsList, ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])))
+                            }
                         )
                     }
                 }
+                is TLVariableAssignmentStatement -> {}
                 is TemporaryHeapSetStatement -> {}
                 is VariableAssignmentStatement -> {}
                 is VariableStatement -> {}
@@ -422,9 +486,7 @@ class ConvertToHeapAccess(
 
         val exitStatements = mutableListOf<Statement>()
         exitStatements.add(freeStmt)
-        if (deleteStmt != null) {
-            exitStatements.add(deleteStmt)
-        }
+        exitStatements.add(deleteStmt)
 
         if (returnStmt == null && block == function.code) {
             block.code.addAll(exitStatements)
@@ -460,17 +522,58 @@ class ConvertToHeapAccess(
                 if (statement.func !is StandardLibASTFunction && statement.func !is InlineStandardLibFunction) {
                     list.add(statement.func)
                 }
+                statement.args.forEach { getCalls(it, list) }
             }
-            is IfStatement -> getCalls(statement.thenBlock, list)
+            is ExpressionStatement -> getCalls(statement.expression, list)
+            is IfStatement -> {
+                getCalls(statement.condition, list)
+                getCalls(statement.thenBlock, list)
+            }
             is IfElseStatement -> {
+                getCalls(statement.condition, list)
                 getCalls(statement.thenBlock, list)
                 getCalls(statement.elseBlock, list)
             }
-            is WhileStatement -> getCalls(statement.block, list)
-            is RepeatStatement -> getCalls(statement.block, list)
-            is CompositeStatement -> {
-                statement.statements.forEach { getCalls(it, list) }
+            is WhileStatement -> {
+                getCalls(statement.condition, list)
+                getCalls(statement.block, list)
             }
+            is RepeatStatement -> {
+                getCalls(statement.amount, list)
+                getCalls(statement.block, list)
+            }
+            is LocalVariableAssignmentStatement -> getCalls(statement.assignment, list)
+            is TLVariableAssignmentStatement -> getCalls(statement.assignment, list)
+            is VariableAssignmentStatement -> {
+                getCalls(statement.target, list)
+                getCalls(statement.assignment, list)
+            }
+            is VariableStatement -> statement.defaultValue?.let { getCalls(it, list) }
+            is ReturnStatement -> statement.expression?.let { getCalls(it, list) }
+            is TemporaryHeapSetStatement -> {
+                getCalls(statement.index, list)
+                getCalls(statement.data, list)
+            }
+            is TemporaryScratchStmt -> statement.inputExprs.forEach { getCalls(it, list) }
+            is CompositeStatement -> statement.statements.forEach { getCalls(it, list) }
+        }
+    }
+
+    private fun getCalls(expr: Expression, list: MutableList<Function>) {
+        when (expr) {
+            is CallExpression -> {
+                if (expr.func !is StandardLibASTFunction && expr.func !is InlineStandardLibFunction) {
+                    list.add(expr.func)
+                }
+                expr.arguments.forEach { getCalls(it, list) }
+            }
+            is BinaryExpression -> { getCalls(expr.left, list); getCalls(expr.right, list) }
+            is UnaryExpression -> getCalls(expr.expression, list)
+            is ConcatExpression -> { getCalls(expr.left, list); getCalls(expr.right, list) }
+            is MemberExpression -> getCalls(expr.expression, list)
+            is TemporaryHeapGetExpression -> getCalls(expr.index, list)
+            is TemporaryScratchExpr -> expr.inputExprs.forEach { getCalls(it, list) }
+            is NonNullAssertExpression -> getCalls(expr.expression, list)
             else -> {}
         }
     }

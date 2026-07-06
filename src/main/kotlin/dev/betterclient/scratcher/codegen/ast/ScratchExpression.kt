@@ -25,6 +25,7 @@ import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.MathOpOpcode
 import dev.betterclient.scratcher.codegen.opcode.ModOpcode
 import dev.betterclient.scratcher.codegen.opcode.MultiplyOpcode
+import dev.betterclient.scratcher.codegen.opcode.ProcedureCallReturningOpcode
 import dev.betterclient.scratcher.codegen.opcode.RandomOpcode
 import dev.betterclient.scratcher.codegen.opcode.ReadVariable
 import dev.betterclient.scratcher.codegen.opcode.RoundOpcode
@@ -49,6 +50,13 @@ val String.scratch
 
 class ScratchStringParameterExpression(val parameter: ScratchFuncArgument) : ScratchExpression() {
     override fun lower() = parameter.internal.asValue!!
+}
+
+class TurbowarpCallExpression(
+    val func: ScratchASTFunction,
+    val args: List<ScratchExpression>
+) : ScratchExpression() {
+    override fun lower() = ProcedureCallReturningOpcode(func.internal, args.map { it.lower() }).asValue
 }
 
 object OperatorExpressions {

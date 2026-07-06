@@ -61,7 +61,11 @@ class ScratchFunctionTranslator(
                 )
             }
 
-            is ReturnStatement -> ControlStatements.Stop(StopMode.THIS_SCRIPT)
+            is ReturnStatement -> if (CompilationConstants.TURBOWARP && stmt.expression != null) {
+                TurbowarpReturnStatement(translateExpr(stmt.expression))
+            } else {
+                ControlStatements.Stop(StopMode.THIS_SCRIPT)
+            }
             is IfElseStatement -> ControlStatements.IfElse(
                 condition = translateExpr(stmt.condition).asBool(),
                 thenBlock = stmt.thenBlock.code.flatMap { translateStatement(it) },
@@ -90,8 +94,24 @@ class ScratchFunctionTranslator(
                 translateExpr(stmt.assignment)
             )
 
+            is ExpressionStatement -> {
+                val expr = stmt.expression
+                if (expr is CallExpression) {
+                    val func = lookup(expr.func)
+                    CallFunction(
+                        func = func,
+                        args = expr.arguments.mapIndexed { index, expression ->
+                            if (func.args[index].type == ScratchType.BOOL)
+                                translateExpr(expression).asBool()
+                            else
+                                translateExpr(expression)
+                        }
+                    )
+                } else throw UnreachableException()
+            }
+
             is VariableAssignmentStatement -> throw UnreachableException()
-            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement -> throw UnreachableException()
+            is VariableStatement, is LocalVariableAssignmentStatement, is CompositeStatement -> throw UnreachableException()
         }
         return listOf(single)
     }
@@ -139,7 +159,19 @@ class ScratchFunctionTranslator(
                 expr.expression(args)
             }
 
-            is CallExpression,
+            is CallExpression -> { //this is only reachable if TURBOWARP is enabled
+                val func = lookup(expr.func)
+                TurbowarpCallExpression(
+                    func = func,
+                    args = expr.arguments.mapIndexed { index, argument ->
+                        if (func.args[index].type == ScratchType.BOOL)
+                            translateExpr(argument).asBool()
+                        else
+                            translateExpr(argument)
+                    }
+                )
+            }
+
             is MemberExpression,
             is TemporaryLocalVariableIndexExpression,
             is LocalVariableExpression,
