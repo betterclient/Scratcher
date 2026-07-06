@@ -10,5 +10,4 @@ object CompilationConstants {
     const val MANUAL_MEMORY = false //disable garbage collector to use manual memory management
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call collect)
     const val REFLECT_GC = true //use hacked blocks to do top level marking in garbage collection
-    const val TURBOWARP = true //turbowarp only optimizations (turning this on will make your project incompatible with scratch)
 }

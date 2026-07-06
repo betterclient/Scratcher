@@ -14,7 +14,7 @@ class FunctionExpressionLowering(val func: Function) {
 
     fun run() {
         if (func is StandardLibASTFunction) return //already lowered!!!
-        if (doingReturnLowering && !CompilationConstants.TURBOWARP) {
+        if (doingReturnLowering) {
             func.parameters.add(returnIndexParameter)
         }
 
@@ -75,12 +75,8 @@ class FunctionExpressionLowering(val func: Function) {
                         val list = mutableListOf<Statement>()
                         val expr = lowerExpr(statement.expression!!) //type checking stage guarantees this is non-null
                         list.addAll(expr.prepend)
-                        if (CompilationConstants.TURBOWARP) {
-                            list.add(ReturnStatement(expr.expression))
-                        } else {
-                            list.add(TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expr.expression!!))
-                            list.add(ReturnStatement(null)) //codegen still needs a return statement to generate stop(this-script)
-                        }
+                        list.add(TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expr.expression!!))
+                        list.add(ReturnStatement(null)) //codegen still needs a return statement to generate stop(this-script)
                         replacements[statement] = list
                     }
                 }
@@ -163,7 +159,6 @@ class FunctionExpressionLowering(val func: Function) {
             prepend.addAll(lowered.prepend)
             lowered.expression!!
         }
-
         if (expression.func is InlineStandardLibFunction) {
             //special handling!!!
             val func = expression.func
@@ -195,27 +190,14 @@ class FunctionExpressionLowering(val func: Function) {
         }
 
         if (isVoid) {
-            if (CompilationConstants.TURBOWARP && expression.func !is StandardLibASTFunction) {
-                prepend.add(ExpressionStatement(CallExpression(expression.func, argsMapped)))
-            } else {
-                prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
-            }
+            prepend.add(TemporaryCallStatement(expression.func, argsMapped.toMutableList()))
         } else {
             if (ignoreReturn) {
-                if (CompilationConstants.TURBOWARP && expression.func !is StandardLibASTFunction) {
-                    prepend.add(ExpressionStatement(CallExpression(expression.func, argsMapped)))
-                } else {
-                    prepend.add(TemporaryCallStatement(expression.func, (argsMapped + IntLiteral((-1).toBigInteger())).toMutableList()))
-                }
+                prepend.add(TemporaryCallStatement(expression.func, (argsMapped + IntLiteral((-1).toBigInteger())).toMutableList()))
             } else {
                 val local = LocalVariable(obfuscate("returnFor${expression.func.name}"), expression.func.returnType)
                 prepend.add(VariableStatement(null, local))
-
-                if (CompilationConstants.TURBOWARP && expression.func !is StandardLibASTFunction) {
-                    prepend.add(LocalVariableAssignmentStatement(local, CallExpression(expression.func, argsMapped)))
-                } else {
-                    prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
-                }
+                prepend.add(TemporaryCallStatement(expression.func, (argsMapped + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
                 expr = LocalVariableExpression(local)
             }
         }

@@ -150,7 +150,7 @@ class ProcedureCallOpcode(
                 it.put("children", JSONArray())
                 it.put("proccode", func.parent.prototype.getProcCode())
                 it.put("argumentids", JSONArray(ids).toString())
-                it.put("warp", "${func.parent.prototype.warp}")
+                it.put("warp", "false")
             })
             put("inputs", JSONObject().also {
                 for ((id, value) in ids.zip(args)) {
@@ -158,55 +158,5 @@ class ProcedureCallOpcode(
                 }
             })
         }
-    }
-}
-
-class ProcedureCallReturningOpcode(
-    val func: ScratchFunction,
-    val args: List<ScratchValue>
-) : ScratchOpcode(null) {
-    override val opcode = "procedures_call"
-    override val asValue = ScratchString(this)
-    init {
-        takeOwnership(args.mapNotNull { it.value })
-    }
-
-    override fun toJSON(base: JSONObject) {
-        val ids = func.parent.prototype.argIDS
-
-        base.apply {
-            put("fields", JSONObject())
-            put("mutation", JSONObject().also {
-                it.put("tagName", "mutation")
-                it.put("children", JSONArray())
-                it.put("proccode", func.parent.prototype.getProcCode())
-                it.put("argumentids", JSONArray(ids).toString())
-                it.put("warp", "${func.parent.prototype.warp}")
-                it.put("return", "1")
-            })
-            put("inputs", JSONObject().also {
-                for ((id, value) in ids.zip(args)) {
-                    it.put(id, value.toOperand())
-                }
-            })
-        }
-    }
-}
-
-class ProcedureReturn(
-    val value: ScratchValue
-) : ScratchOpcode(null) {
-    override val opcode = "procedures_return"
-    override val asValue = null
-
-    init {
-        takeOwnership(listOfNotNull(value.value))
-    }
-
-    override fun toJSON(base: JSONObject) {
-        base.put("fields", JSONObject())
-        base.put("inputs", JSONObject().apply {
-            put("VALUE", value.toOperand())
-        })
     }
 }

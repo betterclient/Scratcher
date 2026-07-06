@@ -32,12 +32,6 @@ class CallFunction(
     ))
 }
 
-class TurbowarpReturnStatement(
-    val value: ScratchExpression
-) : ScratchStatement() {
-    override fun lower() = listOf(ProcedureReturn(value.lower()))
-}
-
 object ControlStatements {
     class Wait(val amount: ScratchExpression) : ScratchStatement() {
         override fun lower() = listOf(WaitOpcode(amount.lower()))
