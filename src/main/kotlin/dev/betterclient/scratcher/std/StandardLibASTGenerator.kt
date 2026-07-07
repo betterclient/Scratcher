@@ -33,7 +33,6 @@ object StandardLibASTGenerator {
         PenLib.init(penLib, editor)
         MotionLib.init(motionLib, editor)
         UtilsLib.init(utilsLib)
-        StringLib.init(strLib, editor)
         this.editor = editor
 
         rawLibs
@@ -152,6 +151,7 @@ object StandardLibASTGenerator {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
         ListLib.init(listLib, editor!!)
         GCLib.init(gcInternalsLib)
+        StringLib.init(strLib, editor!!)
         gc
         GCLib.initCaller(gc, gcLib)
     }

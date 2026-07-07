@@ -4,18 +4,25 @@ import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
+import dev.betterclient.scratcher.codegen.ast.ListExpressions
+import dev.betterclient.scratcher.codegen.ast.ListStatements
+import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.NotFoundException
 import dev.betterclient.scratcher.except.TypeException
 import dev.betterclient.scratcher.std.dsl.CodeBuilder
 import dev.betterclient.scratcher.std.dsl.DSLExpression
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.concat
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.gt
@@ -29,9 +36,9 @@ object ListLib {
     lateinit var newList: StandardLibASTFunction
     lateinit var add: StandardLibASTFunction
     lateinit var remove: StandardLibASTFunction
-    lateinit var itemAt: StandardLibASTFunction
-    lateinit var clear: StandardLibASTFunction
-    lateinit var length: StandardLibASTFunction
+    lateinit var itemAt: Function
+    lateinit var clear: Function
+    lateinit var length: Function
     lateinit var replace: StandardLibASTFunction
     lateinit var contains: StandardLibASTFunction
     lateinit var reserve: StandardLibASTFunction
@@ -140,32 +147,62 @@ object ListLib {
             MemoryLib.heap[list] = length - 1.sc
         }
 
-        itemAt = editor.compile(
-            lib,
-            "itemAt",
-        ) {
-            val list = arg("list", Type.int)
-            val index = arg("index", Type.int)
-            val returnVal = returnArg(Type.int)
-            checkOutOfBounds(list, index)
+        itemAt = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+            compileInline(
+                lib,
+                "itemAt",
+                parameters = mutableListOf(
+                    Parameter("list", Type.int),
+                    Parameter("index", Type.int)
+                ),
+                returnType = Type.int
+            ) {
+                ListExpressions.ItemAtIndex(
+                    MemoryLib.heap,
+                    OperatorExpressions.BinaryExpression(
+                        left = ListExpressions.ItemAtIndex(
+                            MemoryLib.heap,
+                            OperatorExpressions.BinaryExpression(
+                                left = it[0],
+                                right = "2".scratch,
+                                operator = OperatorExpressions.BinaryOperator.ADD
+                            )
+                        ),
+                        right = it[1],
+                        operator = OperatorExpressions.BinaryOperator.ADD
+                    )
+                )
+            }
+        } else {
+            editor.compile(
+                lib,
+                "itemAt",
+            ) {
+                val list = arg("list", Type.int)
+                val index = arg("index", Type.int)
+                val returnVal = returnArg(Type.int)
+                checkOutOfBounds(list, index)
 
-            MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index]
+                MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index]
+            }
         }
 
-        clear = editor.compile(
-            lib,
-            "clear",
-        ) {
-            val list = arg("list", Type.int)
-            MemoryLib.heap[list] = 0.sc
+        clear = compileInline(lib, "clear", mutableListOf(Parameter("list", Type.int))) {
+            ListStatements.ReplaceItem(
+                MemoryLib.heap,
+                item = "0".scratch,
+                index = ListExpressions.ItemAtIndex(
+                    MemoryLib.heap,
+                    it[0]
+                )
+            )
         }
 
-        length = editor.compile(
-            lib, "length"
-        ) {
-            val list = arg("list", Type.int)
-            val returnArg = returnArg(Type.int)
-            MemoryLib.heap[returnArg] = MemoryLib.heap[list]
+        length = compileInline(lib, "length", mutableListOf(Parameter("list", Type.int)), returnType = Type.int) {
+            ListExpressions.ItemAtIndex(
+                MemoryLib.heap,
+                it[0]
+            )
         }
 
         contains = editor.compile(

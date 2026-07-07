@@ -160,7 +160,12 @@ warp void markTopLevels() {
     repeat(self::lengthOfReflect()) {
         str obj = self::getReflect(index);
         if(index % 2 == 0) {
-            markType(self::reflect(obj), currentType);
+            int addr = self::reflect(obj);
+            if(string::contains(currentType, "l")) {
+                markList(addr, currentType);
+            } else {
+                markStruct(addr, currentType);
+            }
         } else {
             currentType = obj;
         }

@@ -422,9 +422,7 @@ class ConvertToHeapAccess(
 
         val exitStatements = mutableListOf<Statement>()
         exitStatements.add(freeStmt)
-        if (deleteStmt != null) {
-            exitStatements.add(deleteStmt)
-        }
+        exitStatements.add(deleteStmt)
 
         if (returnStmt == null && block == function.code) {
             block.code.addAll(exitStatements)

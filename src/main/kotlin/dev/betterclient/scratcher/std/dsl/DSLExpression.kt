@@ -140,6 +140,11 @@ fun DSLExpression.round() = DSLFromCreator {
     OperatorExpressions.RoundNumber(this.lower())
 }
 
+val DSLExpression.length
+    get() = DSLFromCreator {
+        OperatorExpressions.StringLength(this.lower())
+    }
+
 operator fun DSLExpression.div(right: DSLExpression) = DSLFromCreator {
     OperatorExpressions.BinaryExpression(
         left = this.lower(),

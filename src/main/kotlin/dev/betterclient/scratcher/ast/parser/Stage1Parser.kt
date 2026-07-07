@@ -101,7 +101,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         code: CodeBlock,
         parameters: MutableList<Parameter>
     ) {
-        if (CompilationConstants.DISABLE_TYPE_CHECKER) return
+        if (CompilationConstants.DISABLE_TYPE_CHECKER || ast.simplePath == "gc_impl") return
 
         for (parameter in parameters) {
             if (parameter.type == Type.float) {
