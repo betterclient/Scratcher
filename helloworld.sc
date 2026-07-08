@@ -12,12 +12,6 @@ struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
 Triangle a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
-    str it = sensing::ask("yo????");
-    for(str yo in string::split(it, "6")) {
-        looks::say(yo);
-    }
-    return if true
-
     Triangle[] triangles = List(Triangle);
     repeat(150) {
         list::add(triangles, Triangle(
