@@ -77,6 +77,7 @@ data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()
 data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
+data class EnumLiteral(val enum: ASTEnum, val value: String, val ordinal: Int) : Literal() //I would use just a normal IntLiteral, but we need to know the enum for type checking
 object NullExpression : Literal()
 
 //ONLY USE FOR LOWERING PHASE

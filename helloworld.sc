@@ -8,10 +8,23 @@ import sensing;
 import string;
 
 struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
+enum TriangleRenderMode(OFF, RENDER, ITHINK);
 
 Triangle a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
+    str answer = sensing::ask("mode");
+    TriangleRenderMode mode = TriangleRenderMode.OFF;
+    if(answer == "off") {
+        mode = TriangleRenderMode.OFF;
+    } else if(answer == "render") {
+        mode = TriangleRenderMode.RENDER;
+    } else {
+       mode = TriangleRenderMode.ITHINK;
+       looks::say("If thinking is your power, what are you without it?");
+       return;
+    }
+
     Triangle[] triangles = List(Triangle);
     repeat(150) {
         list::add(triangles, Triangle(
@@ -31,17 +44,12 @@ on GreenFlag {
         utils::random(-240, 240),
         triangles[14].y3
     );
-    triangles[15].y3 += 5;
-    if(triangles[14].y1 >= 15) {
-        looks::say(">=15");
-    } else if(triangles[14].y2 >= 155) {
-        looks::say("<=15");
-    } else {
-        looks::say("Both false!");
-    }
+
     while(true) {
         pen::eraseAll();
-        render(triangles);
+        if(mode == TriangleRenderMode.OFF) {} else {
+            render(triangles);
+        }
     }
 }
 

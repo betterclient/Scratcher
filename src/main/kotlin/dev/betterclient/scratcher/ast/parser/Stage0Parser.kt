@@ -54,6 +54,21 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             ast.structs.add(structAST)
         }
 
+        for (context in initialRead.topLevelElement().filter { it.enumDecl() != null }) {
+            val enum = context.enumDecl()!!
+            val enumAST = ASTEnum(
+                enum.IDENTIFIER(0)!!.text,
+                enum.IDENTIFIER().subList(1, enum.IDENTIFIER().size).map { it.text },
+                ast
+            )
+            ctx.types.add(enumAST.type)
+            ast.enums.find { it.name == enumAST.name }?.let {
+                throw DuplicateDefinitionException("Duplicate enum definition ${ast.simplePath}::${it.name}")
+            }
+
+            ast.enums.add(enumAST)
+        }
+
         for (context in initialRead.importDecl()) {
             val plainStringLiteralCtx = context.plainStringLiteral()
 

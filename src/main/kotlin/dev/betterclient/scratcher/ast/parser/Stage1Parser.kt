@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.ConcatExpression
+import dev.betterclient.scratcher.ast.EnumLiteral
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.FloatLiteral
@@ -361,6 +362,29 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     }
 
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {
+        val enum = when (val leftExpr = ctx.expression()) {
+            is ScratcherLangParser.IdExprContext -> {
+                val name = leftExpr.text
+                ast.enums.find { it.name == name }
+                    ?: ast.imports.values.flatMap { it.enums }.find { it.name == name }
+            }
+            is ScratcherLangParser.ScopeExprContext -> {
+                val importName = leftExpr.IDENTIFIER(0)!!.text
+                val enumName = leftExpr.IDENTIFIER(1)!!.text
+                ast.imports[importName]?.enums?.find { it.name == enumName }
+            }
+            else -> null
+        }
+
+        if (enum != null) {
+            val memberName = ctx.IDENTIFIER().text
+            val ordinal = enum.values.indexOf(memberName)
+            if (ordinal == -1) {
+                throw NotFoundException("Enum ${enum.name} does not have value $memberName")
+            }
+            return EnumLiteral(enum, memberName, ordinal)
+        }
+
         val structExpr = parseExpression(ctx.expression())
         val struct = ExpressionTypes.getExpressionType(this.ctx, structExpr).let { type ->
             val baseType = type.asNonNull()

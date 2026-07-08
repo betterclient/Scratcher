@@ -14,6 +14,7 @@ IN     : 'in';
 ON     : 'on';
 WARP   : 'warp';
 EXPORT : 'export';
+ENUM   : 'enum';
 
 INT_TYPE   : 'int';
 FLOAT_TYPE : 'float';

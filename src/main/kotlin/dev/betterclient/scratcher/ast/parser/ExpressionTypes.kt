@@ -22,6 +22,7 @@ object ExpressionTypes {
             is UnaryExpression -> getExpressionType(context, expr.expression)
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
+            is EnumLiteral -> expr.enum.type
             is ConcatExpression -> Type.str
             is NullExpression -> Type.nullType
             is NonNullAssertExpression -> getExpressionType(context, expr.expression).asNonNull()

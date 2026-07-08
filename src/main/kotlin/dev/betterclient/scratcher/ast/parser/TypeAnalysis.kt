@@ -222,6 +222,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is NullExpression -> Type.nullType
             is LocalVariableExpression -> expr.variable.type
             is VariableExpression -> expr.variable.type
+            is EnumLiteral -> expr.enum.type
             is ParameterExpression -> expr.parameter.type
 
             is TemporaryExpression -> throw UnreachableException()

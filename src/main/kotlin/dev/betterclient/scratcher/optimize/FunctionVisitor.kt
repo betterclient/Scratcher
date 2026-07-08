@@ -121,6 +121,7 @@ interface BaseExpressionVisitor {
     fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression = TemporaryLocalVariableIndexExpression(variable)
     fun visitTemporaryHeapGetExpression(index: Expression): Expression = TemporaryHeapGetExpression(index)
     fun visitTemporaryScratchExpr(inputExprs: List<Expression>, expression: (List<ScratchExpression>) -> ScratchExpression): Expression = TemporaryScratchExpr(inputExprs, expression)
+    fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression = EnumLiteral(enum, value, ordinal)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -171,6 +172,7 @@ fun BaseExpressionVisitor.visit(expression: Expression): Expression {
         is TemporaryScratchExpr -> this.visitTemporaryScratchExpr(expression.inputExprs.map { visit(it) }, expression.expression)
         is UnaryExpression -> this.visitUnaryExpression(expression.operator, visit(expression.expression))
         is VariableExpression -> this.visitVariableExpression(expression.variable, expression.sourceAST)
+        is EnumLiteral -> this.visitEnumLiteral(expression.enum, expression.value, expression.ordinal)
     }
 }
 

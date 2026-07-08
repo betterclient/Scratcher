@@ -268,6 +268,7 @@ class FunctionExpressionLowering(val func: Function) {
             is NullExpression -> ExpressionLowerResult(expression)
 
             is TemporaryExpression -> throw UnreachableException()
+            is EnumLiteral -> ExpressionLowerResult(IntLiteral(expression.ordinal.toBigInteger()))
         }
     }
 }

@@ -15,6 +15,7 @@ topLevelElement
     | funcDecl
     | structDecl
     | eventDecl
+    | enumDecl
     ;
 
 statement
@@ -52,6 +53,10 @@ paramList
 
 param
     : type IDENTIFIER
+    ;
+
+enumDecl
+    : ENUM IDENTIFIER LPAREN IDENTIFIER (COMMA IDENTIFIER)* RPAREN SEMI
     ;
 
 structDecl

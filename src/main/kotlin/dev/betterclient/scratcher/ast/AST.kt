@@ -13,7 +13,8 @@ class ASTFile(
     val structs: MutableList<Struct> = mutableListOf(),
     val variables: MutableList<TLVariable> = mutableListOf(),
     val functions: MutableList<Function> = mutableListOf(),
-    val eventListeners: MutableList<ASTEventListener> = mutableListOf()
+    val eventListeners: MutableList<ASTEventListener> = mutableListOf(),
+    val enums: MutableList<ASTEnum> = mutableListOf(),
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
@@ -158,3 +159,11 @@ class Parameter(
     val name: String,
     val type: Type
 )
+
+data class ASTEnum(
+    val name: String,
+    val values: List<String>,
+    val sourceAST: ASTFile
+) {
+    val type = Type(name, sourceAST)
+}
