@@ -71,11 +71,19 @@ exprStmt
     ;
 
 assignStmt
-    : expression ASSIGN expression SEMI
+    : expression assignOp expression SEMI
     ;
 
 assignIndexStmt
     : expression LBRACK expression RBRACK ASSIGN expression SEMI
+    ;
+
+assignOp
+    : ASSIGN
+    | ADD_ASSIGN
+    | SUB_ASSIGN
+    | MUL_ASSIGN
+    | DIV_ASSIGN
     ;
 
 returnIfStmt

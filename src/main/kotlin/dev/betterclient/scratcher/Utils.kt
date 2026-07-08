@@ -23,7 +23,7 @@ fun Random.rand(): String {
     return out
 }
 
-private var counter = 1L
+private var counter = 9999L
 private val ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 fun newMinification(): String {

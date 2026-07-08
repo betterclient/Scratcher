@@ -31,6 +31,7 @@ on GreenFlag {
         utils::random(-240, 240),
         triangles[14].y3
     );
+    triangles[15].y3 += 5;
     if(triangles[14].y1 >= 15) {
         looks::say(">=15");
     } else if(triangles[14].y2 >= 155) {

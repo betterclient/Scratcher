@@ -180,18 +180,37 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             is ScratcherLangParser.AssignStmtContext -> {
                 val variableExpr = parseExpression(child.expression(0)!!)
                 val assignmentExpr = parseExpression(child.expression(1)!!)
+                val assignmentType = child.assignOp()
+                val actualAssignment = when {
+                    assignmentType.ASSIGN() != null -> {
+                        assignmentExpr
+                    }
+                    else -> {
+                        BinaryExpression(
+                            left = variableExpr,
+                            right = assignmentExpr,
+                            operator = when {
+                                assignmentType.ADD_ASSIGN() != null -> BinaryOperator.ADD
+                                assignmentType.DIV_ASSIGN() != null -> BinaryOperator.DIVIDE
+                                assignmentType.MUL_ASSIGN() != null -> BinaryOperator.MULTIPLY
+                                assignmentType.SUB_ASSIGN() != null -> BinaryOperator.SUBTRACT
+                                else -> throw GeneralCompilerException("Unknown assignment type $assignmentType")
+                            }
+                        )
+                    }
+                }
 
                 when(variableExpr) {
                     is LocalVariableExpression -> {
-                        LocalVariableAssignmentStatement(variableExpr.variable, assignmentExpr)
+                        LocalVariableAssignmentStatement(variableExpr.variable, actualAssignment)
                     }
                     is MemberExpression -> {
-                        VariableAssignmentStatement(variableExpr.expression, variableExpr.member, variableExpr.struct, assignmentExpr)
+                        VariableAssignmentStatement(variableExpr.expression, variableExpr.member, variableExpr.struct, actualAssignment)
                     }
                     is VariableExpression -> {
                         if (!variableExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
 
-                        TLVariableAssignmentStatement(variableExpr.variable, variableExpr.sourceAST, assignmentExpr)
+                        TLVariableAssignmentStatement(variableExpr.variable, variableExpr.sourceAST, actualAssignment)
                     }
                     else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $variableExpr")
                 }

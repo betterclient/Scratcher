@@ -37,6 +37,11 @@ COMMA  : ',';
 SEMI   : ';';
 COLONCOLON : '::';
 DOT    : '.';
+
+ADD_ASSIGN : '+=';
+SUB_ASSIGN : '-=';
+MUL_ASSIGN : '*=';
+DIV_ASSIGN : '/=';
 ASSIGN : '=';
 
 PLUS  : '+';
