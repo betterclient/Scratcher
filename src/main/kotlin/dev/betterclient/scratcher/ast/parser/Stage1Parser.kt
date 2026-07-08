@@ -197,16 +197,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 }
             }
             is ScratcherLangParser.IfStmtContext -> {
-                val cond = parseExpression(child.expression())
-                val thenBlock = CodeBlock().also { parseBlock(it, child.block(0)!!) }
-
-                if (child.ELSE() != null) {
-                    val elseBlock = CodeBlock().also { parseBlock(it, child.block(1)!!) }
-
-                    IfElseStatement(cond, thenBlock, elseBlock)
-                } else {
-                    IfStatement(cond, thenBlock)
-                }
+                parseIfStatement(child)
             }
             is ScratcherLangParser.WhileStmtContext -> {
                 val cond = parseExpression(child.expression())
@@ -230,6 +221,27 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 parseForStatement(child)
             }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
+        }
+    }
+
+    private fun parseIfStatement(child: ScratcherLangParser.IfStmtContext): Statement {
+        val cond = parseExpression(child.expression())
+        val thenBlock = CodeBlock().also { parseBlock(it, child.block(0)!!) }
+
+        return if (child.ELSE() != null) {
+            val elseBlock = if (child.ifStmt() != null) {
+                //else if!!!
+                val nestedIf = parseIfStatement(child.ifStmt()!!)
+
+                CodeBlock().also {
+                    it.code.add(nestedIf)
+                }
+            } else {
+                CodeBlock().also { parseBlock(it, child.block(1)!!) }
+            }
+            IfElseStatement(cond, thenBlock, elseBlock)
+        } else {
+            IfStatement(cond, thenBlock)
         }
     }
 
