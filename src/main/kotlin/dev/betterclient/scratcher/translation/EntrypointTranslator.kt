@@ -89,7 +89,7 @@ class EntrypointTranslator(
                 }
                 val index = if (topLevelInitLocals.first > 0) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch)) //reserve for initLocals
-                    entrypointCount
+                    entrypointCount + 1
                 } else -1
 
                 if (index != -1) {

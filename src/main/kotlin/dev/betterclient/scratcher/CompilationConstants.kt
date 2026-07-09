@@ -12,7 +12,7 @@ object CompilationConstants {
     //garbage collector settings
     const val MANUAL_MEMORY = false //disable garbage collector to use manual memory management
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call gc::collect yourself)
-    const val REFLECT_GC = true //use hacked blocks to do top level marking in garbage collection
+    const val REFLECT_GC = false //use hacked blocks to do top level marking in garbage collection, might be incompatible with turbowarp
 
     //improve performance by disabling safety, only disable if you already tested your project with them enabled
     const val DISABLE_INDEX_OUT_OF_BOUNDS = true //disable index out of bounds checking
