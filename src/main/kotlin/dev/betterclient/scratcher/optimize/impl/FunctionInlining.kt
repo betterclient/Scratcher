@@ -133,7 +133,7 @@ object InlineEligibility {
 
     private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
         var currentCost = 0
-        if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc && !CompilationConstants.REFLECT_GC) return Int.MAX_VALUE
+        if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
         if (func.warp != targetFunc.warp) return Int.MAX_VALUE //not happening...
 
