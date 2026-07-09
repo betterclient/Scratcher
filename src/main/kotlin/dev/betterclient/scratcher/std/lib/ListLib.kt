@@ -39,7 +39,7 @@ object ListLib {
     lateinit var itemAt: Function
     lateinit var clear: Function
     lateinit var length: Function
-    lateinit var replace: StandardLibASTFunction
+    lateinit var replace: Function
     lateinit var contains: StandardLibASTFunction
     lateinit var reserve: StandardLibASTFunction
     lateinit var free: StandardLibASTFunction
@@ -115,16 +115,45 @@ object ListLib {
             MemoryLib.heap[list] = length + 1.sc
         }
 
-        replace = editor.compile(
-            lib,
-            "replace",
-        ) {
-            val list = arg("list", Type.int)
-            val item = arg("item", Type.int)
-            val index = arg("index", Type.int)
-            checkOutOfBounds(list, index)
+        replace = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+            compileInline(
+                lib,
+                "replace",
+                parameters = mutableListOf(
+                    Parameter("list", Type.int),
+                    Parameter("item", Type.int),
+                    Parameter("index", Type.int)
+                )
+            ) {
+                ListStatements.ReplaceItem(
+                    list = MemoryLib.heap,
+                    item = it[1],
+                    index = OperatorExpressions.BinaryExpression(
+                        left = ListExpressions.ItemAtIndex(
+                            list = MemoryLib.heap,
+                            index = OperatorExpressions.BinaryExpression(
+                                left = it[0],
+                                right = "2".scratch,
+                                operator = OperatorExpressions.BinaryOperator.ADD
+                            )
+                        ),
+                        right = it[2],
+                        operator = OperatorExpressions.BinaryOperator.ADD
+                    )
+                )
+            }
+        } else {
+            editor.compile(
+                lib,
+                "replace",
+            ) {
+                val list = arg("list", Type.int)
+                val item = arg("item", Type.int)
+                val index = arg("index", Type.int)
+                checkOutOfBounds(list, index)
 
-            MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index] = item
+                MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index] = item
+            }
         }
 
         remove = editor.compile(
