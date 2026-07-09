@@ -79,42 +79,6 @@ object ListLib {
             )
         }
 
-        add = editor.compile(
-            lib,
-            "add",
-        ) {
-            val oldDataPtr = variable("list::oldData")
-            val list = arg("list", Type.int)
-            val item = arg("item", Type.int)
-
-            val length = MemoryLib.heap[list]
-            val capacity = MemoryLib.heap[list + 1.sc]
-
-            control.ifThen(length equals capacity) {
-                MemoryLib.heap[list + 1.sc] = capacity * 2.sc
-                oldDataPtr.set(MemoryLib.heap[list + 2.sc])
-                call(
-                    MemoryLib.alloc,
-                    capacity * 2.sc,
-                    "n".sc concat MemoryLib.heap[list + 3.sc],
-                    list + 2.sc
-                )
-                val copyIndex = variable("list::copyIndex")
-                copyIndex.set(0.sc)
-                control.repeat(length) {
-                    MemoryLib.heap[MemoryLib.heap[list + 2.sc] + copyIndex] = MemoryLib.heap[oldDataPtr + copyIndex]
-                    copyIndex.set(copyIndex + 1.sc)
-                }
-                call(
-                    MemoryLib.free,
-                    oldDataPtr, length
-                )
-            }
-
-            MemoryLib.heap[MemoryLib.heap[list + 2.sc] + length] = item
-            MemoryLib.heap[list] = length + 1.sc
-        }
-
         replace = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
             compileInline(
                 lib,
@@ -300,6 +264,28 @@ object ListLib {
                     oldCapacity
                 )
             }
+        }
+
+        add = editor.compile(
+            lib,
+            "add",
+        ) {
+            val list = arg("list", Type.int)
+            val item = arg("item", Type.int)
+
+            val length = MemoryLib.heap[list]
+            val capacity = MemoryLib.heap[list + 1.sc]
+
+            control.ifThen(length equals capacity) {
+                call(
+                    reserve,
+                    list,
+                    capacity * 2.sc
+                )
+            }
+
+            MemoryLib.heap[MemoryLib.heap[list + 2.sc] + length] = item
+            MemoryLib.heap[list] = length + 1.sc
         }
 
         free = editor.compile(

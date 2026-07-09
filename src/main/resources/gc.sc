@@ -77,7 +77,7 @@ warp void markType(int addr, str type) {
     if(string::contains(type, "l")) {
         markList(self::getHeap(addr), type);
     } else {
-        markStruct(self::getHeap(addr), type);
+         markStruct(self::getHeap(addr), type);
     }
 }
 

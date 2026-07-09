@@ -260,7 +260,8 @@ object GCLib {
 
     fun generate(vars: List<TLVariable>, translate: (TLVariable) -> ScratchVariable) {
         val eligible = vars.filter { !it.type.isPrimitive }
-        val markTypeFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markType" }!!
+        val markListFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markList" }!!
+        val markStructFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markStruct" }!!
         val original = StandardLibASTGenerator.gc.functions.find { it.name == "markTopLevels" }!!
         if (CompilationConstants.REFLECT_GC) {
             reflectList.items.addAll(eligible.flatMap { variable ->
@@ -287,7 +288,11 @@ object GCLib {
 
                 ExpressionStatement(
                     CallExpression(
-                        func = markTypeFunc,
+                        func = if (typeStr.contains("l")) {
+                            markListFunc
+                        } else {
+                            markStructFunc
+                        },
                         arguments = listOf(
                             VariableExpression(variable, variable.sourceAST),
                             StringLiteral(typeStr)

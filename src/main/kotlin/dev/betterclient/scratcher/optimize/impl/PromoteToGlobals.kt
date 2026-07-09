@@ -80,7 +80,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
     private fun findEligibleLocals(current: Function, graph: TCallGraph): List<LocalVariable> {
         val locals = OptimizationUtils.countLocals(current)
         if (!OptimizationUtils.isRecursive(current, graph)) {
-            return locals.filter { variable -> variable.type.isPrimitive }
+            return locals.filter { variable -> variable.type.isPrimitive || variable.type.inner != null }
         }
 
         val variableStates = locals.associateWith { VariableState.NOT_DECLARED }.toMutableMap()
@@ -188,7 +188,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
             }
         })
 
-        return variableStates.filter { (variable, state) -> variable.type.isPrimitive && state != VariableState.UNSAFE }.keys.toList()
+        return variableStates.filter { (variable, state) -> (variable.type.isPrimitive || variable.type.inner != null) && state != VariableState.UNSAFE }.keys.toList()
     }
 
     private fun merge(left: Map<LocalVariable, VariableState>, right: Map<LocalVariable, VariableState>): Map<LocalVariable, VariableState> {
