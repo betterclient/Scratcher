@@ -15,6 +15,7 @@ ON     : 'on';
 WARP   : 'warp';
 EXPORT : 'export';
 ENUM   : 'enum';
+WHEN   : 'when';
 
 INT_TYPE   : 'int';
 FLOAT_TYPE : 'float';
@@ -38,6 +39,7 @@ COMMA  : ',';
 SEMI   : ';';
 COLONCOLON : '::';
 DOT    : '.';
+ARROW  : '->';
 
 ADD_ASSIGN : '+=';
 SUB_ASSIGN : '-=';

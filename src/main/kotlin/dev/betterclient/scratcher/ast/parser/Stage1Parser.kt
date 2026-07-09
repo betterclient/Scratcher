@@ -36,6 +36,8 @@ import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.VariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.ast.VariableStatement
+import dev.betterclient.scratcher.ast.WhenBranch
+import dev.betterclient.scratcher.ast.WhenExpression
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.except.DuplicateDefinitionException
 import dev.betterclient.scratcher.except.GeneralCompilerException
@@ -357,8 +359,49 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     listOf(list, index)
                 )
             }
+            is ScratcherLangParser.WhenExprContext -> {
+                parseWhenExpr(ctx.whenExpression())
+            }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
+    }
+
+    private fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
+        val subject = ctx.expression()?.let { parseExpression(it) }
+        val subjectVar = subject?.let { LocalVariable("whenStatement@subject", ExpressionTypes.getExpressionType(this.ctx, it)) }
+        val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
+        val entries = ctx.whenEntry()
+        if (entries.count { it.whenCondition().ELSE() != null } > 1) {
+            throw DuplicateDefinitionException("Duplicate ELSE condition in ${ctx.position?.start}")
+        }
+
+        return WhenExpression(
+            subjectAssignment,
+            entries.map { entry ->
+                val cond = entry.whenCondition().expression()?.let {
+                    val expr = parseExpression(it)
+                    if (subjectVar != null) {
+                        BinaryExpression(
+                            left = LocalVariableExpression(subjectVar),
+                            right = expr,
+                            operator = BinaryOperator.EQUAL
+                        )
+                    } else expr
+                }?: BooleanLiteral(true) //else
+
+                val branchBlock = CodeBlock()
+                if (entry.expression() != null) {
+                    branchBlock.code.add(ExpressionStatement(parseExpression(entry.expression()!!)))
+                } else if (entry.block() != null) {
+                    parseBlock(branchBlock, entry.block()!!)
+                }
+
+                WhenBranch(
+                    cond,
+                    branchBlock
+                )
+            }
+        )
     }
 
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {

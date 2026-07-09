@@ -122,6 +122,7 @@ interface BaseExpressionVisitor {
     fun visitTemporaryHeapGetExpression(index: Expression): Expression = TemporaryHeapGetExpression(index)
     fun visitTemporaryScratchExpr(inputExprs: List<Expression>, expression: (List<ScratchExpression>) -> ScratchExpression): Expression = TemporaryScratchExpr(inputExprs, expression)
     fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression = EnumLiteral(enum, value, ordinal)
+    fun visitWhenExpr(branches: List<WhenBranch>, subject: VariableStatement?): Expression = WhenExpression(subject, branches)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -152,7 +153,7 @@ fun visit(
     visitor.visitCodeBlock(block)
 }
 
-fun BaseExpressionVisitor.visit(expression: Expression): Expression {
+fun ASTVisitor.visit(expression: Expression): Expression {
     visitExpr(expression)
     return when(expression) {
         is BinaryExpression -> this.visitBinaryExpression(visit(expression.left), visit(expression.right), expression.operator)
@@ -173,6 +174,12 @@ fun BaseExpressionVisitor.visit(expression: Expression): Expression {
         is UnaryExpression -> this.visitUnaryExpression(expression.operator, visit(expression.expression))
         is VariableExpression -> this.visitVariableExpression(expression.variable, expression.sourceAST)
         is EnumLiteral -> this.visitEnumLiteral(expression.enum, expression.value, expression.ordinal)
+        is WhenExpression -> this.visitWhenExpr(expression.branches.map {
+            WhenBranch(
+                visit(it.cond),
+                visitCodeBlock(it.block)
+            )
+        }, expression.subject)
     }
 }
 

@@ -136,7 +136,7 @@ warp void markStruct(int addr, str type) {
 warp str findName(int addr) {
     int index = 1;
     repeat(self::lengthOfAllocAddressList()) {
-        if(self::getAllocAddressList(index) == addr) {
+        if(self::getAllocAddressList(index) == cast::toStr(addr)) {
             return self::getAllocNameList(index);
         }
         index = index + 1;

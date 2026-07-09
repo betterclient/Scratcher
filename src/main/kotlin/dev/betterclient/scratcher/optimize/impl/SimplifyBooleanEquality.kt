@@ -85,6 +85,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
             is CallExpression -> true
             is NonNullAssertExpression -> true
             is TemporaryExpression -> true
+            is WhenExpression -> true
         }
     }
 }

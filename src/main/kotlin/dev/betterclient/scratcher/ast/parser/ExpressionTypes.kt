@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.std.lib.ListLib
 
@@ -26,6 +27,22 @@ object ExpressionTypes {
             is ConcatExpression -> Type.str
             is NullExpression -> Type.nullType
             is NonNullAssertExpression -> getExpressionType(context, expr.expression).asNonNull()
+            is WhenExpression -> {
+                val allBranchesReturnExpression = expr.branches.all {
+                    it.block.code.lastOrNull() is ExpressionStatement
+                }
+                if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
+                    expr.branches.map {
+                        getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
+                    }.reduce { left, right ->
+                        if (left.isAssignable(right)) left
+                        else if (right.isAssignable(left)) right
+                        else throw GeneralCompilerException("When branches return different types.")
+                    }
+                } else {
+                    Type.void
+                }
+            }
             is TemporaryExpression -> throw UnreachableException()
         }
     }

@@ -10,6 +10,7 @@ typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
     private val optimizations = listOf(
+        WhenToIf,
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,

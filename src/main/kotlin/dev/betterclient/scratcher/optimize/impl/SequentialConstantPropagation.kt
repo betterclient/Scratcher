@@ -22,7 +22,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
         val knownValues = mutableMapOf<LocalVariable, Expression>()
         val currentlyVisiting = mutableSetOf<LocalVariable>()
 
-        val expressionVisitor = object : BaseExpressionVisitor {
+        val expressionVisitor = object : ASTVisitor() {
             override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
                 val known = knownValues[variable]
                 if (known != null) {

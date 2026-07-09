@@ -80,7 +80,7 @@ class InlineSingleUseAnalysis {
     val allVars = mutableListOf<SSAVar>()
     val writeCounts = mutableMapOf<LocalVariable, Int>()
 
-    private val exprVisitor = object : BaseExpressionVisitor {
+    private val exprVisitor = object : ASTVisitor() {
         override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
             activeVars[variable]?.let {
                 it.readCount++

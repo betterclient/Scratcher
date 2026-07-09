@@ -72,6 +72,7 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
             is CallExpression -> true
             is NonNullAssertExpression -> true
             is TemporaryExpression -> true
+            is WhenExpression -> true
         }
     }
 }

@@ -65,6 +65,12 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
 
     private fun generate(expr: Expression, out: MutableList<Function>) {
         when(expr) {
+            is WhenExpression -> {
+                expr.branches.forEach {
+                    generate(it.block, out)
+                    generate(it.cond, out)
+                }
+            }
             is BinaryExpression -> {
                 generate(expr.left, out)
                 generate(expr.right, out)

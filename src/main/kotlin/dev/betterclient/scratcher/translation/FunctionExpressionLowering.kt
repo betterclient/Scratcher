@@ -26,7 +26,11 @@ class FunctionExpressionLowering(val func: Function) {
         for(statement in code.code) {
             when(statement) {
                 is ExpressionStatement -> {
-                    if (statement.expression !is CallExpression) throw GeneralCompilerException("Non CallExpression inside ExpressionStatement")
+                    if (statement.expression is NullExpression) {
+                        replacements[statement] = listOf()
+                        continue
+                    }
+                    if (statement.expression !is CallExpression) throw GeneralCompilerException("Non CallExpression inside ExpressionStatement, found ${statement.expression}")
                     replacements[statement] = lowerCallExpr(statement.expression, ignoreReturn = true).prepend //ignore expression cause its top level
                 }
                 is IfElseStatement -> {
@@ -267,7 +271,7 @@ class FunctionExpressionLowering(val func: Function) {
             is LocalVariableExpression -> ExpressionLowerResult(expression)
             is NullExpression -> ExpressionLowerResult(expression)
 
-            is TemporaryExpression -> throw UnreachableException()
+            is TemporaryExpression, is WhenExpression -> throw UnreachableException()
             is EnumLiteral -> ExpressionLowerResult(IntLiteral(expression.ordinal.toBigInteger()))
         }
     }

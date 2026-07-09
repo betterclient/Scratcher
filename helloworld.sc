@@ -3,9 +3,8 @@ import utils;
 import looks;
 import list;
 import pen;
-import gc;
 import sensing;
-import string;
+import except;
 
 struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
 enum TriangleRenderMode(OFF, RENDER, ITHINK);
@@ -14,16 +13,16 @@ Triangle a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
     str answer = sensing::ask("mode");
-    TriangleRenderMode mode = TriangleRenderMode.OFF;
-    if(answer == "off") {
-        mode = TriangleRenderMode.OFF;
-    } else if(answer == "render") {
-        mode = TriangleRenderMode.RENDER;
-    } else {
-       mode = TriangleRenderMode.ITHINK;
-       looks::say("If thinking is your power, what are you without it?");
-       return;
-    }
+    TriangleRenderMode mode = when(answer) {
+        "off" -> TriangleRenderMode.OFF
+        "render" -> TriangleRenderMode.RENDER
+        else -> {
+            looks::say("If thinking is your power, what are you without it?");
+            except::panic("If thinking is your power, what are you without it?");
+
+            TriangleRenderMode.ITHINK;
+        }
+    };
 
     Triangle[] triangles = List(Triangle);
     repeat(150) {
@@ -47,9 +46,15 @@ on GreenFlag {
 
     while(true) {
         pen::eraseAll();
-        if(mode == TriangleRenderMode.OFF) {} else {
-            render(triangles);
-        }
+        when(mode) {
+            TriangleRenderMode.OFF -> {}
+            TriangleRenderMode.RENDER -> {
+                render(triangles);
+            }
+            TriangleRenderMode.ITHINK -> {
+                looks::say("How are you here???");
+            }
+        };
     }
 }
 

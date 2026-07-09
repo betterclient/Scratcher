@@ -144,6 +144,7 @@ class ScratchFunctionTranslator(
             is TemporaryLocalVariableIndexExpression,
             is LocalVariableExpression,
             is EnumLiteral,
+            is WhenExpression,
             is NonNullAssertExpression -> throw UnreachableException()
         }
     }

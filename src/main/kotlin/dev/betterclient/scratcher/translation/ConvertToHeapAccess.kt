@@ -297,7 +297,7 @@ class ConvertToHeapAccess(
                 }
             }
 
-            is CallExpression, is NonNullAssertExpression, is EnumLiteral -> throw UnreachableException()
+            is CallExpression, is NonNullAssertExpression, is EnumLiteral, is WhenExpression -> throw UnreachableException()
         }
     }
 

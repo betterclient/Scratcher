@@ -142,6 +142,7 @@ expression
     | literal                                           # literalExpr
     | NULL                                              # nullExpr
     | IDENTIFIER                                        # idExpr
+    | whenExpression                                    # whenExpr
     ;
 
 functionIdentifier
@@ -205,4 +206,17 @@ plainStringPart
 
 interpolation
     : INTERP_START expression RBRACE
+    ;
+
+whenExpression
+    : WHEN (LPAREN expression RPAREN)? LBRACE whenEntry* RBRACE
+    ;
+
+whenEntry
+    : whenCondition ARROW (expression | block)
+    ;
+
+whenCondition
+    : expression
+    | ELSE
     ;
