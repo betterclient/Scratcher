@@ -343,14 +343,12 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
         val isElseBranch = branch.isElse
 
         val ifStmt: Statement = if (isLastBranch && isElseBranch) {
-            // Only branch is else: unconditional block
             if (branchBlock.code.size == 1) {
                 branchBlock.code[0]
             } else {
                 CompositeStatement(branchBlock.code)
             }
         } else if (!isLastBranch && branches[index + 1].isElse) {
-            // Next branch is else: use this branch as condition, else branch as else block
             val elseBranch = branches[index + 1]
             val elseBlock = CodeBlock()
             elseBlock.localVariables.addAll(elseBranch.block.localVariables)
@@ -365,13 +363,11 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
             lowerBlock(elseBlock)
             IfElseStatement(condResult.expression!!, branchBlock, elseBlock)
         } else if (!isLastBranch) {
-            // Normal branch with next branch
             val nextStmt = buildIfChain(branches, index + 1, tempVar)
             val elseBlock = CodeBlock()
             elseBlock.code.add(nextStmt!!)
             IfElseStatement(condResult.expression!!, branchBlock, elseBlock)
         } else {
-            // Last branch but not else
             IfStatement(condResult.expression!!, branchBlock)
         }
 

@@ -31,7 +31,7 @@ fun newMinification(): String {
     val sb = StringBuilder()
 
     while (temp > 0) {
-        temp-- // Adjust for 1-based indexing
+        temp--
         val rem = (temp % 52).toInt()
         sb.append(ALPHABET[rem])
         temp /= 52
