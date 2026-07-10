@@ -359,7 +359,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         if (ctx.ifExpression() == null) {
             val elseBlock = parseExprBlock(ctx.exprBlock(1)!!)
             branch.add(WhenBranch(
-                BooleanLiteral(true), elseBlock
+                BooleanLiteral(true), elseBlock, isElse = true
             ))
         } else {
             branch.addAll(parseIfExpr(ctx.ifExpression()!!))

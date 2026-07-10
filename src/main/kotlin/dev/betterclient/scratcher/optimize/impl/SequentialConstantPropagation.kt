@@ -47,7 +47,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     knownValues.putAll(snapshot)
                     val cond = propagate(branch.cond)
                     val block = processCodeBlock(branch.block)
-                    WhenBranch(cond, block)
+                    WhenBranch(cond, block, branch.isElse)
                 }
 
                 knownValues.clear()

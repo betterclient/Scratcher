@@ -193,7 +193,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                         else if (right.isAssignable(left)) right
                         else throw TypeAnalysisException("When branches return different types.")
                     }
-                    if (unifiedType != Type.void && !isWhenExhaustive(ctx, expr) && expr.branches.none { it.isElse }) {
+                    if (unifiedType != Type.void && !isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
                         throw TypeAnalysisException("When expression used as value must have an else branch or be exhaustive")
                     }
                     unifiedType

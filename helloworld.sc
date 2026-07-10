@@ -12,8 +12,7 @@ enum TriangleRenderMode(OFF, RENDER, ITHINK);
 Triangle a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
-    str answer = sensing::ask("mode");
-    TriangleRenderMode mode = when(answer) {
+    TriangleRenderMode mode = when(sensing::ask("mode")) {
         "off" -> TriangleRenderMode.OFF
         "render" -> TriangleRenderMode.RENDER
         else -> {

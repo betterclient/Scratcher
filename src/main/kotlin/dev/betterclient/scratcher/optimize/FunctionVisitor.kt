@@ -177,7 +177,8 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is WhenExpression -> this.visitWhenExpr(expression.branches.map {
             WhenBranch(
                 visit(it.cond),
-                visitCodeBlock(it.block)
+                visitCodeBlock(it.block),
+                it.isElse
             )
         }, expression.subject?.let { visit(it) })
     }
