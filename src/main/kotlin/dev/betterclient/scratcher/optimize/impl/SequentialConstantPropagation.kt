@@ -37,6 +37,27 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                 }
                 return super.visitLocalVariableExpression(variable)
             }
+
+            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
+                val processedSubject = subject?.let { processStatement(it) }
+                val snapshot = knownValues.toMap()
+
+                val processedBranches = branches.map { branch ->
+                    knownValues.clear()
+                    knownValues.putAll(snapshot)
+                    val cond = propagate(branch.cond)
+                    val block = processCodeBlock(branch.block)
+                    WhenBranch(cond, block)
+                }
+
+                knownValues.clear()
+                knownValues.putAll(snapshot)
+
+                val allModified = branches.flatMap { collectModifiedVariables(it.block) }.toSet()
+                invalidateAll(allModified)
+
+                return WhenExpression(processedSubject, processedBranches)
+            }
         }
 
         fun propagate(expr: Expression): Expression = expressionVisitor.visit(expr)
@@ -76,8 +97,6 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     val propagatedDefault = statement.defaultValue?.let { propagate(it) }
                     invalidate(statement.variable)
 
-                    // Strict constant tracking. Literals don't depend on variables,
-                    // removing the need for a deep `dependsOn` check entirely.
                     if (propagatedDefault != null && propagatedDefault.isConstant()) {
                         knownValues[statement.variable] = propagatedDefault
                     }
@@ -140,7 +159,6 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                 }
 
                 is RepeatStatement -> {
-                    // Loop execution count evaluates once upfront. Safe to propagate prior to invalidation.
                     val amt = propagate(statement.amount)
 
                     val modified = collectModifiedVariables(statement.block)

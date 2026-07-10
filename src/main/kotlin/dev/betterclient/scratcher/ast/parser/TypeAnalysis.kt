@@ -161,7 +161,10 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         return when(expr) {
             is WhenExpression -> {
                 if (function != null) {
+                    expr.subject?.let { checkCodeBlock(function, mutableListOf(it)) }
+
                     expr.branches.forEach { branch ->
+                        checkType(Type.bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
                         checkCodeBlock(function, branch.block.code, isWhenBranch = true)
                     }
                 }

@@ -212,29 +212,118 @@ class InlineSingleUseAnalysis {
             is MemberExpression -> expression.dependsOn(variables)
             is TemporaryHeapGetExpression -> index.dependsOn(variables)
             is TemporaryScratchExpr -> inputExprs.any { it.dependsOn(variables) }
+            is WhenExpression -> {
+                val subjectDepends = subject?.let { stmtDependsOn(it, variables) } ?: false
+                subjectDepends || branches.any { branch ->
+                    branch.cond.dependsOn(variables) || blockDependsOn(branch.block, variables)
+                }
+            }
             else -> false
+        }
+    }
+
+    private fun blockDependsOn(block: CodeBlock, variables: Set<LocalVariable>): Boolean {
+        return block.code.any { stmtDependsOn(it, variables) }
+    }
+
+    private fun stmtDependsOn(stmt: Statement, variables: Set<LocalVariable>): Boolean {
+        return when (stmt) {
+            is ExpressionStatement -> stmt.expression.dependsOn(variables)
+            is VariableStatement -> stmt.defaultValue?.dependsOn(variables) ?: false
+            is LocalVariableAssignmentStatement -> stmt.assignment.dependsOn(variables)
+            is VariableAssignmentStatement -> stmt.target.dependsOn(variables) || stmt.assignment.dependsOn(variables)
+            is TLVariableAssignmentStatement -> stmt.assignment.dependsOn(variables)
+            is ReturnStatement -> stmt.expression?.dependsOn(variables) ?: false
+            is IfStatement -> stmt.condition.dependsOn(variables) || blockDependsOn(stmt.thenBlock, variables)
+            is IfElseStatement -> stmt.condition.dependsOn(variables) || blockDependsOn(stmt.thenBlock, variables) || blockDependsOn(stmt.elseBlock, variables)
+            is WhileStatement -> stmt.condition.dependsOn(variables) || blockDependsOn(stmt.block, variables)
+            is RepeatStatement -> stmt.amount.dependsOn(variables) || blockDependsOn(stmt.block, variables)
+            is TemporaryCallStatement -> stmt.args.any { it.dependsOn(variables) }
+            is TemporaryHeapSetStatement -> stmt.index.dependsOn(variables) || stmt.data.dependsOn(variables)
+            is TemporaryScratchStmt -> stmt.inputExprs.any { it.dependsOn(variables) }
+            is CompositeStatement -> stmt.statements.any { stmtDependsOn(it, variables) }
         }
     }
 
     private fun collectModifiedVariables(statement: Statement): Set<LocalVariable> {
         val modified = mutableSetOf<LocalVariable>()
-        fun visit(stmt: Statement) {
-            when (stmt) {
-                is LocalVariableAssignmentStatement -> modified.add(stmt.variable)
-                is VariableStatement -> modified.add(stmt.variable)
-                is IfStatement -> stmt.thenBlock.code.forEach { visit(it) }
-                is IfElseStatement -> {
-                    stmt.thenBlock.code.forEach { visit(it) }
-                    stmt.elseBlock.code.forEach { visit(it) }
-                }
-                is WhileStatement -> stmt.block.code.forEach { visit(it) }
-                is RepeatStatement -> stmt.block.code.forEach { visit(it) }
-                is CompositeStatement -> stmt.statements.forEach { visit(it) }
-                else -> {}
-            }
-        }
-        visit(statement)
+
+        visitStmt(modified, statement)
         return modified
+    }
+
+    private fun visitStmt(modified: MutableSet<LocalVariable>, stmt: Statement) {
+        when (stmt) {
+            is VariableStatement -> {
+                modified.add(stmt.variable)
+                stmt.defaultValue?.let { visitExpr(modified, it) }
+            }
+            is LocalVariableAssignmentStatement -> {
+                modified.add(stmt.variable)
+                visitExpr(modified, stmt.assignment)
+            }
+            is IfStatement -> {
+                visitExpr(modified, stmt.condition)
+                stmt.thenBlock.code.forEach { visitStmt(modified, it) }
+            }
+            is IfElseStatement -> {
+                visitExpr(modified, stmt.condition)
+                stmt.thenBlock.code.forEach { visitStmt(modified, it) }
+                stmt.elseBlock.code.forEach { visitStmt(modified, it) }
+            }
+            is WhileStatement -> {
+                visitExpr(modified, stmt.condition)
+                stmt.block.code.forEach { visitStmt(modified, it) }
+            }
+            is RepeatStatement -> {
+                visitExpr(modified, stmt.amount)
+                stmt.block.code.forEach { visitStmt(modified, it) }
+            }
+            is ExpressionStatement -> visitExpr(modified, stmt.expression)
+            is TLVariableAssignmentStatement -> visitExpr(modified, stmt.assignment)
+            is VariableAssignmentStatement -> {
+                visitExpr(modified, stmt.target)
+                visitExpr(modified, stmt.assignment)
+            }
+            is TemporaryCallStatement -> stmt.args.forEach { visitExpr(modified, it) }
+            is TemporaryHeapSetStatement -> {
+                visitExpr(modified, stmt.index)
+                visitExpr(modified, stmt.data)
+            }
+            is TemporaryScratchStmt -> stmt.inputExprs.forEach { visitExpr(modified, it) }
+            is CompositeStatement -> stmt.statements.forEach { visitStmt(modified, it) }
+            is ReturnStatement -> stmt.expression?.let { visitExpr(modified, it) }
+        }
+    }
+
+    private fun visitExpr(modified: MutableSet<LocalVariable>, expr: Expression) {
+        when (expr) {
+            is WhenExpression -> {
+                expr.subject?.let { visitStmt(modified, it) }
+                expr.branches.forEach { branch ->
+                    visitExpr(modified, branch.cond)
+                    branch.block.code.forEach { visitStmt(modified, it) }
+                }
+            }
+
+            is BinaryExpression -> {
+                visitExpr(modified, expr.left)
+                visitExpr(modified, expr.right)
+            }
+
+            is UnaryExpression -> visitExpr(modified, expr.expression)
+            is ConcatExpression -> {
+                visitExpr(modified, expr.left)
+                visitExpr(modified, expr.right)
+            }
+
+            is MemberExpression -> visitExpr(modified, expr.expression)
+            is CallExpression -> expr.arguments.forEach { visitExpr(modified, it) }
+            is NonNullAssertExpression -> visitExpr(modified, expr.expression)
+            is TemporaryHeapGetExpression -> visitExpr(modified, expr.index)
+            is TemporaryScratchExpr -> expr.inputExprs.forEach { visitExpr(modified, it) }
+            else -> {}
+        }
     }
 }
 

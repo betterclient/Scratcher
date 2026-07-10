@@ -143,6 +143,7 @@ expression
     | NULL                                              # nullExpr
     | IDENTIFIER                                        # idExpr
     | whenExpression                                    # whenExpr
+    | ifExpression                                      # ifExpr
     ;
 
 functionIdentifier
@@ -221,8 +222,13 @@ whenCondition
     | ELSE
     ;
 
-ifExpr
-    : IF LPAREN expression RPAREN codeBlock (ELSE (ifExpr | codeBlock))?
+ifExpression
+    : IF LPAREN expression RPAREN exprBlock (ELSE (ifExpression | exprBlock))
+    ;
+
+exprBlock
+    : expression
+    | LBRACE statement* expression RBRACE
     ;
 
 codeBlock

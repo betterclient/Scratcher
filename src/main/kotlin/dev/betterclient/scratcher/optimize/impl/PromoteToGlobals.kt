@@ -8,6 +8,8 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.VariableExpression
+import dev.betterclient.scratcher.ast.WhenBranch
+import dev.betterclient.scratcher.ast.WhenExpression
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
@@ -139,6 +141,34 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 }
 
                 return super.visitCallExpression(func, args)
+            }
+
+            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
+                subject?.let { visit(it) }
+
+                val preWhenStates = variableStates.toMap()
+                val branchOutcomes = mutableListOf<Map<LocalVariable, VariableState>>()
+
+                for (branch in branches) {
+                    variableStates.clear()
+                    variableStates.putAll(preWhenStates)
+                    visit(branch.cond)
+                    visitBlockManually(branch.block)
+                    branchOutcomes.add(variableStates.toMap())
+                }
+
+                if (branchOutcomes.isNotEmpty()) {
+                    val finalMerged = branchOutcomes.reduce { acc, outcome ->
+                        merge(acc, outcome)
+                    }
+                    variableStates.clear()
+                    variableStates.putAll(finalMerged)
+                } else {
+                    variableStates.clear()
+                    variableStates.putAll(preWhenStates)
+                }
+
+                return WhenExpression(subject, branches)
             }
 
             override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {

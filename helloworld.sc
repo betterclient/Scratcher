@@ -42,7 +42,11 @@ on GreenFlag {
         utils::random(-240, 240),
         utils::random(-180, 180),
         utils::random(-240, 240),
-        triangles[14].y3
+        if(mode == TriangleRenderMode.OFF) {
+            5
+        } else {
+            triangles[14].y3
+        }
     );
 
     while(true) {

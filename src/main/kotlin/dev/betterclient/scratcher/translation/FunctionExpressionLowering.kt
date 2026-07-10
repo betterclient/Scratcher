@@ -290,11 +290,11 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
             tv
         } else null
 
-        if (expression.subject != null) {
-            if (expression.subject is VariableStatement) {
-                func.code.localVariables.add(expression.subject.variable)
-            }
-            prepend.add(expression.subject)
+        if (expression.subject != null && expression.subject is VariableStatement) {
+            func.code.localVariables.add(expression.subject.variable)
+            val loweredSubject = lowerExpr(expression.subject.defaultValue!!)
+            prepend.addAll(loweredSubject.prepend)
+            prepend.add(VariableStatement(loweredSubject.expression!!, expression.subject.variable))
         }
 
         if (tempVar != null) {

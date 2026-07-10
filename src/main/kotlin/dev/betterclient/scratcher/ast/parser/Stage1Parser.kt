@@ -2,49 +2,9 @@ package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.CompilationConstants
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.BinaryExpression
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.ConcatExpression
-import dev.betterclient.scratcher.ast.EnumLiteral
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.ExpressionStatement
-import dev.betterclient.scratcher.ast.FloatLiteral
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IfStatement
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.LocalVariable
-import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NonNullAssertExpression
-import dev.betterclient.scratcher.ast.NullExpression
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.ParameterExpression
-import dev.betterclient.scratcher.ast.RepeatStatement
-import dev.betterclient.scratcher.ast.ReturnStatement
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.UnaryExpression
-import dev.betterclient.scratcher.ast.UnaryOperator
-import dev.betterclient.scratcher.ast.VariableAssignmentStatement
-import dev.betterclient.scratcher.ast.VariableExpression
-import dev.betterclient.scratcher.ast.VariableStatement
-import dev.betterclient.scratcher.ast.WhenBranch
-import dev.betterclient.scratcher.ast.WhenExpression
-import dev.betterclient.scratcher.ast.WhileStatement
-import dev.betterclient.scratcher.except.DuplicateDefinitionException
-import dev.betterclient.scratcher.except.GeneralCompilerException
-import dev.betterclient.scratcher.except.NotFoundException
-import dev.betterclient.scratcher.except.NotImplementedException
-import dev.betterclient.scratcher.except.TypeException
-import dev.betterclient.scratcher.except.VoidVariableException
+import dev.betterclient.scratcher.except.*
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -378,13 +338,62 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             is ScratcherLangParser.WhenExprContext -> {
                 parseWhenExpr(ctx.whenExpression())
             }
+            is ScratcherLangParser.IfExprContext -> {
+                WhenExpression(
+                    null,
+                    parseIfExpr(ctx.ifExpression())
+                )
+            }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
     }
 
+    fun parseIfExpr(ctx: ScratcherLangParser.IfExpressionContext): List<WhenBranch> {
+        val branch = mutableListOf<WhenBranch>()
+
+        val thenCond = parseExpression(ctx.expression())
+        val thenBlock = parseExprBlock(ctx.exprBlock(0)!!)
+        branch.add(WhenBranch(
+            thenCond, thenBlock
+        ))
+        if (ctx.ifExpression() == null) {
+            val elseBlock = parseExprBlock(ctx.exprBlock(1)!!)
+            branch.add(WhenBranch(
+                BooleanLiteral(true), elseBlock
+            ))
+        } else {
+            branch.addAll(parseIfExpr(ctx.ifExpression()!!))
+            if (branch.filter { it.cond is BooleanLiteral && it.cond.value }.size > 1) {
+                throw DuplicateDefinitionException("Duplicate else blocks in if expression $ctx")
+            }
+        }
+
+        return branch
+    }
+
+    private fun parseExprBlock(block: ScratcherLangParser.ExprBlockContext): CodeBlock {
+        val out = CodeBlock()
+
+        if (block.LBRACE() == null) {
+            out.code.add(ExpressionStatement(parseExpression(block.expression())))
+            return out
+        }
+
+        val prevLocalVariables = localVariables.toList()
+        block.statement().map(::parseStatement).forEach(out.code::add)
+        val result = parseExpression(block.expression())
+        out.code.add(ExpressionStatement(result))
+
+        out.localVariables.addAll(localVariables)
+        localVariables.clear()
+        localVariables.addAll(prevLocalVariables)
+
+        return out
+    }
+
     private fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
         val subject = ctx.expression()?.let { parseExpression(it) }
-        val subjectVar = subject?.let { LocalVariable("whenStatement@subject", ExpressionTypes.getExpressionType(this.ctx, it)) }
+        val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(this.ctx, it)) }
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
         val entries = ctx.whenEntry()
         if (entries.count { it.whenCondition().ELSE() != null } > 1) {

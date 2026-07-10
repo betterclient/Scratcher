@@ -198,7 +198,7 @@ class ConvertToHeapAccess(
                 inputExprs = statement.inputExprs.map { convertExpression(it, currentFunction, getFunctionLocals) },
                 stmt = statement.stmt
             ))
-            is CompositeStatement -> statement.statements.flatMap { convertStatement(statement, currentFunction, getFunctionLocals) }
+            is CompositeStatement -> statement.statements.flatMap { convertStatement(it, currentFunction, getFunctionLocals) }
         }
     }
 
@@ -310,7 +310,8 @@ class ConvertToHeapAccess(
 
     private fun countInternalLocals(code: CodeBlock): List<LocalVariable> {
         val vars = mutableListOf<LocalVariable>()
-        for (statement in code.code) {
+
+        fun countFromStatement(statement: Statement) {
             when (statement) {
                 is ExpressionStatement -> throw UnreachableException()
                 is IfElseStatement -> {
@@ -329,16 +330,14 @@ class ConvertToHeapAccess(
                 is VariableStatement -> {
                     vars.add(statement.variable)
                 }
-                is LocalVariableAssignmentStatement -> {}
-                is ReturnStatement -> {}
-                is TLVariableAssignmentStatement -> {}
-                is TemporaryCallStatement -> {}
-                is TemporaryHeapSetStatement -> {}
-                is TemporaryScratchStmt -> {}
-                is VariableAssignmentStatement -> {}
-                is CompositeStatement -> {}
+                is CompositeStatement -> {
+                    statement.statements.forEach { countFromStatement(it) }
+                }
+                else -> {}
             }
         }
+
+        code.code.forEach { countFromStatement(it) }
         return vars.distinct()
     }
 
@@ -352,60 +351,72 @@ class ConvertToHeapAccess(
         par: Parameter
     ) {
         var returnStmt: ReturnStatement? = null
-        val replacements = mutableMapOf<Statement, List<Statement>>()
-        for (statement in block.code) {
-            when (statement) {
-                is IfElseStatement -> {
-                    addAllocAndFreeStack(function, statement.thenBlock, par)
-                    addAllocAndFreeStack(function, statement.elseBlock, par)
-                }
-                is IfStatement -> {
-                    addAllocAndFreeStack(function, statement.thenBlock, par)
-                }
-                is RepeatStatement -> {
-                    addAllocAndFreeStack(function, statement.block, par)
-                }
-                is WhileStatement -> {
-                    addAllocAndFreeStack(function, statement.block, par)
-                }
-                is ReturnStatement -> {
-                    returnStmt = statement
-                    break //no reason to break here cause return is guaranteed to be last, but do anyway
-                }
-                is ExpressionStatement -> throw UnreachableException()
-                is LocalVariableAssignmentStatement -> {}
-                is TLVariableAssignmentStatement -> {}
-                is TemporaryCallStatement -> {
-                    if (statement.func is StandardLibASTFunction) continue
-                    
-                    if (hasLocalsMap[statement.func] != true) {
-                        replacements[statement] = listOf(
-                            statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList())
-                        )
-                    } else {
-                        val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
-                        replacements[statement] = listOfNotNull(
-                            VariableStatement(null, allocVar),
-                            TemporaryCallStatement(
+
+        fun processStatements(statements: List<Statement>): List<Statement> {
+            val result = mutableListOf<Statement>()
+            for (statement in statements) {
+                when (statement) {
+                    is IfElseStatement -> {
+                        addAllocAndFreeStack(function, statement.thenBlock, par)
+                        addAllocAndFreeStack(function, statement.elseBlock, par)
+                        result.add(statement)
+                    }
+                    is IfStatement -> {
+                        addAllocAndFreeStack(function, statement.thenBlock, par)
+                        result.add(statement)
+                    }
+                    is RepeatStatement -> {
+                        addAllocAndFreeStack(function, statement.block, par)
+                        result.add(statement)
+                    }
+                    is WhileStatement -> {
+                        addAllocAndFreeStack(function, statement.block, par)
+                        result.add(statement)
+                    }
+                    is ReturnStatement -> {
+                        returnStmt = statement
+                        result.add(statement)
+                        break
+                    }
+                    is ExpressionStatement -> throw UnreachableException()
+                    is TemporaryCallStatement -> {
+                        if (statement.func is StandardLibASTFunction) {
+                            result.add(statement)
+                            continue
+                        }
+
+                        if (hasLocalsMap[statement.func] != true) {
+                            result.add(statement.copy(args = (listOf(NullExpression) + statement.args).toMutableList()))
+                        } else {
+                            val allocVar = LocalVariable(obfuscate("stackAllocationFor${statement.func.name}Call"), Type.int)
+                            result.add(VariableStatement(null, allocVar))
+                            result.add(TemporaryCallStatement(
                                 MemoryLib.alloc,
                                 mutableListOf(getTemporary(statement.func), getNameTemporary(statement.func), TemporaryLocalVariableIndexExpression(allocVar))
-                            ),
-                            TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                            ))
+                            result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
                                 listOf(
                                     ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
                                 )
-                            },
-                            statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList())
-                        )
+                            })
+                            result.add(statement.copy(args = (listOf(LocalVariableExpression(allocVar)) + statement.args).toMutableList()))
+                        }
+                    }
+                    is CompositeStatement -> {
+                        val processed = processStatements(statement.statements)
+                        result.add(CompositeStatement(processed))
+                    }
+                    else -> {
+                        result.add(statement)
                     }
                 }
-                is TemporaryHeapSetStatement -> {}
-                is VariableAssignmentStatement -> {}
-                is VariableStatement -> {}
-                is TemporaryScratchStmt -> {}
-                is CompositeStatement -> {}
             }
+            return result
         }
+
+        val processedCode = processStatements(block.code)
+        block.code.clear()
+        block.code.addAll(processedCode)
 
         val freeStmt = TemporaryCallStatement(
             MemoryLib.free,
@@ -432,13 +443,6 @@ class ConvertToHeapAccess(
                 block.code.addAll(index, exitStatements)
             }
         }
-
-        val newCode = mutableListOf<Statement>()
-        for (statement in block.code) {
-            newCode += replacements[statement] ?: listOf(statement)
-        }
-        block.code.clear()
-        block.code.addAll(newCode)
     }
 
 
