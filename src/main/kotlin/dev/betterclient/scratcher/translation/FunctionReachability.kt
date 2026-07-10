@@ -115,6 +115,9 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                 addAllReachableFunctions(funcs, expr.right)
             }
             is WhenExpression -> {
+                if (expr.subject is VariableStatement) {
+                    (expr.subject as VariableStatement).defaultValue?.let { addAllReachableFunctions(funcs, it) }
+                }
                 expr.branches.forEach {
                     funcs += getAllReachableFunctions(it.block)
                     addAllReachableFunctions(funcs, it.cond)

@@ -161,10 +161,20 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         return when(expr) {
             is WhenExpression -> {
                 if (function != null) {
+                    val subjectType = expr.subject?.let { (it as VariableStatement).variable.type }
                     expr.subject?.let { checkCodeBlock(function, mutableListOf(it)) }
 
                     expr.branches.forEach { branch ->
                         checkType(Type.bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
+                        subjectType?.let { expected ->
+                            if (!branch.isElse) {
+                                val actualBranchExpr = (branch.cond as BinaryExpression).right
+                                val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
+                                if (!branchExprType.isAssignable(expected)) {
+                                    throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
+                                }
+                            }
+                        }
                         checkCodeBlock(function, branch.block.code, isWhenBranch = true)
                     }
                 }
@@ -174,14 +184,19 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
 
                 if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-                    expr.branches.map {
+                    val branchTypes = expr.branches.map {
                         val branchExpr = (it.block.code.last() as ExpressionStatement).expression
                         getActualTypeOrThrow(branchExpr, function)
-                    }.reduce { left, right ->
+                    }
+                    val unifiedType = branchTypes.reduce { left, right ->
                         if (left.isAssignable(right)) left
                         else if (right.isAssignable(left)) right
                         else throw TypeAnalysisException("When branches return different types.")
                     }
+                    if (unifiedType != Type.void && !isWhenExhaustive(ctx, expr) && expr.branches.none { it.isElse }) {
+                        throw TypeAnalysisException("When expression used as value must have an else branch or be exhaustive")
+                    }
+                    unifiedType
                 } else {
                     Type.void
                 }

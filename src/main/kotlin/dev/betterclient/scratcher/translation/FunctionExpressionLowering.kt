@@ -294,7 +294,9 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
             func.code.localVariables.add(expression.subject.variable)
             val loweredSubject = lowerExpr(expression.subject.defaultValue!!)
             prepend.addAll(loweredSubject.prepend)
-            prepend.add(VariableStatement(loweredSubject.expression!!, expression.subject.variable))
+            if (loweredSubject.expression != null) {
+                prepend.add(VariableStatement(loweredSubject.expression!!, expression.subject.variable))
+            }
         }
 
         if (tempVar != null) {
@@ -337,13 +339,39 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
         lowerBlock(branchBlock)
 
         val condStatements = condResult.prepend
-        val nextStmt = buildIfChain(branches, index + 1, tempVar)
+        val isLastBranch = index == branches.lastIndex
+        val isElseBranch = branch.isElse
 
-        val ifStmt = if (nextStmt != null) {
+        val ifStmt: Statement = if (isLastBranch && isElseBranch) {
+            // Only branch is else: unconditional block
+            if (branchBlock.code.size == 1) {
+                branchBlock.code[0]
+            } else {
+                CompositeStatement(branchBlock.code)
+            }
+        } else if (!isLastBranch && branches[index + 1].isElse) {
+            // Next branch is else: use this branch as condition, else branch as else block
+            val elseBranch = branches[index + 1]
             val elseBlock = CodeBlock()
-            elseBlock.code.add(nextStmt)
+            elseBlock.localVariables.addAll(elseBranch.block.localVariables)
+            elseBlock.code.addAll(elseBranch.block.code)
+            if (tempVar != null && elseBlock.code.isNotEmpty()) {
+                val lastIndex = elseBlock.code.lastIndex
+                val lastStmt = elseBlock.code[lastIndex]
+                if (lastStmt is ExpressionStatement) {
+                    elseBlock.code[lastIndex] = LocalVariableAssignmentStatement(tempVar, lastStmt.expression)
+                }
+            }
+            lowerBlock(elseBlock)
+            IfElseStatement(condResult.expression!!, branchBlock, elseBlock)
+        } else if (!isLastBranch) {
+            // Normal branch with next branch
+            val nextStmt = buildIfChain(branches, index + 1, tempVar)
+            val elseBlock = CodeBlock()
+            elseBlock.code.add(nextStmt!!)
             IfElseStatement(condResult.expression!!, branchBlock, elseBlock)
         } else {
+            // Last branch but not else
             IfStatement(condResult.expression!!, branchBlock)
         }
 

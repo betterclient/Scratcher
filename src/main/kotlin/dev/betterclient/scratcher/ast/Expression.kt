@@ -79,7 +79,8 @@ data class WhenExpression(
 
 data class WhenBranch(
     val cond: Expression,
-    val block: CodeBlock
+    val block: CodeBlock,
+    val isElse: Boolean = false
 )
 
 sealed class Literal : Expression()

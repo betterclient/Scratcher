@@ -5,6 +5,22 @@ import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.std.lib.ListLib
 
+fun isWhenExhaustive(context: CompilationContext, expr: WhenExpression): Boolean {
+    if (expr.branches.any { it.isElse }) return true
+    val subjectType = (expr.subject as? VariableStatement)?.variable?.type ?: return false
+    val enumDef = subjectType.sourceAST?.enums?.find { it.type.asNonNull() == subjectType.asNonNull() } ?: return false
+    val covered = mutableSetOf<Int>()
+    for (branch in expr.branches) {
+        val inner = (branch.cond as? BinaryExpression)?.right ?: return false
+        if (inner is EnumLiteral) {
+            covered.add(inner.ordinal)
+        } else {
+            return false
+        }
+    }
+    return covered.containsAll(enumDef.values.indices.toSet())
+}
+
 object ExpressionTypes {
     fun getExpressionType(context: CompilationContext, expr: Expression): Type {
         return when(expr) {
@@ -32,13 +48,18 @@ object ExpressionTypes {
                     it.block.code.lastOrNull() is ExpressionStatement
                 }
                 if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-                    expr.branches.map {
+                    val branchTypes = expr.branches.map {
                         getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
-                    }.reduce { left, right ->
+                    }
+                    val unifiedType = branchTypes.reduce { left, right ->
                         if (left.isAssignable(right)) left
                         else if (right.isAssignable(left)) right
                         else throw GeneralCompilerException("When branches return different types.")
                     }
+                    if (unifiedType != Type.void && !isWhenExhaustive(context, expr) && expr.branches.none { it.isElse }) {
+                        throw GeneralCompilerException("When expression used as value must have an else branch or be exhaustive")
+                    }
+                    unifiedType
                 } else {
                     Type.void
                 }

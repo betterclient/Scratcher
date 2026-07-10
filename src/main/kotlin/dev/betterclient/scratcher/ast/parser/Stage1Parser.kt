@@ -394,15 +394,25 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
         val subject = ctx.expression()?.let { parseExpression(it) }
         val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(this.ctx, it)) }
+        subjectVar?.let { localVariables.add(it) }
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
         val entries = ctx.whenEntry()
+        if (entries.isEmpty()) {
+            throw GeneralCompilerException("When expression must have at least one branch at ${ctx.position?.start}")
+        }
         if (entries.count { it.whenCondition().ELSE() != null } > 1) {
             throw DuplicateDefinitionException("Duplicate ELSE condition in ${ctx.position?.start}")
+        }
+        for (i in entries.indices) {
+            if (entries[i].whenCondition().ELSE() != null && i != entries.lastIndex) {
+                throw GeneralCompilerException("ELSE must be the last branch in when expression at ${ctx.position?.start}")
+            }
         }
 
         return WhenExpression(
             subjectAssignment,
             entries.map { entry ->
+                val isElse = entry.whenCondition().ELSE() != null
                 val cond = entry.whenCondition().expression()?.let {
                     val expr = parseExpression(it)
                     if (subjectVar != null) {
@@ -412,7 +422,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                             operator = BinaryOperator.EQUAL
                         )
                     } else expr
-                }?: BooleanLiteral(true) //else
+                } ?: BooleanLiteral(true) //else
 
                 val branchBlock = CodeBlock()
                 if (entry.expression() != null) {
@@ -430,7 +440,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
                 WhenBranch(
                     cond,
-                    branchBlock
+                    branchBlock,
+                    isElse
                 )
             }
         )

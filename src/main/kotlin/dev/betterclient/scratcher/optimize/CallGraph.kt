@@ -66,6 +66,9 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
     private fun generate(expr: Expression, out: MutableList<Function>) {
         when(expr) {
             is WhenExpression -> {
+                if (expr.subject is VariableStatement) {
+                    (expr.subject as VariableStatement).defaultValue?.let { generate(it, out) }
+                }
                 expr.branches.forEach {
                     generate(it.block, out)
                     generate(it.cond, out)
