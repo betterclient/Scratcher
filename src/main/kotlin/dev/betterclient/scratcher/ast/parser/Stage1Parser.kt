@@ -394,7 +394,6 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
         val subject = ctx.expression()?.let { parseExpression(it) }
         val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(this.ctx, it)) }
-        subjectVar?.let { localVariables.add(it) }
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
         val entries = ctx.whenEntry()
         if (entries.isEmpty()) {

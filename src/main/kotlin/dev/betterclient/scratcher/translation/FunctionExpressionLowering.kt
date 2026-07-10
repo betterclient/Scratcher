@@ -290,12 +290,24 @@ class FunctionExpressionLowering(val context: CompilationContext, val func: Func
             tv
         } else null
 
-        if (expression.subject != null && expression.subject is VariableStatement) {
-            func.code.localVariables.add(expression.subject.variable)
-            val loweredSubject = lowerExpr(expression.subject.defaultValue!!)
-            prepend.addAll(loweredSubject.prepend)
-            if (loweredSubject.expression != null) {
-                prepend.add(VariableStatement(loweredSubject.expression!!, expression.subject.variable))
+        if (expression.subject != null) {
+            when (expression.subject) {
+                is VariableStatement -> {
+                    func.code.localVariables.add(expression.subject.variable)
+                    val loweredSubject = lowerExpr(expression.subject.defaultValue!!)
+                    prepend.addAll(loweredSubject.prepend)
+                    if (loweredSubject.expression != null) {
+                        prepend.add(VariableStatement(loweredSubject.expression!!, expression.subject.variable))
+                    }
+                }
+                is TLVariableAssignmentStatement -> {
+                    val loweredSubject = lowerExpr(expression.subject.assignment)
+                    prepend.addAll(loweredSubject.prepend)
+                    if (loweredSubject.expression != null) {
+                        prepend.add(TLVariableAssignmentStatement(expression.subject.variable, expression.subject.sourceAST, loweredSubject.expression!!))
+                    }
+                }
+                else -> throw UnreachableException()
             }
         }
 
