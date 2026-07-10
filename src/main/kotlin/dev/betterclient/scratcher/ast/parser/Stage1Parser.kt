@@ -139,6 +139,22 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
+    private fun parseCodeBlock(block: CodeBlock, ctx: ScratcherLangParser.CodeBlockContext, injectVariables: List<LocalVariable> = listOf()) {
+        ctx.block()?.let {
+            parseBlock(block, it, injectVariables)
+        }
+        ctx.statement()?.let {
+            val prevLocalVariables = localVariables.map { vari -> vari }
+            localVariables.addAll(injectVariables)
+
+            block.code.add(parseStatement(it))
+
+            block.localVariables.addAll(localVariables)
+            localVariables.clear()
+            localVariables.addAll(prevLocalVariables)
+        }
+    }
+
     private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
         val prevLocalVariables = localVariables.map { it }
         localVariables.addAll(injectVariables)
@@ -392,8 +408,15 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val branchBlock = CodeBlock()
                 if (entry.expression() != null) {
                     branchBlock.code.add(ExpressionStatement(parseExpression(entry.expression()!!)))
-                } else if (entry.block() != null) {
-                    parseBlock(branchBlock, entry.block()!!)
+                } else if (entry.codeBlock() != null) {
+                    val block = entry.codeBlock()!!
+                    block.block()?.let {
+                        parseBlock(branchBlock, it)
+                    }
+                    block.statement()?.let {
+                        branchBlock.code.add(parseStatement(it))
+                    }
+
                 }
 
                 WhenBranch(

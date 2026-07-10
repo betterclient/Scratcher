@@ -64,6 +64,7 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
         return when (this) {
             is CallExpression -> false
             is NonNullAssertExpression -> false
+            is WhenExpression -> false
             is BinaryExpression -> left.isSimple() && right.isSimple()
             is ConcatExpression -> left.isSimple() && right.isSimple()
             is UnaryExpression -> expression.isSimple()

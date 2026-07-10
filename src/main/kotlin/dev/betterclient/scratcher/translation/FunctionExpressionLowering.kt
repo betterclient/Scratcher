@@ -3,12 +3,15 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
+import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.except.GeneralCompilerException
 import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 
-class FunctionExpressionLowering(val func: Function) {
+class FunctionExpressionLowering(val context: CompilationContext, val func: Function) {
     val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), Type.int)
     val doingReturnLowering = func.returnType != Type.void
 
@@ -26,12 +29,12 @@ class FunctionExpressionLowering(val func: Function) {
         for(statement in code.code) {
             when(statement) {
                 is ExpressionStatement -> {
-                    if (statement.expression is NullExpression) {
-                        replacements[statement] = listOf()
-                        continue
+                    if (statement.expression !is CallExpression && statement.expression !is WhenExpression) throw GeneralCompilerException("Non CallExpression inside ExpressionStatement, found ${statement.expression}")
+                    if (statement.expression is CallExpression) {
+                        replacements[statement] = lowerCallExpr(statement.expression, ignoreReturn = true).prepend
+                    } else {
+                        replacements[statement] = lowerExpr(statement.expression).prepend
                     }
-                    if (statement.expression !is CallExpression) throw GeneralCompilerException("Non CallExpression inside ExpressionStatement, found ${statement.expression}")
-                    replacements[statement] = lowerCallExpr(statement.expression, ignoreReturn = true).prepend //ignore expression cause its top level
                 }
                 is IfElseStatement -> {
                     val list = mutableListOf<Statement>()
@@ -263,6 +266,7 @@ class FunctionExpressionLowering(val func: Function) {
                 )
                 lowerCallExpr(callExpr)
             }
+            is WhenExpression -> lowerWhenExpr(expression)
             is VariableExpression -> ExpressionLowerResult(expression)
             is BooleanLiteral -> ExpressionLowerResult(expression)
             is FloatLiteral -> ExpressionLowerResult(expression)
@@ -271,8 +275,82 @@ class FunctionExpressionLowering(val func: Function) {
             is LocalVariableExpression -> ExpressionLowerResult(expression)
             is NullExpression -> ExpressionLowerResult(expression)
 
-            is TemporaryExpression, is WhenExpression -> throw UnreachableException()
+            is TemporaryExpression -> throw UnreachableException()
             is EnumLiteral -> ExpressionLowerResult(IntLiteral(expression.ordinal.toBigInteger()))
+        }
+    }
+
+    private fun lowerWhenExpr(expression: WhenExpression): ExpressionLowerResult {
+        val prepend = mutableListOf<Statement>()
+        val returnType = ExpressionTypes.getExpressionType(context, expression)
+
+        val tempVar = if (returnType != Type.void) {
+            val tv = LocalVariable("whenResult@${getUniqueName()}", returnType)
+            func.code.localVariables.add(tv)
+            tv
+        } else null
+
+        if (expression.subject != null) {
+            if (expression.subject is VariableStatement) {
+                func.code.localVariables.add(expression.subject.variable)
+            }
+            prepend.add(expression.subject)
+        }
+
+        if (tempVar != null) {
+            prepend.add(VariableStatement(null, tempVar))
+        }
+
+        val ifChain = buildIfChain(expression.branches, 0, tempVar)
+        if (ifChain != null) {
+            prepend.add(ifChain)
+        }
+
+        return ExpressionLowerResult(
+            expression = if (tempVar != null) LocalVariableExpression(tempVar) else NullExpression,
+            prepend = prepend
+        )
+    }
+
+    private fun buildIfChain(
+        branches: List<WhenBranch>,
+        index: Int,
+        tempVar: LocalVariable?
+    ): Statement? {
+        if (index >= branches.size) return null
+
+        val branch = branches[index]
+        val condResult = lowerExpr(branch.cond)
+
+        val branchBlock = CodeBlock()
+        branchBlock.localVariables.addAll(branch.block.localVariables)
+        branchBlock.code.addAll(branch.block.code)
+
+        if (tempVar != null && branchBlock.code.isNotEmpty()) {
+            val lastIndex = branchBlock.code.lastIndex
+            val lastStmt = branchBlock.code[lastIndex]
+            if (lastStmt is ExpressionStatement) {
+                branchBlock.code[lastIndex] = LocalVariableAssignmentStatement(tempVar, lastStmt.expression)
+            }
+        }
+
+        lowerBlock(branchBlock)
+
+        val condStatements = condResult.prepend
+        val nextStmt = buildIfChain(branches, index + 1, tempVar)
+
+        val ifStmt = if (nextStmt != null) {
+            val elseBlock = CodeBlock()
+            elseBlock.code.add(nextStmt)
+            IfElseStatement(condResult.expression!!, branchBlock, elseBlock)
+        } else {
+            IfStatement(condResult.expression!!, branchBlock)
+        }
+
+        return if (condStatements.isNotEmpty()) {
+            CompositeStatement(condStatements + ifStmt)
+        } else {
+            ifStmt
         }
     }
 }

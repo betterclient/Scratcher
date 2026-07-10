@@ -35,6 +35,7 @@ on GreenFlag {
             utils::random(-180, 180)
         ));
     }
+
     triangles[15] = Triangle(
         utils::random(-240, 240),
         utils::random(-180, 180),
@@ -48,12 +49,8 @@ on GreenFlag {
         pen::eraseAll();
         when(mode) {
             TriangleRenderMode.OFF -> {}
-            TriangleRenderMode.RENDER -> {
-                render(triangles);
-            }
-            TriangleRenderMode.ITHINK -> {
-                looks::say("How are you here???");
-            }
+            TriangleRenderMode.RENDER -> render(triangles);
+            TriangleRenderMode.ITHINK -> looks::say("How are you here???");
         };
     }
 }

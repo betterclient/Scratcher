@@ -73,7 +73,7 @@ data class NonNullAssertExpression(
 ) : Expression()
 
 data class WhenExpression(
-    val subject: VariableStatement?, //if this is not null, we have a subject expr, and we need to prepend this statement before the thingy that causes when
+    val subject: Statement?, //if this is not null, we have a subject expr, and we need to prepend this statement before the thingy that causes when
     val branches: List<WhenBranch>
 ) : Expression()
 

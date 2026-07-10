@@ -21,13 +21,13 @@ topLevelElement
 statement
     : varDecl
     | returnIfStmt
-    | exprStmt
     | assignIndexStmt
     | assignStmt
     | ifStmt
     | whileStmt
     | repeatStmt
     | forStmt
+    | exprStmt
     ;
 
 tlVarDecl
@@ -213,10 +213,18 @@ whenExpression
     ;
 
 whenEntry
-    : whenCondition ARROW (expression | block)
+    : whenCondition ARROW (expression | codeBlock)
     ;
 
 whenCondition
     : expression
     | ELSE
+    ;
+
+ifExpr
+    : IF LPAREN expression RPAREN codeBlock (ELSE (ifExpr | codeBlock))?
+    ;
+
+codeBlock
+    : (block | statement)
     ;
