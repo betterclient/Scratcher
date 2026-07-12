@@ -67,7 +67,7 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
         when(expr) {
             is WhenExpression -> {
                 if (expr.subject is VariableStatement) {
-                    (expr.subject as VariableStatement).defaultValue?.let { generate(it, out) }
+                    expr.subject.defaultValue?.let { generate(it, out) }
                 }
                 expr.branches.forEach {
                     generate(it.block, out)
