@@ -16,6 +16,7 @@ import dev.betterclient.scratcher.translation.heap.ConvertToHeapAccess
 import dev.betterclient.scratcher.translation.visitor.CallExpressionLowering
 import dev.betterclient.scratcher.translation.visitor.FunctionReachability
 import dev.betterclient.scratcher.translation.heap.ReParseLocalVariables
+import dev.betterclient.scratcher.translation.visitor.RemoveEmptyAllocations
 import java.io.File
 
 fun main() {
@@ -61,7 +62,7 @@ fun main() {
     val reachableFunctionsLocalCountsMap = ConvertToHeapAccess(reachableFunctions).run()
 
     println("Remove empty allocations")
-    reachableFunctions.forEach { RemoveEmptyAllocations(it, reachableFunctionsLocalCountsMap[it]?.first?: 0).run() }
+    reachableFunctions.forEach { RemoveEmptyAllocations(it, reachableFunctionsLocalCountsMap[it]?.first ?: 0).run() }
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions) //make sure these are here
     reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
