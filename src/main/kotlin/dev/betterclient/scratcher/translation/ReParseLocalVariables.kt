@@ -1,48 +1,41 @@
 package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.CompositeStatement
+import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IfStatement
 import dev.betterclient.scratcher.ast.LocalVariable
-import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.VariableStatement
-import dev.betterclient.scratcher.ast.WhileStatement
+import dev.betterclient.scratcher.optimize.ASTVisitor
+import dev.betterclient.scratcher.optimize.VisitMode
+import dev.betterclient.scratcher.optimize.visit
 
-class ReParseLocalVariables(val func: Function) {
+class ReParseLocalVariables(val func: Function) : ASTVisitor() {
     fun run() {
-        run(func.code, mutableListOf())
+        visit(func, this)
     }
 
-    private fun run(block: CodeBlock, parentScope: MutableList<LocalVariable>) {
-        val currentScope = parentScope.toMutableList()
-        val rebuiltLocals = mutableListOf<LocalVariable>()
+    private var currentCollector: MutableList<LocalVariable>? = null
 
-        fun processStatement(stmt: Statement) {
-            when (stmt) {
-                is VariableStatement -> {
-                    rebuiltLocals.add(stmt.variable)
-                    currentScope.add(stmt.variable)
-                }
-                is IfStatement -> run(stmt.thenBlock, currentScope)
-                is IfElseStatement -> {
-                    run(stmt.thenBlock, currentScope)
-                    run(stmt.elseBlock, currentScope)
-                }
-                is WhileStatement -> run(stmt.block, currentScope)
-                is RepeatStatement -> run(stmt.block, currentScope)
-                is CompositeStatement -> {
-                    stmt.statements.forEach { processStatement(it) }
-                }
-                else -> {}
-            }
-        }
+    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+        return VisitMode.READ_ONLY
+    }
 
-        block.code.forEach { processStatement(it) }
+    override fun visitCodeBlock(block: CodeBlock): CodeBlock {
+        val previousCollector = currentCollector
+        val myCollector = mutableListOf<LocalVariable>()
+        currentCollector = myCollector
+
+        super.visitCodeBlock(block)
 
         block.localVariables.clear()
-        block.localVariables.addAll(rebuiltLocals)
+        block.localVariables.addAll(myCollector)
+
+        currentCollector = previousCollector
+        return block
+    }
+
+    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+        currentCollector?.add(variable)
+        return super.visitVariableStatement(defaultValue, variable)
     }
 }
