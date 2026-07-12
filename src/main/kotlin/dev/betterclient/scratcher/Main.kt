@@ -48,7 +48,7 @@ fun main() {
     GCLib.generate(reachableTopLevelVariables.keys.toList(), { scratchTopLevels[it]!! })
 
     println("Lower expressions")
-    reachableFunctions.forEach { FunctionExpressionLowering(context, it).run() }
+    reachableFunctions.forEach { CallExpressionLowering(context, it).run() }
     reachableFunctions.forEach { it.returnType = Type.void }
 
     println("Re-parse locals")

@@ -1,42 +1,11 @@
 package dev.betterclient.scratcher.optimize.impl
 
-import dev.betterclient.scratcher.CompilationConstants
-import dev.betterclient.scratcher.ast.BinaryExpression
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.CompositeStatement
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IfStatement
-import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.LocalVariable
-import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.RepeatStatement
-import dev.betterclient.scratcher.ast.ReturnStatement
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.TemporaryHeapGetExpression
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.UnaryExpression
-import dev.betterclient.scratcher.ast.UnaryOperator
-import dev.betterclient.scratcher.ast.VariableStatement
-import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
-import dev.betterclient.scratcher.optimize.OptimizationUtils
-import dev.betterclient.scratcher.optimize.TCallGraph
-import dev.betterclient.scratcher.optimize.VisitMode
-import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.optimize.visitCopy
+import dev.betterclient.scratcher.optimize.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.translation.ExpressionLowerResult
 import java.math.BigInteger
 
 object FunctionInlining : Optimization("Function inlining") {

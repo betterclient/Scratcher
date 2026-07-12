@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.except.UnreachableException
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
 @DslMarker
 @Target(AnnotationTarget.CLASS)

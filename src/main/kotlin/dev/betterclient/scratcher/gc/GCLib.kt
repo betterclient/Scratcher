@@ -5,21 +5,18 @@ import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionLowerResult
 import dev.betterclient.scratcher.ast.ExpressionStatement
-import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariable
-import dev.betterclient.scratcher.ast.TemporaryCallStatement
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
-import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
@@ -28,7 +25,6 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
-import dev.betterclient.scratcher.translation.ExpressionLowerResult
 
 //this just contains helper functions, actual gc implemented in resources/gc.sc
 object GCLib {
