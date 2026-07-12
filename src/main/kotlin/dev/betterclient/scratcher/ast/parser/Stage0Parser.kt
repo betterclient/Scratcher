@@ -250,38 +250,33 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 }
 
 fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: ScratcherLangParser.TypeContext): Type {
-    val listCount = type.LBRACK().size
-    val realType = type.baseType()
-    if (realType.primitiveType() != null) {
-        return context.types.find { it.sourceAST == null && it.name == realType.primitiveType()!!.text }!!.let {  //npe unreachable
-            (1..listCount).fold(it) { currentType, _ ->
-                currentType.list()
+    return when(type) {
+        is ScratcherLangParser.ArrayTypeContext -> {
+            figureOutType(context, currentAST, type.type()).list()
+        }
+        is ScratcherLangParser.PathTypeContext -> {
+            val id = type.typePath().IDENTIFIER()
+            when (id.size) {
+                2 -> {
+                    //from other file
+                    val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
+                    context.types.find { id[1].text == it.name && it.sourceAST == otherFile }
+                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                }
+                1 -> {
+                    //current file
+                    context.types.find { id[0].text == it.name && it.sourceAST == currentAST }
+                        ?: throw NotFoundException("Type ${type.text} not found in current file")
+                }
+                else -> {
+                    throw GeneralCompilerException("Too many :: in type ${type.text}")
+                }
             }
         }
-    } else {
-        val typePath = realType.typePath()!!
-        val id = typePath.IDENTIFIER()
-        when (id.size) {
-            2 -> {
-                //from other file
-                val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
-                return context.types.find { id[1].text == it.name && it.sourceAST == otherFile }?.let {
-                    (1..listCount).fold(it) { currentType, _ ->
-                        currentType.list()
-                    }
-                }?: throw NotFoundException("Type ${type.text} not found in any imports")
-            }
-            1 -> {
-                //current file
-                return context.types.find { id[0].text == it.name && it.sourceAST == currentAST }?.let {
-                    (1..listCount).fold(it) { currentType, _ ->
-                        currentType.list()
-                    }
-                }?: throw NotFoundException("Type ${type.text} not found in current file")
-            }
-            else -> {
-                throw GeneralCompilerException("Too many :: in type ${type.text}")
-            }
+        is ScratcherLangParser.PrimTypeContext -> {
+            context.types.find { it.sourceAST == null && it.name == type.primitiveType().text }!!
         }
+
+        else -> throw GeneralCompilerException("Type parser not implemented for ${type.text}")
     }
 }

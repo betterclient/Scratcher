@@ -156,12 +156,9 @@ argList
     ;
 
 type
-    : baseType (LBRACK RBRACK)*
-    ;
-
-baseType
-    : typePath
-    | primitiveType
+    : typePath                                      # pathType
+    | primitiveType                                 # primType
+    | type LBRACK RBRACK                            # arrayType
     ;
 
 typePath
