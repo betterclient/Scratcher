@@ -105,3 +105,11 @@ data class TemporaryScratchExpr(
     val inputExprs: List<Expression>,
     val expression: (List<ScratchExpression>) -> ScratchExpression
 ) : TemporaryExpression()
+
+data class TemporaryStackSizeExpression(
+    val function: Function
+) : TemporaryExpression()
+
+data class TemporaryStackNameExpression(
+    val function: Function
+) : TemporaryExpression()

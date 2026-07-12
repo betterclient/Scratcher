@@ -1,11 +1,10 @@
-package dev.betterclient.scratcher.translation
+package dev.betterclient.scratcher.translation.visitor
 
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit

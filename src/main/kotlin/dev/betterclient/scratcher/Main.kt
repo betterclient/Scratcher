@@ -12,6 +12,10 @@ import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.translation.*
+import dev.betterclient.scratcher.translation.heap.ConvertToHeapAccess
+import dev.betterclient.scratcher.translation.visitor.CallExpressionLowering
+import dev.betterclient.scratcher.translation.visitor.FunctionReachability
+import dev.betterclient.scratcher.translation.heap.ReParseLocalVariables
 import java.io.File
 
 fun main() {

@@ -27,7 +27,7 @@ abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
         }
     }
 
-    private fun visitStatementWithBuffer(statement: Statement): List<Statement> {
+    fun visitStatementWithBuffer(statement: Statement): List<Statement> {
         val buffer = mutableListOf<Statement>()
         statementBuffer.add(buffer)
 
@@ -123,6 +123,8 @@ interface BaseExpressionVisitor {
     fun visitTemporaryScratchExpr(inputExprs: List<Expression>, expression: (List<ScratchExpression>) -> ScratchExpression): Expression = TemporaryScratchExpr(inputExprs, expression)
     fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression = EnumLiteral(enum, value, ordinal)
     fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression = WhenExpression(subject, branches)
+    fun visitTemporaryStackSizeExpression(func: Function): Expression = TemporaryStackSizeExpression(func)
+    fun visitTemporaryStackNameExpression(func: Function): Expression = TemporaryStackNameExpression(func)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -181,6 +183,8 @@ fun ASTVisitor.visit(expression: Expression): Expression {
                 it.isElse
             )
         }, expression.subject?.let { visit(it) })
+        is TemporaryStackNameExpression -> this.visitTemporaryStackNameExpression(expression.function)
+        is TemporaryStackSizeExpression -> this.visitTemporaryStackSizeExpression(expression.function)
     }
 }
 

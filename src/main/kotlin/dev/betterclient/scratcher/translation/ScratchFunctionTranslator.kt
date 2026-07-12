@@ -142,6 +142,8 @@ class ScratchFunctionTranslator(
             is CallExpression,
             is MemberExpression,
             is TemporaryLocalVariableIndexExpression,
+            is TemporaryStackNameExpression,
+            is TemporaryStackSizeExpression,
             is LocalVariableExpression,
             is EnumLiteral,
             is WhenExpression,

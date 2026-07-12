@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.translation
+package dev.betterclient.scratcher.translation.heap
 
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
@@ -15,10 +15,7 @@ class ReParseLocalVariables(val func: Function) : ASTVisitor() {
     }
 
     private var currentCollector: MutableList<LocalVariable>? = null
-
-    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
-        return VisitMode.READ_ONLY
-    }
+    override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
     override fun visitCodeBlock(block: CodeBlock): CodeBlock {
         val previousCollector = currentCollector

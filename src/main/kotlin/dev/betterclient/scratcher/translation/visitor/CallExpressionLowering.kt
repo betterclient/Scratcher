@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.translation
+package dev.betterclient.scratcher.translation.visitor
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*

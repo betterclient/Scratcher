@@ -41,8 +41,9 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
                 is IfStatement -> run(statement.thenBlock)
                 is RepeatStatement -> run(statement.block)
 
-                is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement ->
-                    throw UnreachableException()
+                is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement -> {
+                    error(statement)
+                }
 
                 is ReturnStatement, is TLVariableAssignmentStatement, is TemporaryCallStatement,
                 is TemporaryHeapSetStatement, is VariableAssignmentStatement, is TemporaryScratchStmt,
