@@ -99,22 +99,6 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun parseCodeBlock(block: CodeBlock, ctx: ScratcherLangParser.CodeBlockContext, injectVariables: List<LocalVariable> = listOf()) {
-        ctx.block()?.let {
-            parseBlock(block, it, injectVariables)
-        }
-        ctx.statement()?.let {
-            val prevLocalVariables = localVariables.map { vari -> vari }
-            localVariables.addAll(injectVariables)
-
-            block.code.add(parseStatement(it))
-
-            block.localVariables.addAll(localVariables)
-            localVariables.clear()
-            localVariables.addAll(prevLocalVariables)
-        }
-    }
-
     private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
         val prevLocalVariables = localVariables.map { it }
         localVariables.addAll(injectVariables)
@@ -157,42 +141,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 )
             }
             is ScratcherLangParser.AssignStmtContext -> {
-                val variableExpr = parseExpression(child.expression(0)!!)
-                val assignmentExpr = parseExpression(child.expression(1)!!)
-                val assignmentType = child.assignOp()
-                val actualAssignment = when {
-                    assignmentType.ASSIGN() != null -> {
-                        assignmentExpr
-                    }
-                    else -> {
-                        BinaryExpression(
-                            left = variableExpr,
-                            right = assignmentExpr,
-                            operator = when {
-                                assignmentType.ADD_ASSIGN() != null -> BinaryOperator.ADD
-                                assignmentType.DIV_ASSIGN() != null -> BinaryOperator.DIVIDE
-                                assignmentType.MUL_ASSIGN() != null -> BinaryOperator.MULTIPLY
-                                assignmentType.SUB_ASSIGN() != null -> BinaryOperator.SUBTRACT
-                                else -> throw GeneralCompilerException("Unknown assignment type $assignmentType")
-                            }
-                        )
-                    }
-                }
-
-                when(variableExpr) {
-                    is LocalVariableExpression -> {
-                        LocalVariableAssignmentStatement(variableExpr.variable, actualAssignment)
-                    }
-                    is MemberExpression -> {
-                        VariableAssignmentStatement(variableExpr.expression, variableExpr.member, variableExpr.struct, actualAssignment)
-                    }
-                    is VariableExpression -> {
-                        if (!variableExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${variableExpr.sourceAST.simplePath}::${variableExpr.variable.name}")
-
-                        TLVariableAssignmentStatement(variableExpr.variable, variableExpr.sourceAST, actualAssignment)
-                    }
-                    else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $variableExpr")
-                }
+                parseAssignStatement(child)
             }
             is ScratcherLangParser.IfStmtContext -> {
                 parseIfStatement(child)
@@ -218,8 +167,28 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             is ScratcherLangParser.ForStmtContext -> {
                 parseForStatement(child)
             }
+            is ScratcherLangParser.PostIncStmtContext -> {
+                parsePostIncStmt(child)
+            }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
+    }
+
+    private fun parseAssignStatement(child: ScratcherLangParser.AssignStmtContext): Statement {
+        val variableExpr = parseExpression(child.expression(0)!!)
+        val assignmentExpr = parseExpression(child.expression(1)!!)
+        val assignmentType = child.assignOp()
+
+        val op = when {
+            assignmentType.ASSIGN() != null -> null
+            assignmentType.ADD_ASSIGN() != null -> BinaryOperator.ADD
+            assignmentType.DIV_ASSIGN() != null -> BinaryOperator.DIVIDE
+            assignmentType.MUL_ASSIGN() != null -> BinaryOperator.MULTIPLY
+            assignmentType.SUB_ASSIGN() != null -> BinaryOperator.SUBTRACT
+            else -> throw GeneralCompilerException("Unknown assignment type $assignmentType")
+        }
+
+        return buildAssignment(variableExpr, op, assignmentExpr)
     }
 
     private fun parseIfStatement(child: ScratcherLangParser.IfStmtContext): Statement {
@@ -718,5 +687,78 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 localVariables.addAll(prevLocalVariables)
             }
         )
+    }
+
+    private fun parsePostIncStmt(ctx: ScratcherLangParser.PostIncStmtContext): Statement {
+        val targetExpr = when (ctx) {
+            is ScratcherLangParser.PlusPlusContext -> parseExpression(ctx.expression())
+            is ScratcherLangParser.MinusMinusContext -> parseExpression(ctx.expression())
+            else -> throw UnsupportedOperationException(ctx.text)
+        }
+
+        val amount = if (ctx is ScratcherLangParser.PlusPlusContext) 1 else -1
+        val amountExpr = IntLiteral(amount.toBigInteger())
+
+        return buildAssignment(targetExpr, BinaryOperator.ADD, amountExpr)
+    }
+
+    private fun buildAssignment(
+        targetExpr: Expression,
+        op: BinaryOperator?,
+        valueExpr: Expression
+    ): Statement {
+        if (op == null) {
+            return when (targetExpr) {
+                is LocalVariableExpression -> LocalVariableAssignmentStatement(targetExpr.variable, valueExpr)
+                is MemberExpression -> VariableAssignmentStatement(targetExpr.expression, targetExpr.member, targetExpr.struct, valueExpr)
+                is VariableExpression -> {
+                    if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                    TLVariableAssignmentStatement(targetExpr.variable, targetExpr.sourceAST, valueExpr)
+                }
+                else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
+            }
+        } else {
+            return when (targetExpr) {
+                is LocalVariableExpression -> {
+                    val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
+                    LocalVariableAssignmentStatement(targetExpr.variable, actualAssignment)
+                }
+                is VariableExpression -> {
+                    if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                    val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
+                    TLVariableAssignmentStatement(targetExpr.variable, targetExpr.sourceAST, actualAssignment)
+                }
+                is MemberExpression -> {
+                    val baseExprType = ExpressionTypes.getExpressionType(this.ctx, targetExpr.expression)
+                    val tempBaseVar = LocalVariable(
+                        obfuscate("compiler@compoundAssignBase${getUniqueName()}"),
+                        baseExprType
+                    )
+                    localVariables.add(tempBaseVar)
+
+                    val declareStmt = VariableStatement(targetExpr.expression, tempBaseVar)
+                    val tempBaseExpr = LocalVariableExpression(tempBaseVar)
+                    val readExpr = MemberExpression(tempBaseExpr, targetExpr.member, targetExpr.struct)
+                    val actualAssignment = BinaryExpression(readExpr, op, valueExpr)
+
+                    val assignStmt = VariableAssignmentStatement(
+                        tempBaseExpr,
+                        targetExpr.member,
+                        targetExpr.struct,
+                        actualAssignment
+                    )
+
+                    IfStatement(
+                        condition = BooleanLiteral(true),
+                        thenBlock = CodeBlock().also {
+                            it.code.add(declareStmt)
+                            it.code.add(assignStmt)
+                            it.localVariables.add(tempBaseVar)
+                        }
+                    )
+                }
+                else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
+            }
+        }
     }
 }

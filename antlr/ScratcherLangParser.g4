@@ -23,6 +23,7 @@ statement
     | returnIfStmt
     | assignIndexStmt
     | assignStmt
+    | postIncStmt
     | ifStmt
     | whileStmt
     | repeatStmt
@@ -230,4 +231,9 @@ exprBlock
 
 codeBlock
     : (block | statement)
+    ;
+
+postIncStmt
+    : expression PLUS PLUS SEMI   # plusPlus
+    | expression MINUS MINUS SEMI # minusMinus
     ;

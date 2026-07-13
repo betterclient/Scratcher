@@ -60,6 +60,7 @@ on GreenFlag {
 
 warp void render(Triangle[] triangles) {
     looks::say("X1 ${a.x1}");
+    a.x1++;
     for(Triangle t in triangles) {
         triangle::fill(
             t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
