@@ -194,10 +194,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 ast.functions.add(funcAST)
             } else if (context.tlVarDecl() != null) {
                 val variable = context.tlVarDecl()!!
+                if (variable.expression() == null && variable.AUTO() != null) {
+                    throw GeneralCompilerException("Top-level auto variable ${variable.IDENTIFIER().text} must have an initializer.")
+                }
+
                 val astVariable = TLVariable(
                     variable.IDENTIFIER().text,
                     variable.isConst == null,
-                    figureOutType(ctx, ast, variable.type()),
+                    variable.type()?.let {
+                        figureOutType(ctx, ast, it)
+                    }?: Type.autoType,
                     sourceAST = ast
                 )
                 astVariable.ctx = variable.expression()

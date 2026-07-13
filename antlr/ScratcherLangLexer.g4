@@ -23,6 +23,7 @@ STR_TYPE   : 'str';
 VOID_TYPE  : 'void';
 BOOL_TYPE  : 'bool';
 LIST       : 'List';
+AUTO       : 'auto';
 
 TRUE  : 'true';
 FALSE : 'false';

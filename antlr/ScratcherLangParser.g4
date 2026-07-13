@@ -32,11 +32,11 @@ statement
     ;
 
 tlVarDecl
-    : (isConst=CONST)? type IDENTIFIER (ASSIGN expression)? SEMI
+    : (isConst=CONST)? (AUTO | type) IDENTIFIER (ASSIGN expression)? SEMI
     ;
 
 varDecl
-    : type IDENTIFIER ASSIGN expression SEMI
+    : (AUTO | type) IDENTIFIER ASSIGN expression SEMI
     ;
 
 funcDecl
@@ -113,7 +113,7 @@ repeatStmt
     ;
 
 forStmt
-    : FOR LPAREN type IDENTIFIER IN expression RPAREN block
+    : FOR LPAREN (AUTO | type) IDENTIFIER IN expression RPAREN block
     ;
 
 eventDecl

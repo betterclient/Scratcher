@@ -33,6 +33,9 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.ctx?.let {
                 variable.defaultValue = parseExpression(it)
+                if (variable.type == Type.autoType) {
+                    variable.type = ExpressionTypes.getExpressionType(this.ctx, variable.defaultValue!!)
+                }
             }
             variable.ctx = null
         }
@@ -117,9 +120,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseStatement(ctx: ScratcherLangParser.StatementContext): Statement {
         return when (val child = ctx.getChild(0)) {
             is ScratcherLangParser.VarDeclContext -> {
-                val type = figureOutType(this.ctx, ast, child.type())
                 val name = child.IDENTIFIER().text
                 val value = parseExpression(child.expression())
+                val type = child.type()?.let {
+                    figureOutType(this.ctx, ast, it)
+                }?: ExpressionTypes.getExpressionType(this.ctx, value)
 
                 val variable = LocalVariable(name, type)
                 if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${currentFunction?.name}::${variable.name} is type void.")
@@ -637,7 +642,9 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         )
         val variable = LocalVariable(
             name = child.IDENTIFIER().text,
-            type = figureOutType(this.ctx, ast, child.type())
+            child.type()?.let {
+                figureOutType(this.ctx, ast, it)
+            }?: listVar.type.inner!!
         )
         val indexVariable = LocalVariable(
             obfuscate("compiler@forStmtIndex${getUniqueName()}"),

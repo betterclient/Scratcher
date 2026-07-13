@@ -57,6 +57,7 @@ data class Type(
         val bool = Type("bool", null)
         val void = Type("void", null)
         val nullType = Type("null", null, nullable = true)
+        val autoType = Type("auto", null) //used during type inference
     }
     val isPrimitive: Boolean
         get() = sourceAST == null && inner == null
@@ -99,7 +100,7 @@ data class Type(
 class TLVariable(
     val name: String,
     val mutable: Boolean,
-    val type: Type,
+    var type: Type,
     var defaultValue: Expression? = null,
     val sourceAST: ASTFile
 ) {
