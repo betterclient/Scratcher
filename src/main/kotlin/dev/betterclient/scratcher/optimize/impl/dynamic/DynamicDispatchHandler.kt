@@ -26,11 +26,11 @@ import java.math.BigInteger
 
 object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
-        val literalTypes = mutableMapOf<FunctionType, MutableList<Function>>()
+        val literalTypes = mutableMapOf<FunctionType, MutableSet<Function>>()
         graph.keys.forEach { countLiterals(it, literalTypes) }
         val dispatchers = literalTypes.keys.zip(
             literalTypes.map { (func, literals) ->
-                createDispatcher(func, literals)
+                createDispatcher(func, literals.toMutableList())
             }
         ).toMap()
 
@@ -91,10 +91,10 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
         )
     }
 
-    private fun countLiterals(func: Function, out: MutableMap<FunctionType, MutableList<Function>>) {
+    private fun countLiterals(func: Function, out: MutableMap<FunctionType, MutableSet<Function>>) {
         visit(func, object : ASTVisitor() {
             override fun visitFunctionLiteral(func: Function): Expression {
-                out.computeIfAbsent(FunctionType.from(func)) { mutableListOf() }.add(func)
+                out.computeIfAbsent(FunctionType.from(func)) { mutableSetOf() }.add(func)
                 return super.visitFunctionLiteral(func)
             }
         })

@@ -2,7 +2,6 @@ package dev.betterclient.scratcher.translation.heap
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.gc.GCInfo
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
@@ -10,9 +9,9 @@ import dev.betterclient.scratcher.optimize.visit
 class HeapConversion(
     val func: Function,
     currentFunction: Function,
-    val getFunctionLocals: (Function) -> Pair<List<LocalVariable>, GCInfo>
+    val getFunctionLocals: (Function) -> FunctionLocalsInfo
 ) : ASTVisitor() {
-    private val locals = getFunctionLocals(currentFunction).first
+    private val indexMap = getFunctionLocals(currentFunction).indexMap
     private val stackPar = currentFunction.parameters.first()
 
     fun run() {
@@ -20,7 +19,7 @@ class HeapConversion(
     }
 
     override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement {
-        val index = locals.indexOf(variable)
+        val index = indexMap[variable]!!
 
         return TemporaryHeapSetStatement(
             index = if (index == 0) {
@@ -59,7 +58,7 @@ class HeapConversion(
     }
 
     override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
-        val index = locals.indexOf(variable)
+        val index = indexMap[variable]!!
         if (defaultValue == null) {
             return null
         } else {
@@ -79,15 +78,15 @@ class HeapConversion(
     }
 
     override fun visitTemporaryStackNameExpression(func: Function): Expression {
-        return StringLiteral(getFunctionLocals(func).second.name.toString())
+        return StringLiteral(getFunctionLocals(func).gcInfo.name.toString())
     }
 
     override fun visitTemporaryStackSizeExpression(func: Function): Expression {
-        return IntLiteral(getFunctionLocals(func).first.size.toBigInteger())
+        return IntLiteral(getFunctionLocals(func).size.toBigInteger())
     }
 
     override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
-        val index = locals.indexOf(variable)
+        val index = indexMap[variable]!!
         return TemporaryHeapGetExpression(
             index = if (index == 0) {
                 ParameterExpression(stackPar)
@@ -102,7 +101,7 @@ class HeapConversion(
     }
 
     override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
-        val index = locals.indexOf(variable)
+        val index = indexMap[variable]!!
         return if (index == 0) {
             ParameterExpression(stackPar)
         } else {

@@ -35,7 +35,7 @@ class ConvertToHeapAccess(
         println("Count locals")
         val newFuncs = functions
             .filter { it !is StandardLibASTFunction }
-            .associateWith { countLocals(it) }
+            .associateWith { LocalAllocationCalculator(it).calculate() }
 
         println("Convert to heap")
         for (function in newFuncs.keys) {
@@ -43,8 +43,7 @@ class ConvertToHeapAccess(
         }
 
         return newFuncs.mapValues { (_, data) ->
-            val (list, info) = data
-            list.size to info
+            data.size to data.gcInfo
         }
     }
 
