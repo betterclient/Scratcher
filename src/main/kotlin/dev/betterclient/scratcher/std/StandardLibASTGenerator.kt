@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -138,7 +139,7 @@ object StandardLibASTGenerator {
             if (isRestricted(ast)) return@forEach
             println("Library: $name")
             ast.functions.forEach { func ->
-                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType.name} ${func.name} (${func.parameters.joinToString { "${it.type} ${it.name}" }})")
+                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType} ${func.name} (${func.parameters.joinToString { "${it.type} ${it.name}" }})")
             }
             if (name == "mem") {
                 println("   Function: warp free (AnyStruct val)")
@@ -160,14 +161,14 @@ object StandardLibASTGenerator {
 object UtilsLib {
     fun init(lib: ASTFile) {
         compileInline(lib, "random", parameters = mutableListOf(
-            Parameter("from", Type.float),
-            Parameter("to", Type.float),
-        ), returnType = Type.float) {
+            Parameter("from", PrimitiveType.Float),
+            Parameter("to", PrimitiveType.Float),
+        ), returnType = PrimitiveType.Float) {
             OperatorExpressions.Random(it[0], it[1])
         }
 
         compileInline(lib, "wait", parameters = mutableListOf(
-            Parameter("seconds", Type.float)
+            Parameter("seconds", PrimitiveType.Float)
         )) {
             ControlStatements.Wait(it[0])
         }

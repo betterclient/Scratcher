@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.gc
 
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
 
@@ -19,8 +20,8 @@ data class StructGCInfo(val type: Type, val struct: Struct) : GCInfo() {
             val type = itt.type
             if (type.isPrimitive) {
                 "p"
-            } else if (type.inner != null) {
-                "${"l".repeat(type.name.count { '[' == it })}${findGC(type.raw())}"
+            } else if (type is ListType) {
+                "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
             } else findGC(type)
         }.joinToString("-")
     }
@@ -30,8 +31,8 @@ data class StackGCInfo(val stack: List<Type>, val func: Function) : GCInfo() {
         return stack.map { type ->
             if (type.isPrimitive) {
                 "p"
-            } else if (type.inner != null) {
-                "${"l".repeat(type.name.count { '[' == it })}${findGC(type.raw())}"
+            } else if (type is ListType) {
+                "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
             } else findGC(type)
         }.joinToString("-")
     }

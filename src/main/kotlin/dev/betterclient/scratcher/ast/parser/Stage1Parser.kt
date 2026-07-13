@@ -4,7 +4,6 @@ import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.except.*
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -33,7 +32,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.ctx?.let {
                 variable.defaultValue = parseExpression(it)
-                if (variable.type == Type.autoType) {
+                if (variable.type == PrimitiveType.Auto) {
                     variable.type = ExpressionTypes.getExpressionType(this.ctx, variable.defaultValue!!)
                 }
             }
@@ -70,7 +69,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         if (CompilationConstants.DISABLE_TYPE_CHECKER || ast.simplePath == "gc_impl") return
 
         for (parameter in parameters) {
-            if (parameter.type == Type.float) {
+            if (parameter.type == PrimitiveType.Float) {
                 val func = if (CompilationConstants.OBFUSCATION) {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloatObf" }
                 } else {
@@ -84,7 +83,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                             StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not a float!")
                     ).toMutableList())
                 ))
-            } else if (parameter.type == Type.int) {
+            } else if (parameter.type == PrimitiveType.Integer) {
                 val func = if (CompilationConstants.OBFUSCATION) {
                     StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkIntObf" }
                 } else {
@@ -126,8 +125,9 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     figureOutType(this.ctx, ast, it)
                 }?: ExpressionTypes.getExpressionType(this.ctx, value)
 
+                if (type == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${currentFunction?.name}")
                 val variable = LocalVariable(name, type)
-                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${currentFunction?.name}::${variable.name} is type void.")
+                if (variable.type == PrimitiveType.Void) throw VoidVariableException("Variable ${ast.simplePath}::${currentFunction?.name}::${variable.name} is type void.")
                 if (localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${currentFunction?.name}")
                 localVariables.add(variable)
                 VariableStatement(value, variable)
@@ -446,8 +446,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         val structExpr = parseExpression(ctx.expression())
         val struct = ExpressionTypes.getExpressionType(this.ctx, structExpr).let { type ->
-            val baseType = type.asNonNull()
-            baseType.sourceAST!!.structs.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
+            val baseType = type.asNonNull() as? SimpleType
+            baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
         }
         val memberName = ctx.IDENTIFIER().text
 
@@ -544,10 +544,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             return CallExpression(it.allocFunc, args)
         }
 
-        val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.name }})"
+        val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.toString() }})"
         val candidates = mutableListOf<String>()
         sourceAST.functions.filter { it.name == funcName }.forEach { func ->
-            candidates.add("Function \"${func.returnType.name} ${func.name}(${func.parameters.joinToString(", ") { "${it.type} ${it.name}" }})\"")
+            candidates.add("Function \"${func.returnType.toString()} ${func.name}(${func.parameters.joinToString(", ") { "${it.type} ${it.name}" }})\"")
         }
         sourceAST.structs.filter { it.name == targetFunc }.forEach { struct ->
             candidates.add("Struct \"${struct.name}\"")
@@ -581,8 +581,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         return when {
             ctx.FALSE() != null -> BooleanLiteral(false)
             ctx.TRUE() != null -> BooleanLiteral(true)
-            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(Type.float, Type.nullType, "${ctx.FLOAT()?.text} is not a float!"))
-            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(Type.int, Type.nullType, "${ctx.INT()?.text} is not an int!"))
+            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(PrimitiveType.Float, PrimitiveType.Null, "${ctx.FLOAT()?.text} is not a float!"))
+            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(PrimitiveType.Integer, PrimitiveType.Null, "${ctx.INT()?.text} is not an int!"))
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
             else -> throw NotImplementedException("$ctx is not one of the expected types.")
         }
@@ -608,7 +608,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
         val exprsReduced = if (exprs.size == 1) {
-            if (ExpressionTypes.getExpressionType(this.ctx, exprs[0]) == Type.str) {
+            if (ExpressionTypes.getExpressionType(this.ctx, exprs[0]) == PrimitiveType.Str) {
                 exprs[0]
             } else {
                 ConcatExpression(exprs[0], StringLiteral(""))
@@ -636,19 +636,23 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
     private fun parseForStatement(child: ScratcherLangParser.ForStmtContext): IfStatement {
         val list = parseExpression(child.expression())
+        val type = ExpressionTypes.getExpressionType(this.ctx, list)
+        if (type is NullableType) throw TypeAnalysisException("List is nullable in for statement at ${child.position}")
+        if (type !is ListType) throw TypeAnalysisException("For statement doesn't have a list at ${child.position}")
+
         val listVar = LocalVariable(
             obfuscate("compiler@forStmtList${getUniqueName()}"),
-            ExpressionTypes.getExpressionType(this.ctx, list)
+            type
         )
         val variable = LocalVariable(
             name = child.IDENTIFIER().text,
             child.type()?.let {
                 figureOutType(this.ctx, ast, it)
-            }?: listVar.type.inner!!
+            }?: (type as ListType).elementType
         )
         val indexVariable = LocalVariable(
             obfuscate("compiler@forStmtIndex${getUniqueName()}"),
-            Type.int
+            PrimitiveType.Integer
         )
 
         //is there a way to unsee code that you wrote?

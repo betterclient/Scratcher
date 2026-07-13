@@ -21,7 +21,7 @@ class ConvertToHeapAccess(
 
         println("Add stack parameter")
         val stacks = functions.filter { it !is StandardLibASTFunction }.map { func ->
-            Parameter(obfuscate("compiler@stack"), Type.int).also { func.parameters.add(0, it) } to func
+            Parameter(obfuscate("compiler@stack"), PrimitiveType.Integer).also { func.parameters.add(0, it) } to func
         }
 
         println("Add free(stack) and alloc(stack)")

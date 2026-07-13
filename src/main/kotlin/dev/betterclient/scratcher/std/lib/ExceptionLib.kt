@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.opcode.StopMode
@@ -14,16 +15,16 @@ object ExceptionLib {
     lateinit var assertNonNull: StandardLibASTFunction
     fun init(lib: ASTFile, editor: ScratchEditor) {
         panic = editor.compile(lib, "panic") {
-            val message = arg("message", Type.str)
+            val message = arg("message", PrimitiveType.Str)
             control.stop(StopMode.OTHER_SCRIPTS_IN_SPRITE)
             sensing.ask(message)
             control.stop(StopMode.ALL)
         }
 
         assertNonNull = editor.compile(lib, "compiler@assertNonNull", userAccessible = false) {
-            val value = arg("value", Type.int)
-            val errorMsg = arg("error", Type.str)
-            val out = returnArg(Type.int)
+            val value = arg("value", PrimitiveType.Integer)
+            val errorMsg = arg("error", PrimitiveType.Str)
+            val out = returnArg(PrimitiveType.Integer)
 
             control.ifElse(
                 condition = value equals "-1".sc,

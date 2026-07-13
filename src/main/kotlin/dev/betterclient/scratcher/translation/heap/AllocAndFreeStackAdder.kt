@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.NullExpression
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.Statement
@@ -64,7 +65,7 @@ class AllocAndFreeStackAdder(
             return TemporaryCallStatement(func, (listOf(NullExpression) + args).toMutableList())
         } else {
             val result = mutableListOf<Statement>()
-            val allocVar = LocalVariable(obfuscate("stackAllocationFor${func.name}Call"), Type.int)
+            val allocVar = LocalVariable(obfuscate("stackAllocationFor${func.name}Call"), PrimitiveType.Integer)
             result.add(VariableStatement(null, allocVar))
             result.add(TemporaryCallStatement(
                 MemoryLib.alloc,

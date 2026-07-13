@@ -65,7 +65,7 @@ structDecl
     ;
 
 structField
-    : type NULLABLE? IDENTIFIER
+    : type IDENTIFIER
     ;
 
 block
@@ -145,6 +145,7 @@ expression
     | IDENTIFIER                                        # idExpr
     | whenExpression                                    # whenExpr
     | ifExpression                                      # ifExpr
+    | AMPERSAND functionIdentifier                      # funcRefExpr
     ;
 
 functionIdentifier
@@ -160,6 +161,8 @@ type
     : typePath                                      # pathType
     | primitiveType                                 # primType
     | type LBRACK RBRACK                            # arrayType
+    | type NULLABLE                                 # nullableType
+    | LPAREN type? (COMMA type)* RPAREN ARROW type  # funcRefType
     ;
 
 typePath

@@ -19,7 +19,7 @@ on GreenFlag {
             looks::say("If thinking is your power, what are you without it?");
             except::panic("If thinking is your power, what are you without it?");
 
-            TriangleRenderMode.ITHINK;
+            null;
         }
     };
 
@@ -53,7 +53,7 @@ on GreenFlag {
         when(mode) {
             TriangleRenderMode.OFF -> {}
             TriangleRenderMode.RENDER -> render(triangles);
-            TriangleRenderMode.ITHINK -> looks::say("How are you here???");
+            else -> looks::say("How are you here???");
         };
     }
 }

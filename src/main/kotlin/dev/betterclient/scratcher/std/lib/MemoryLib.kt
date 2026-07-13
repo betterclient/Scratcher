@@ -28,8 +28,8 @@ object MemoryLib {
         }
 
         free = editor.compile(lib, "free") {
-            val index = arg("index", Type.int)
-            val size = arg("size", Type.int)
+            val index = arg("index", PrimitiveType.Integer)
+            val size = arg("size", PrimitiveType.Integer)
 
             val currentIndex = variable("currentIndex")
             val left = variable("left")
@@ -79,9 +79,9 @@ object MemoryLib {
         }
 
         alloc = editor.compile(lib, "alloc") {
-            val size = arg("size", Type.int)
-            val name = arg("name", Type.str)
-            val returnIndex = arg("returnIndex", Type.int)
+            val size = arg("size", PrimitiveType.Integer)
+            val name = arg("name", PrimitiveType.Str)
+            val returnIndex = arg("returnIndex", PrimitiveType.Integer)
 
             val variable = variable("variable")
             val maxSearchIndex = variable("maxSearchIndex")
@@ -185,7 +185,7 @@ object MemoryLib {
                     library = lib,
                     name = "free",
                     parameters = mutableListOf(Parameter("pointer", struct.type)),
-                    returnType = Type.void
+                    returnType = PrimitiveType.Void
                 ) { args ->
                     val pointerArg = args[0]
                     CallFunction(

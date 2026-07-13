@@ -14,7 +14,7 @@ object TailCallOptimization : Optimization("Tail call optimization") {
         val tailCalls = findTailCalls(func)
         if (countSelfCalls(func) != tailCalls.size) return false
 
-        val tcoActiveVar = LocalVariable(obfuscate("TCO@active"), Type.bool)
+        val tcoActiveVar = LocalVariable(obfuscate("TCO@active"), PrimitiveType.Bool)
         val declarations = mutableListOf<Statement>()
         declarations.add(VariableStatement(BooleanLiteral(true), tcoActiveVar))
 

@@ -10,12 +10,12 @@ import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
@@ -39,7 +39,7 @@ object RepeatToWhile : Optimization("Convert repeat statements to while") {
 
                 val counterVar = LocalVariable(
                     obfuscate("compiler@repeatCounteri" + counterIndex++),
-                    Type.int
+                    PrimitiveType.Integer
                 )
 
                 outerBlock.localVariables.add(counterVar)

@@ -6,7 +6,6 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
-import dev.betterclient.scratcher.except.*
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.obfuscate
@@ -24,12 +23,12 @@ class CompilationContext {
 
     var eventListenerIndex: Int = 0
     val asts = mutableMapOf<String, ASTFile>()
-    val types = mutableListOf(
-        Type.str,
-        Type.int,
-        Type.float,
-        Type.bool,
-        Type.void,
+    val types = mutableListOf<Type>(
+        PrimitiveType.Str,
+        PrimitiveType.Integer,
+        PrimitiveType.Float,
+        PrimitiveType.Bool,
+        PrimitiveType.Void,
     )
 }
 
@@ -116,19 +115,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         ast.structs.forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type())
-                val isNullable = field.NULLABLE() != null
+                val isNullable = type is NullableType
                 if (isNullable && type.isPrimitive) {
                     throw NotNullableException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
                 }
-                if (isNullable && type.inner != null) {
-                    throw NotNullableException("Nullable lists are not allowed, use an empty list instead in ${ast.simplePath}::${struct.name}")
-                }
 
-                if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
+                if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
-                        type.copy(nullable = isNullable)
+                        type
                     )
                 )
             }
@@ -141,7 +137,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val func = context.funcDecl()!!
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
                     val type = figureOutType(ctx, ast, it.type())
-                    if (type == Type.void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
+                    if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                     Parameter(it.IDENTIFIER().text, type)
                 }.toMutableList()
 
@@ -156,7 +152,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 }
 
                 if (duplicate != null) {
-                    val sig = parameterList.joinToString(", ") { it.type.name }
+                    val sig = parameterList.joinToString(", ") { it.type.toString() }
                     throw DuplicateDefinitionException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
                 }
 
@@ -166,14 +162,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     when {
                         modifier.EXPORT() != null -> {
                             if (isExport) {
-                                val sig = parameterList.joinToString(", ") { it.type.name }
+                                val sig = parameterList.joinToString(", ") { it.type.toString() }
                                 throw GeneralCompilerException("Double export in ${ast.simplePath}::$funcName($sig)")
                             }
                             isExport = true
                         }
                         modifier.WARP() != null -> {
                             if (isWarp) {
-                                val sig = parameterList.joinToString(", ") { it.type.name }
+                                val sig = parameterList.joinToString(", ") { it.type.toString() }
                                 throw GeneralCompilerException("Double warp in ${ast.simplePath}::$funcName($sig)")
                             }
                             isWarp = true
@@ -203,11 +199,11 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     variable.isConst == null,
                     variable.type()?.let {
                         figureOutType(ctx, ast, it)
-                    }?: Type.autoType,
+                    }?: PrimitiveType.Auto,
                     sourceAST = ast
                 )
                 astVariable.ctx = variable.expression()
-                if (astVariable.type == Type.void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
+                if (astVariable.type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
                 if (ast.variables.find { it.name == astVariable.name } != null) {
                     throw DuplicateDefinitionException("Duplicate variable definition ${astVariable.name}")
                 }
@@ -224,7 +220,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val func = Function(
                     name = "compiler@eventlistener@${obfuscate(event.IDENTIFIER().text)}i${ctx.eventListenerIndex++}",
                     parameters = mutableListOf(),
-                    returnType = Type.void,
+                    returnType = PrimitiveType.Void,
                     export = false,
                     warp = false,
                     sourceAST = ast,
@@ -258,7 +254,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: ScratcherLangParser.TypeContext): Type {
     return when(type) {
         is ScratcherLangParser.ArrayTypeContext -> {
-            figureOutType(context, currentAST, type.type()).list()
+            ListType(
+                figureOutType(context, currentAST, type.type())
+            )
+        }
+        is ScratcherLangParser.NullableTypeContext -> {
+            NullableType(
+                figureOutType(context, currentAST, type.type())
+            )
         }
         is ScratcherLangParser.PathTypeContext -> {
             val id = type.typePath().IDENTIFIER()
@@ -266,13 +269,17 @@ fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: Scratc
                 2 -> {
                     //from other file
                     val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
-                    context.types.find { id[1].text == it.name && it.sourceAST == otherFile }
-                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                    context.types.find {
+                        if (it !is SimpleType) return@find false
+                        id[1].text == it.name && it.sourceAST == otherFile
+                    }?: throw NotFoundException("Type ${type.text} not found in any imports")
                 }
                 1 -> {
                     //current file
-                    context.types.find { id[0].text == it.name && it.sourceAST == currentAST }
-                        ?: throw NotFoundException("Type ${type.text} not found in current file")
+                    context.types.find {
+                        if (it !is SimpleType) return@find false
+                        id[0].text == it.name && it.sourceAST == currentAST
+                    }?: throw NotFoundException("Type ${type.text} not found in current file")
                 }
                 else -> {
                     throw GeneralCompilerException("Too many :: in type ${type.text}")
@@ -280,7 +287,10 @@ fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: Scratc
             }
         }
         is ScratcherLangParser.PrimTypeContext -> {
-            context.types.find { it.sourceAST == null && it.name == type.primitiveType().text }!!
+            context.types.find {
+                if (it !is PrimitiveType) return@find false
+                it.toString() == type.primitiveType().text
+            }!!
         }
 
         else -> throw GeneralCompilerException("Type parser not implemented for ${type.text}")

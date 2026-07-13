@@ -5,7 +5,9 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.Struct
@@ -16,9 +18,9 @@ import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.except.GeneralCompilerException
-import dev.betterclient.scratcher.except.NotFoundException
-import dev.betterclient.scratcher.except.TypeException
+import dev.betterclient.scratcher.ast.GeneralCompilerException
+import dev.betterclient.scratcher.ast.NotFoundException
+import dev.betterclient.scratcher.ast.TypeException
 import dev.betterclient.scratcher.std.dsl.CodeBuilder
 import dev.betterclient.scratcher.std.dsl.DSLExpression
 import dev.betterclient.scratcher.std.dsl.compile
@@ -61,8 +63,8 @@ object ListLib {
             "newList",
             userAccessible = false
         ) {
-            val returnArg = returnArg(Type.int)
-            val name = arg("name", Type.str)
+            val returnArg = returnArg(PrimitiveType.Integer)
+            val name = arg("name", PrimitiveType.Str)
 
             call(
                 MemoryLib.alloc,
@@ -84,9 +86,9 @@ object ListLib {
                 lib,
                 "replace",
                 parameters = mutableListOf(
-                    Parameter("list", Type.int),
-                    Parameter("item", Type.int),
-                    Parameter("index", Type.int)
+                    Parameter("list", PrimitiveType.Integer),
+                    Parameter("item", PrimitiveType.Integer),
+                    Parameter("index", PrimitiveType.Integer)
                 )
             ) {
                 ListStatements.ReplaceItem(
@@ -111,9 +113,9 @@ object ListLib {
                 lib,
                 "replace",
             ) {
-                val list = arg("list", Type.int)
-                val item = arg("item", Type.int)
-                val index = arg("index", Type.int)
+                val list = arg("list", PrimitiveType.Integer)
+                val item = arg("item", PrimitiveType.Integer)
+                val index = arg("index", PrimitiveType.Integer)
                 checkOutOfBounds(list, index)
 
                 MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index] = item
@@ -124,8 +126,8 @@ object ListLib {
             lib,
             "remove",
         ) {
-            val list = arg("list", Type.int)
-            val index = arg("index", Type.int)
+            val list = arg("list", PrimitiveType.Integer)
+            val index = arg("index", PrimitiveType.Integer)
             val length = MemoryLib.heap[list]
             val dataPtr = MemoryLib.heap[list + 2.sc]
             checkOutOfBounds(list, index)
@@ -145,10 +147,10 @@ object ListLib {
                 lib,
                 "itemAt",
                 parameters = mutableListOf(
-                    Parameter("list", Type.int),
-                    Parameter("index", Type.int)
+                    Parameter("list", PrimitiveType.Integer),
+                    Parameter("index", PrimitiveType.Integer)
                 ),
-                returnType = Type.int
+                returnType = PrimitiveType.Integer
             ) {
                 ListExpressions.ItemAtIndex(
                     MemoryLib.heap,
@@ -171,16 +173,16 @@ object ListLib {
                 lib,
                 "itemAt",
             ) {
-                val list = arg("list", Type.int)
-                val index = arg("index", Type.int)
-                val returnVal = returnArg(Type.int)
+                val list = arg("list", PrimitiveType.Integer)
+                val index = arg("index", PrimitiveType.Integer)
+                val returnVal = returnArg(PrimitiveType.Integer)
                 checkOutOfBounds(list, index)
 
                 MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index]
             }
         }
 
-        clear = compileInline(lib, "clear", mutableListOf(Parameter("list", Type.int))) {
+        clear = compileInline(lib, "clear", mutableListOf(Parameter("list", PrimitiveType.Integer))) {
             ListStatements.ReplaceItem(
                 MemoryLib.heap,
                 item = "0".scratch,
@@ -191,7 +193,7 @@ object ListLib {
             )
         }
 
-        length = compileInline(lib, "length", mutableListOf(Parameter("list", Type.int)), returnType = Type.int) {
+        length = compileInline(lib, "length", mutableListOf(Parameter("list", PrimitiveType.Integer)), returnType = PrimitiveType.Integer) {
             ListExpressions.ItemAtIndex(
                 MemoryLib.heap,
                 it[0]
@@ -202,9 +204,9 @@ object ListLib {
             lib,
             "contains",
         ) {
-            val list = arg("list", Type.int)
-            val item = arg("item", Type.int)
-            val returnVal = returnArg(Type.int)
+            val list = arg("list", PrimitiveType.Integer)
+            val item = arg("item", PrimitiveType.Integer)
+            val returnVal = returnArg(PrimitiveType.Integer)
 
             val length = MemoryLib.heap[list]
             val dataPtr = MemoryLib.heap[list + 2.sc]
@@ -229,8 +231,8 @@ object ListLib {
             lib,
             "reserve"
         ) {
-            val list = arg("list", Type.int)
-            val newCapacity = arg("newCapacity", Type.int)
+            val list = arg("list", PrimitiveType.Integer)
+            val newCapacity = arg("newCapacity", PrimitiveType.Integer)
 
             val length = MemoryLib.heap[list]
             val capacity = MemoryLib.heap[list + 1.sc]
@@ -270,8 +272,8 @@ object ListLib {
             lib,
             "add",
         ) {
-            val list = arg("list", Type.int)
-            val item = arg("item", Type.int)
+            val list = arg("list", PrimitiveType.Integer)
+            val item = arg("item", PrimitiveType.Integer)
 
             val length = MemoryLib.heap[list]
             val capacity = MemoryLib.heap[list + 1.sc]
@@ -293,7 +295,7 @@ object ListLib {
             "free",
             userAccessible = false
         ) {
-            val list = arg("list", Type.int)
+            val list = arg("list", PrimitiveType.Integer)
             val capacity = MemoryLib.heap[list + 1.sc]
             val dataPtr = MemoryLib.heap[list + 2.sc]
 
@@ -321,50 +323,48 @@ object ListLib {
         return when(expr.func) {
             newList -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::newList")
-                val type = (expr.arguments[0] as StringLiteral).value.let { typeStr ->
-                    context.types.find { it.toString() == typeStr }?: throw NotFoundException("Type not found: $typeStr")
-                }
-                type.list()
+                val type = parseTypeFromString((expr.arguments[0] as StringLiteral).value, context)
+                ListType(type)
             }
             itemAt -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::itemAt, requires 2 parameters")
                 check(expr.arguments[1]).let {
-                    if (it != Type.int) {
-                        throw TypeException(Type.int, it, "list::itemAt called without an index?")
+                    if (it != PrimitiveType.Integer) {
+                        throw TypeException(PrimitiveType.Integer, it, "list::itemAt called without an index?")
                     }
                 }
 
-                check(expr.arguments[0]).inner?: throw GeneralCompilerException("list::itemAt called without a list")
+                (check(expr.arguments[0]) as? ListType)?.elementType ?: throw GeneralCompilerException("list::itemAt called without a list")
             }
             add -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::add, requires 2 parameters")
                 val list = check(expr.arguments[0])
                 val added = check(expr.arguments[1])
 
-                if(list.inner != added) {
+                if(list !is ListType || list.elementType != added) {
                     throw GeneralCompilerException("Not adding to a list when calling list::add")
                 }
 
-                Type.void
+                PrimitiveType.Void
             }
             remove -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::remove, requires 2 parameters")
                 val list = check(expr.arguments[0])
                 val index = check(expr.arguments[1])
-                if(list.inner == null || index != Type.int) {
+                if(list !is ListType || index != PrimitiveType.Integer) {
                     throw GeneralCompilerException("Not passing a list to list::remove or not passing an integer")
                 }
-                Type.void
+                PrimitiveType.Void
             }
             clear -> {
                 if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::clear, requires 1 parameter")
-                if (check(expr.arguments[0]).inner == null) throw GeneralCompilerException("Not passing a list to list::clear")
-                Type.void
+                if (check(expr.arguments[0]) !is ListType) throw GeneralCompilerException("Not passing a list to list::clear")
+                PrimitiveType.Void
             }
             length -> {
                 if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::length, requires 1 parameter")
-                if (check(expr.arguments[0]).inner == null) throw GeneralCompilerException("Not passing a list to list::length")
-                Type.int
+                if (check(expr.arguments[0]) !is ListType) throw GeneralCompilerException("Not passing a list to list::length")
+                PrimitiveType.Integer
             }
             replace -> {
                 if (expr.arguments.size != 3) throw GeneralCompilerException("Too many/little arguments on list::replace, requires 3 parameters")
@@ -372,44 +372,53 @@ object ListLib {
                 val added = check(expr.arguments[1])
                 val index = check(expr.arguments[2])
 
-                if(list.inner != added) {
+                if(list !is ListType || list.elementType != added) {
                     throw GeneralCompilerException("Not adding to a list when calling list::replace")
                 }
-                if (index != Type.int) {
-                    throw TypeException(Type.int, index, "Wrong type passed to list::replace")
+                if (index != PrimitiveType.Integer) {
+                    throw TypeException(PrimitiveType.Integer, index, "Wrong type passed to list::replace")
                 }
 
-                Type.void
+                PrimitiveType.Void
             }
             contains -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::contains, requires 2 parameters")
                 val list = check(expr.arguments[0])
                 val item = check(expr.arguments[1])
 
-                if(list.inner != item) {
+                if(list !is ListType || list.elementType != item) {
                     throw GeneralCompilerException("Comparing wrong type to list elements when calling list::contains")
                 }
 
-                Type.bool
+                PrimitiveType.Bool
             }
             reserve -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::reserve, requires 2 parameters")
                 val list = check(expr.arguments[0])
                 val capacity = check(expr.arguments[1])
 
-                if (list.inner == null || capacity != Type.int) {
+                if (list !is ListType || capacity != PrimitiveType.Integer) {
                     throw GeneralCompilerException("Invalid arguments passed to list::reserve")
                 }
 
-                Type.void
+                PrimitiveType.Void
             }
             free -> {
                 if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::free, requires 1 parameter")
-                if (check(expr.arguments[0]).inner == null) throw GeneralCompilerException("Not passing a list to list::free")
-                Type.void
+                if (check(expr.arguments[0]) !is ListType) throw GeneralCompilerException("Not passing a list to list::free")
+                PrimitiveType.Void
             }
-            else -> Type.nullType
+            else -> PrimitiveType.Null
         }
+    }
+
+    private fun parseTypeFromString(typeStr: String, context: CompilationContext): Type {
+        if (typeStr.endsWith("[]")) {
+            val innerTypeStr = typeStr.substring(0, typeStr.length - 2)
+            return ListType(parseTypeFromString(innerTypeStr, context))
+        }
+        return context.types.find { it.toString() == typeStr }
+            ?: throw NotFoundException("Type not found: $typeStr")
     }
 
     private fun CodeBuilder.checkOutOfBounds(

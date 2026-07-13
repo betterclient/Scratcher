@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -54,7 +55,7 @@ fun main() {
 
     println("Lower expressions")
     reachableFunctions.forEach { CallExpressionLowering(context, it).run() }
-    reachableFunctions.forEach { it.returnType = Type.void }
+    reachableFunctions.forEach { it.returnType = PrimitiveType.Void }
 
     println("Re-parse locals")
     reachableFunctions.forEach { ReParseLocalVariables(it).run() }

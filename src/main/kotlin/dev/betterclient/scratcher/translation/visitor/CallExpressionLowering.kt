@@ -5,7 +5,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
-import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
@@ -17,8 +17,8 @@ class CallExpressionLowering(
     val context: CompilationContext,
     val func: Function
 ) : ASTVisitor() {
-    val doingReturnLowering = func.returnType != Type.void
-    val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), Type.int)
+    val doingReturnLowering = func.returnType != PrimitiveType.Void
+    val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), PrimitiveType.Integer)
 
     fun run() {
         if (func is StandardLibASTFunction) return //already lowered!!!
@@ -62,7 +62,7 @@ class CallExpressionLowering(
 
     override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
         val ignoreReturn = rootCallFlags.removeAt(rootCallFlags.lastIndex)
-        val isVoid = func.returnType == Type.void
+        val isVoid = func.returnType == PrimitiveType.Void
         val prepend = mutableListOf<Statement>()
         var expr: Expression? = null
 
@@ -132,7 +132,7 @@ class CallExpressionLowering(
         val tempWhenExpr = WhenExpression(subject, branches)
         val returnType = ExpressionTypes.getExpressionType(context, tempWhenExpr)
 
-        val tempVar = if (returnType != Type.void) {
+        val tempVar = if (returnType != PrimitiveType.Void) {
             val tv = LocalVariable("whenResult@${getUniqueName()}", returnType)
             func.code.localVariables.add(tv)
             tv

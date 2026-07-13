@@ -1,6 +1,4 @@
-package dev.betterclient.scratcher.except
-
-import dev.betterclient.scratcher.ast.Type
+package dev.betterclient.scratcher.ast
 
 sealed class CompilerException(message: String) : Exception(message)
 

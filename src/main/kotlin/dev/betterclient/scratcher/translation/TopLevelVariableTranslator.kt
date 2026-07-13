@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
@@ -19,7 +20,7 @@ class TopLevelVariableTranslator {
     fun createFunction(vars: Map<TLVariable, Expression?>): Function {
         val func = Function(
             name = "compiler@initTopLevel",
-            returnType = Type.void,
+            returnType = PrimitiveType.Void,
             export = false,
             warp = true,
             userAccessible = false, //idk how you would access it?? This function is created after parsing

@@ -125,6 +125,7 @@ interface BaseExpressionVisitor {
     fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression = WhenExpression(subject, branches)
     fun visitTemporaryStackSizeExpression(func: Function): Expression = TemporaryStackSizeExpression(func)
     fun visitTemporaryStackNameExpression(func: Function): Expression = TemporaryStackNameExpression(func)
+    fun visitFunctionLiteral(func: Function): Expression = FunctionLiteral(func)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -185,6 +186,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         }, expression.subject?.let { visit(it) })
         is TemporaryStackNameExpression -> this.visitTemporaryStackNameExpression(expression.function)
         is TemporaryStackSizeExpression -> this.visitTemporaryStackSizeExpression(expression.function)
+        is FunctionLiteral -> this.visitFunctionLiteral(expression.function)
     }
 }
 

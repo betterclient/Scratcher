@@ -52,15 +52,15 @@ object FunctionInlining : Optimization("Function inlining") {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
-        val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", Type.int) }
+        val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", PrimitiveType.Integer) }
         args.forEachIndexed { index, arg ->
             prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }
         val returnVar = LocalVariable("FunctionInlining@return${getUniqueName()}", func.returnType)
-        if (func.returnType != Type.void) {
+        if (func.returnType != PrimitiveType.Void) {
             prepend.add(VariableStatement(null, returnVar))
         }
-        val hasReturned = LocalVariable("FunctionInlining@hasReturned${getUniqueName()}", Type.bool)
+        val hasReturned = LocalVariable("FunctionInlining@hasReturned${getUniqueName()}", PrimitiveType.Bool)
         prepend.add(VariableStatement(BooleanLiteral(false), hasReturned))
 
         //returns are something...
@@ -80,7 +80,7 @@ object FunctionInlining : Optimization("Function inlining") {
         prepend.addAll(out.code)
 
         return ExpressionLowerResult(
-            if (func.returnType == Type.void) null else LocalVariableExpression(returnVar),
+            if (func.returnType == PrimitiveType.Void) null else LocalVariableExpression(returnVar),
             prepend
         )
     }
@@ -103,6 +103,7 @@ object InlineEligibility {
     private fun calculateCost(func: Function, targetFunc: Function, graph: TCallGraph): Int {
         var currentCost = 0
         if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc) return Int.MAX_VALUE
+        if (targetFunc.sourceAST == StandardLibASTGenerator.typeChecker) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
         if (func.warp != targetFunc.warp) return Int.MAX_VALUE //not happening...
 

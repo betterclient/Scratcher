@@ -2,7 +2,9 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
@@ -26,10 +28,10 @@ object StringLib {
             lib,
             "concat",
             parameters = mutableListOf(
-                Parameter("left", Type.str),
-                Parameter("right", Type.str),
+                Parameter("left", PrimitiveType.Str),
+                Parameter("right", PrimitiveType.Str),
             ),
-            returnType = Type.str
+            returnType = PrimitiveType.Str
         ) {
             OperatorExpressions.BinaryExpression(
                 it[0], it[1], OperatorExpressions.BinaryOperator.STRING_CONCAT
@@ -40,9 +42,9 @@ object StringLib {
             lib,
             "length",
             parameters = mutableListOf(
-                Parameter("input", Type.str),
+                Parameter("input", PrimitiveType.Str),
             ),
-            returnType = Type.int
+            returnType = PrimitiveType.Integer
         ) {
             OperatorExpressions.StringLength(it[0])
         }
@@ -51,10 +53,10 @@ object StringLib {
             lib,
             "charAt",
             parameters = mutableListOf(
-                Parameter("input", Type.str),
-                Parameter("index", Type.int),
+                Parameter("input", PrimitiveType.Str),
+                Parameter("index", PrimitiveType.Integer),
             ),
-            returnType = Type.str
+            returnType = PrimitiveType.Str
         ) {
             OperatorExpressions.StringLetterAt(it[0], it[1])
         }
@@ -63,10 +65,10 @@ object StringLib {
             lib,
             "contains",
             parameters = mutableListOf(
-                Parameter("input", Type.str),
-                Parameter("contained", Type.str),
+                Parameter("input", PrimitiveType.Str),
+                Parameter("contained", PrimitiveType.Str),
             ),
-            returnType = Type.bool
+            returnType = PrimitiveType.Bool
         ) {
             BoolOperatorExpressions.BinaryExpression(
                 it[0], it[1], SBinaryOperator.STRING_CONTAINS
@@ -77,10 +79,10 @@ object StringLib {
             lib,
             "substring"
         ) {
-            val input = arg("input", Type.str)
-            val start = arg("startIndex", Type.int)
-            val end = arg("endIndex", Type.int)
-            val out = returnArg(Type.str)
+            val input = arg("input", PrimitiveType.Str)
+            val start = arg("startIndex", PrimitiveType.Integer)
+            val end = arg("endIndex", PrimitiveType.Integer)
+            val out = returnArg(PrimitiveType.Str)
 
             val result = variable("substring::result")
             result.set("".sc)
@@ -105,9 +107,9 @@ object StringLib {
             "split"
         ) {
             //this would be so much easier to write if I could just write it in the language
-            val input = arg("input", Type.str)
-            val delimiter = arg("delimiter", Type.str)
-            val out = returnArg(Type.str.list())
+            val input = arg("input", PrimitiveType.Str)
+            val delimiter = arg("delimiter", PrimitiveType.Str)
+            val out = returnArg(ListType(PrimitiveType.Str))
 
             if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
                 control.ifThen(delimiter.length gt 1.sc) {

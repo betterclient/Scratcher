@@ -7,8 +7,8 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
-import dev.betterclient.scratcher.except.NotFoundException
-import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.ast.NotFoundException
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.lib.ListLib
@@ -114,7 +114,7 @@ class ScratchFunctionTranslator(
                 UnaryOperator.NOT -> BoolOperatorExpressions.SNotExpression(translateExpr(expr.expression).asBool())
             }
             is TemporaryHeapGetExpression -> ListExpressions.ItemAtIndex(MemoryLib.heap, translateExpr(expr.index))
-            is ParameterExpression -> if (expr.parameter.type == Type.bool) SBoolParameterExpression(
+            is ParameterExpression -> if (expr.parameter.type == PrimitiveType.Bool) SBoolParameterExpression(
                 scratch.args[original.parameters.indexOf(expr.parameter)]
             ) else {
                 ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
@@ -147,6 +147,7 @@ class ScratchFunctionTranslator(
             is LocalVariableExpression,
             is EnumLiteral,
             is WhenExpression,
+            is FunctionLiteral,
             is NonNullAssertExpression -> throw UnreachableException()
         }
     }

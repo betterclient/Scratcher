@@ -4,7 +4,7 @@ import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.autoSetNext
-import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 
 sealed class ScratchStatement {
     abstract fun lower(): List<ScratchOpcode>

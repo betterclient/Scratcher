@@ -5,7 +5,7 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
-import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.obfuscate
 
 @DslMarker
@@ -32,7 +32,7 @@ class CodeBuilder internal constructor(
     private val statements = mutableListOf<ScratchStatement>()
     private val arguments = mutableListOf<ScratchFuncArgument>()
     private val astArguments = mutableListOf<Parameter>()
-    private var currentReturnType = Type.void
+    private var currentReturnType: Type = PrimitiveType.Void
 
     val looks get() = DSLLooks(this)
     val control get() = DSLControl(this)
@@ -62,7 +62,7 @@ class CodeBuilder internal constructor(
             ScratchFuncArgument(obfuscate(name), ScratchType.BOOL)
                 .also {
                     arguments.add(it)
-                    astArguments.add(Parameter(name, Type.bool))
+                    astArguments.add(Parameter(name, PrimitiveType.Bool))
                 }
         )
     }
@@ -176,7 +176,7 @@ fun <T> compileInline(
     library: ASTFile,
     name: String,
     parameters: MutableList<Parameter> = mutableListOf(),
-    returnType: Type = Type.void,
+    returnType: Type = PrimitiveType.Void,
     useLocal: Boolean = false,
     warp: Boolean = true, //used for optimizations
     userAccessible: Boolean = true,
@@ -200,7 +200,7 @@ fun <T> compileInline(
                 })
             }
 
-            if (returnType == Type.void) {
+            if (returnType == PrimitiveType.Void) {
                 val stmt = TemporaryScratchStmt(args) { scratchArgs ->
                     listOf(block(scratchArgs) as ScratchStatement)
                 }

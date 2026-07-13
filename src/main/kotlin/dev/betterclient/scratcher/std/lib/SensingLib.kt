@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ast.SensingBoolExpressions
 import dev.betterclient.scratcher.codegen.ast.SensingExpressions
@@ -13,8 +14,8 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "ask",
-            parameters = mutableListOf(Parameter("message", Type.str)),
-            returnType = Type.str,
+            parameters = mutableListOf(Parameter("message", PrimitiveType.Str)),
+            returnType = PrimitiveType.Str,
             warp = false,
             prepend = { args ->
                 listOf(SensingStatements.Ask(args[0]))
@@ -27,7 +28,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getDistanceToMouse",
-            returnType = Type.str
+            returnType = PrimitiveType.Str
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.DistanceToMouse)
         }
@@ -35,7 +36,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getMouseX",
-            returnType = Type.int
+            returnType = PrimitiveType.Integer
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.MouseX)
         }
@@ -43,7 +44,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getMouseY",
-            returnType = Type.int
+            returnType = PrimitiveType.Integer
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.MouseY)
         }
@@ -51,7 +52,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getTimer",
-            returnType = Type.float
+            returnType = PrimitiveType.Float
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.Timer)
         }
@@ -59,7 +60,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "resetTimer",
-            returnType = Type.void
+            returnType = PrimitiveType.Void
         ) { _ ->
             SensingStatements.ResetTimer()
         }
@@ -67,7 +68,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getUsername",
-            returnType = Type.str
+            returnType = PrimitiveType.Str
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.Username)
         }
@@ -75,7 +76,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getDaysSince2000",
-            returnType = Type.float
+            returnType = PrimitiveType.Float
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.DaysSince2000)
         }
@@ -83,7 +84,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "isOnline",
-            returnType = Type.bool
+            returnType = PrimitiveType.Bool
         ) { _ ->
             SensingBoolExpressions.IsOnlineExpression()
         }
@@ -91,7 +92,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "isMousePressed",
-            returnType = Type.bool
+            returnType = PrimitiveType.Bool
         ) { _ ->
             SensingBoolExpressions.MousePressedExpression()
         }
@@ -99,8 +100,8 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "isKeyPressed",
-            parameters = mutableListOf(Parameter("key", Type.str)),
-            returnType = Type.bool
+            parameters = mutableListOf(Parameter("key", PrimitiveType.Str)),
+            returnType = PrimitiveType.Bool
         ) { args ->
             SensingBoolExpressions.KeyPressedExpression(args[0])
         }

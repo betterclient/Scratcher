@@ -24,7 +24,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                         val value = if (left is BooleanLiteral) right else left
 
                         val type = ExpressionTypes.getExpressionType(context, value)
-                        if (type == Type.bool) {
+                        if (type == PrimitiveType.Bool) {
                             modified = true
                             return if (operator == BinaryOperator.EQUAL) {
                                 if (boolVal) value else UnaryExpression(UnaryOperator.NOT, value)
@@ -40,7 +40,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                         val value = if (left is BooleanLiteral) right else left
 
                         val type = ExpressionTypes.getExpressionType(context, value)
-                        if (type == Type.bool) {
+                        if (type == PrimitiveType.Bool) {
                             if (operator == BinaryOperator.AND) {
                                 if (boolVal) {
                                     modified = true

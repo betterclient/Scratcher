@@ -1,0 +1,139 @@
+package dev.betterclient.scratcher.ast
+
+sealed interface Type {
+    val isPrimitive: Boolean
+    fun asNullable(): Type = this as? NullableType ?: NullableType(this)
+    fun asNonNull(): Type = if (this is NullableType) this.inner.asNonNull() else this
+    fun isAssignable(other: Type): Boolean
+}
+
+data class NullableType(
+    val inner: Type
+) : Type {
+    init {
+        if (inner is PrimitiveType) throw GeneralCompilerException("Primitive types aren't allowed to be nullable")
+        if (inner is NullableType) throw GeneralCompilerException("Double nullability is not allowed")
+    }
+    override val isPrimitive = false
+
+    override fun isAssignable(other: Type): Boolean {
+        return other is NullableType && this.inner.isAssignable(other.inner)
+    }
+
+    override fun toString(): String {
+        return "$inner?"
+    }
+}
+
+sealed interface PrimitiveType : Type {
+    override val isPrimitive: Boolean get() = true
+
+    override fun isAssignable(other: Type): Boolean {
+        if (this == Null && other is NullableType) return true
+
+        val target = other.asNonNull()
+        if (this == target) return true
+
+        if (this == Integer && target == Float) return true
+
+        return false
+    }
+
+    object Str : PrimitiveType { override fun toString() = "str" }
+    object Integer : PrimitiveType { override fun toString() = "int" }
+    object Float : PrimitiveType { override fun toString() = "float" }
+    object Bool : PrimitiveType { override fun toString() = "bool" }
+    object Void : PrimitiveType { override fun toString() = "void" }
+    object Null : PrimitiveType { override fun toString() = "null" }
+    object Auto : PrimitiveType { override fun toString() = "auto" }
+}
+
+data class SimpleType(
+    val name: String,
+    val sourceAST: ASTFile
+) : Type {
+    override val isPrimitive: Boolean get() = false
+
+    override fun isAssignable(other: Type): Boolean {
+        return this == other.asNonNull()
+    }
+
+    override fun toString(): String {
+        return "${sourceAST.simplePath}::$name"
+    }
+}
+
+data class ListType(
+    val elementType: Type
+) : Type {
+    override val isPrimitive: Boolean = false
+
+    override fun isAssignable(other: Type): Boolean {
+        if (this == other) return true
+
+        val baseOther = other.asNonNull() as? ListType ?: return false
+        return this.elementType == baseOther.elementType
+    }
+
+    override fun toString(): String {
+        return "$elementType[]"
+    }
+
+    fun raw(): Type {
+        var self: Type = this
+        while (self is ListType) {
+            self = self.elementType
+        }
+        return self
+    }
+}
+
+/*data class FunctionType(
+    val parameterTypes: List<Type>,
+    val returnType: Type,
+    override val nullable: Boolean = false
+) : Type {
+    override val isPrimitive: Boolean = false
+
+    override fun asNullable() = copy(nullable = true)
+    override fun asNonNull() = copy(nullable = false)
+
+    override fun isAssignable(other: Type): Boolean {
+        if (this == other) return true
+        val baseThis = this.asNonNull() as FunctionType
+        val baseOther = other.asNonNull()
+
+        if (baseOther !is FunctionType) return false
+        if (baseThis.parameterTypes.size != baseOther.parameterTypes.size) return false
+
+        if (!baseThis.returnType.isAssignable(baseOther.returnType)) return false
+
+        for (i in baseThis.parameterTypes.indices) {
+            if (!baseOther.parameterTypes[i].isAssignable(baseThis.parameterTypes[i])) return false
+        }
+
+        return other.nullable || !this.nullable
+    }
+
+    override fun toString(): String {
+        val params = parameterTypes.joinToString(", ") { it.toString() }
+        return "($params) -> $returnType" + if (nullable) "?" else ""
+    }
+}*/
+
+fun unifyTypes(left: Type, right: Type): Type? {
+    if (left == right) return left
+    if (left == PrimitiveType.Null) return right.asNullable()
+    if (right == PrimitiveType.Null) return left.asNullable()
+
+    if (left.isAssignable(right)) return right
+    if (right.isAssignable(left)) return left
+
+    val leftNullable = left.asNullable()
+    if (right.isAssignable(leftNullable)) return leftNullable
+
+    val rightNullable = right.asNullable()
+    if (left.isAssignable(rightNullable)) return rightNullable
+
+    return null
+}

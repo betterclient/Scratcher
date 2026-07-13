@@ -8,9 +8,11 @@ import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.ExpressionLowerResult
 import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
+import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.TLVariable
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.VariableExpression
 import dev.betterclient.scratcher.codegen.ScratchEditor
@@ -46,8 +48,8 @@ object GCLib {
         compileInline(
             lib,
             "isStack",
-            parameters = mutableListOf(Parameter("type", Type.str)),
-            returnType = Type.bool
+            parameters = mutableListOf(Parameter("type", PrimitiveType.Str)),
+            returnType = PrimitiveType.Bool
         ) {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
@@ -59,8 +61,8 @@ object GCLib {
         compileInline(
             lib,
             "getFieldsStart",
-            parameters = mutableListOf(Parameter("type", Type.str)),
-            returnType = Type.int
+            parameters = mutableListOf(Parameter("type", PrimitiveType.Str)),
+            returnType = PrimitiveType.Integer
         ) {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
@@ -72,8 +74,8 @@ object GCLib {
         compileInline(
             lib,
             "getFieldsCount",
-            parameters = mutableListOf(Parameter("type", Type.str)),
-            returnType = Type.int
+            parameters = mutableListOf(Parameter("type", PrimitiveType.Str)),
+            returnType = PrimitiveType.Integer
         ) {
             val originalIndex = DSLFromCreator { it[0] }
             ListExpressions.ItemAtIndex(
@@ -85,8 +87,8 @@ object GCLib {
         compileInline(
             lib,
             "getFieldType",
-            parameters = mutableListOf(Parameter("index", Type.int)),
-            returnType = Type.str
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Str
         ) {
             ListExpressions.ItemAtIndex(fieldsList, it[0])
         }
@@ -94,8 +96,8 @@ object GCLib {
         compileInline(
             lib,
             "getHeap",
-            parameters = mutableListOf(Parameter("index", Type.int)),
-            returnType = Type.int
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Integer
         ) {
             ListExpressions.ItemAtIndex(MemoryLib.heap, it[0])
         }
@@ -103,7 +105,7 @@ object GCLib {
         compileInline(
             lib,
             "getHeapSize",
-            returnType = Type.int
+            returnType = PrimitiveType.Integer
         ) {
             ListExpressions.LengthOfList(MemoryLib.heap)
         }
@@ -111,7 +113,7 @@ object GCLib {
         compileInline(
             lib,
             "freeHeap",
-            parameters = mutableListOf(Parameter("index", Type.int))
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer))
         ) {
             CallFunction(
                 func = MemoryLib.free.precompiledCode,
@@ -119,12 +121,12 @@ object GCLib {
             )
         }
 
-        freeFunc(lib, Type.str.list(), "StrArray")
-        freeFunc(lib, Type.int.list(), "IntArray")
+        freeFunc(lib, ListType(PrimitiveType.Str), "StrArray")
+        freeFunc(lib, ListType(PrimitiveType.Integer), "IntArray")
 
         lib.functions.add(InlineStandardLibFunction(
             "isReflectGC",
-            returnType = Type.bool,
+            returnType = PrimitiveType.Bool,
             sourceAST = lib,
             useLocal = false,
             warp = true,
@@ -136,8 +138,8 @@ object GCLib {
         compileInline(
             lib,
             "reflect",
-            returnType = Type.int,
-            parameters = mutableListOf(Parameter("varName", Type.str))
+            returnType = PrimitiveType.Integer,
+            parameters = mutableListOf(Parameter("varName", PrimitiveType.Str))
         ) {
             ListExpressions.ReflectVariable(it[0])
         }
@@ -165,7 +167,7 @@ object GCLib {
         compileInline(
             lib,
             "addMarked",
-            parameters = mutableListOf(Parameter("index", Type.int))
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer))
         ) {
             ListStatements.AddToList(
                 markedList,
@@ -175,8 +177,8 @@ object GCLib {
         compileInline(
             lib,
             "isMarked",
-            parameters = mutableListOf(Parameter("item", Type.int)),
-            returnType = Type.bool
+            parameters = mutableListOf(Parameter("item", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Bool
         ) {
             ListExpressions.ContainsItemInList(
                 markedList,
@@ -195,8 +197,8 @@ object GCLib {
         compileInline(
             lib,
             "get$name",
-            parameters = mutableListOf(Parameter("index", Type.int)),
-            returnType = Type.str
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Str
         ) {
             ListExpressions.ItemAtIndex(
                 list,
@@ -207,7 +209,7 @@ object GCLib {
         compileInline(
             lib,
             "lengthOf$name",
-            returnType = Type.int
+            returnType = PrimitiveType.Integer
         ) {
             ListExpressions.LengthOfList(list)
         }
@@ -262,8 +264,8 @@ object GCLib {
         if (CompilationConstants.REFLECT_GC) {
             reflectList.items.addAll(eligible.flatMap { variable ->
                 listOf(
-                    if (variable.type.inner != null) {
-                        "${"l".repeat(variable.type.name.count { it == '[' })}${findGC(variable.type.raw())}"
+                    if (variable.type is ListType) {
+                        "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ListType).raw())}"
                     } else {
                         findGC(variable.type).toString()
                     },
@@ -276,8 +278,8 @@ object GCLib {
         original.code.code.clear()
         original.code.code.addAll(
             eligible.map { variable ->
-                val typeStr = if (variable.type.inner != null) {
-                    "${"l".repeat(variable.type.name.count { it == '[' })}${findGC(variable.type.raw())}"
+                val typeStr = if (variable.type is ListType) {
+                    "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ListType).raw())}"
                 } else {
                     findGC(variable.type).toString()
                 }

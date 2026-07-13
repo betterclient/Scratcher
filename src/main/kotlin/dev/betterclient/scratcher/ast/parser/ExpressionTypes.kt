@@ -1,25 +1,9 @@
 package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
-import dev.betterclient.scratcher.except.GeneralCompilerException
-import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.ast.GeneralCompilerException
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.std.lib.ListLib
-
-fun isWhenExhaustive(expr: WhenExpression): Boolean {
-    if (expr.branches.any { it.isElse }) return true
-    val subjectType = (expr.subject as? VariableStatement)?.variable?.type ?: return false
-    val enumDef = subjectType.sourceAST?.enums?.find { it.type.asNonNull() == subjectType.asNonNull() } ?: return false
-    val covered = mutableSetOf<Int>()
-    for (branch in expr.branches) {
-        val inner = (branch.cond as? BinaryExpression)?.right ?: return false
-        if (inner is EnumLiteral) {
-            covered.add(inner.ordinal)
-        } else {
-            return false
-        }
-    }
-    return covered.containsAll(enumDef.values.indices.toSet())
-}
 
 object ExpressionTypes {
     fun getExpressionType(context: CompilationContext, expr: Expression): Type {
@@ -30,41 +14,55 @@ object ExpressionTypes {
                     ListLib.getActualReturnType(context, expr) { getExpressionType(context, it) }
                 } else expr.func.returnType
             }
-            is BooleanLiteral -> Type.bool
-            is FloatLiteral -> Type.float
-            is IntLiteral -> Type.int
-            is StringLiteral -> Type.str
+            is BooleanLiteral -> PrimitiveType.Bool
+            is FloatLiteral -> PrimitiveType.Float
+            is IntLiteral -> PrimitiveType.Integer
+            is StringLiteral -> PrimitiveType.Str
             is LocalVariableExpression -> expr.variable.type
             is MemberExpression -> expr.member.type
             is UnaryExpression -> getExpressionType(context, expr.expression)
             is VariableExpression -> expr.variable.type
             is ParameterExpression -> expr.parameter.type
             is EnumLiteral -> expr.enum.type
-            is ConcatExpression -> Type.str
-            is NullExpression -> Type.nullType
+            is ConcatExpression -> PrimitiveType.Str
+            is NullExpression -> PrimitiveType.Null
             is NonNullAssertExpression -> getExpressionType(context, expr.expression).asNonNull()
             is WhenExpression -> {
-                val allBranchesReturnExpression = expr.branches.all {
-                    it.block.code.lastOrNull() is ExpressionStatement
-                }
-                if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-                    val branchTypes = expr.branches.map {
-                        getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
-                    }
-                    val unifiedType = branchTypes.reduce { left, right ->
-                        if (left.isAssignable(right)) left
-                        else if (right.isAssignable(left)) right
-                        else throw GeneralCompilerException("When branches return different types.")
-                    }
-                    if (unifiedType != Type.void && !isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
-                        throw GeneralCompilerException("When expression used as value must have an else branch or be exhaustive")
-                    }
-                    unifiedType
-                } else {
-                    Type.void
-                }
+                parseWhenExpressionType(expr, context)
+            }
+            is FunctionLiteral -> {
+                expr.function.returnType
             }
             is TemporaryExpression -> throw UnreachableException()
+        }
+    }
+
+    private fun parseWhenExpressionType(
+        expr: WhenExpression,
+        context: CompilationContext
+    ): Type {
+        val subjectType = getSubjectType(expr.subject)
+        if (subjectType != null) {
+            val baseType = subjectType.asNonNull()
+            val isEnum = (baseType as? SimpleType)?.sourceAST?.enums?.any { it.type.asNonNull() == baseType } ?: false
+            if (isEnum && !isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
+                throw GeneralCompilerException("When statement/expression on enum must be exhaustive or have an else branch")
+            }
+        }
+
+        val allBranchesReturnExpression = expr.branches.all {
+            it.block.code.lastOrNull() is ExpressionStatement
+        }
+        return if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
+            val branchTypes = expr.branches.map {
+                getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
+            }
+            val unifiedType = branchTypes.reduce { left, right ->
+                unifyTypes(left, right) ?: throw GeneralCompilerException("When branches return different types.")
+            }
+            unifiedType
+        } else {
+            PrimitiveType.Void
         }
     }
 
@@ -77,8 +75,8 @@ object ExpressionTypes {
             BinaryOperator.MULTIPLY, BinaryOperator.DIVIDE,
             BinaryOperator.MODULO -> {
                 when {
-                    leftType == Type.float || rightType == Type.float -> Type.float
-                    else -> Type.int
+                    leftType == PrimitiveType.Float || rightType == PrimitiveType.Float -> PrimitiveType.Float
+                    else -> PrimitiveType.Integer
                 }
             }
 
@@ -89,7 +87,49 @@ object ExpressionTypes {
             BinaryOperator.EQUAL,
             BinaryOperator.NOT_EQUAL,
             BinaryOperator.AND,
-            BinaryOperator.OR -> Type.bool
+            BinaryOperator.OR -> PrimitiveType.Bool
+        }
+    }
+
+    fun isWhenExhaustive(expr: WhenExpression): Boolean {
+        if (expr.branches.any { it.isElse }) return true
+
+        val subjectType = getSubjectType(expr.subject) ?: return false
+        val baseType = subjectType.asNonNull()
+        val isNullable = subjectType is NullableType
+
+        val enumDef = (baseType as? SimpleType)?.sourceAST?.enums?.find { it.type.asNonNull() == baseType } ?: return false
+        val covered = mutableSetOf<Int>()
+        var coversNull = false
+
+        for (branch in expr.branches) {
+            val inner = (branch.cond as? BinaryExpression)?.right ?: return false
+            when (inner) {
+                is EnumLiteral -> {
+                    covered.add(inner.ordinal)
+                }
+                is NullExpression -> {
+                    coversNull = true
+                }
+                else -> {
+                    return false
+                }
+            }
+        }
+
+        val enumsCovered = covered.containsAll(enumDef.values.indices.toSet())
+        return if (isNullable) {
+            enumsCovered && coversNull
+        } else {
+            enumsCovered
+        }
+    }
+
+    fun getSubjectType(subject: Statement?): Type? {
+        return when (subject) {
+            is VariableStatement -> subject.variable.type
+            is TLVariableAssignmentStatement -> subject.variable.type
+            else -> null
         }
     }
 }

@@ -2,10 +2,10 @@ package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.except.TypeAnalysisException
-import dev.betterclient.scratcher.except.TypeException
-import dev.betterclient.scratcher.except.UnreachableException
-import dev.betterclient.scratcher.except.VoidVariableException
+import dev.betterclient.scratcher.ast.TypeAnalysisException
+import dev.betterclient.scratcher.ast.TypeException
+import dev.betterclient.scratcher.ast.UnreachableException
+import dev.betterclient.scratcher.ast.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 
@@ -30,7 +30,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it, null)
-                if (variable.type == Type.void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
+                if (variable.type == PrimitiveType.Void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
                 if (!actualType.isAssignable(variable.type)) throw TypeAnalysisException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
@@ -38,7 +38,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (function in ast.functions) {
             checkCodeBlock(function, function.code.code)
 
-            if (function.returnType != Type.void && !doesBlockGuaranteeReturn(function.code.code)) {
+            if (function.returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(function.code.code)) {
                 throw TypeAnalysisException("Function ${ast.simplePath}::${function.name} does not have a guaranteed return")
             }
             pruneUnreachableCode(function.code.code)
@@ -103,19 +103,19 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     }
                 }
                 is IfElseStatement -> {
-                    checkType(Type.bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if statement condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if statement condition")
                     checkCodeBlock(function, statement.thenBlock.code, isWhenBranch)
                     checkCodeBlock(function, statement.elseBlock.code, isWhenBranch)
                 }
                 is IfStatement -> {
-                    checkType(Type.bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if condition")
                     checkCodeBlock(function, statement.thenBlock.code, isWhenBranch)
                 }
                 is LocalVariableAssignmentStatement -> {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Local variable assignment type is not correct")
                 }
                 is RepeatStatement -> {
-                    checkType(Type.int, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")
+                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")
                     checkCodeBlock(function, statement.block.code, isWhenBranch)
                 }
                 is TLVariableAssignmentStatement -> {
@@ -131,16 +131,16 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     }
                 }
                 is WhileStatement -> {
-                    checkType(Type.bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition")
                     checkCodeBlock(function, statement.block.code, isWhenBranch)
                 }
                 is ReturnStatement -> {
                     if (statement.expression == null) {
-                        if (function.returnType != Type.void) {
+                        if (function.returnType != PrimitiveType.Void) {
                             throw TypeAnalysisException("Must return a value from a non-void function.")
                         }
                     } else {
-                        if (function.returnType == Type.void) {
+                        if (function.returnType == PrimitiveType.Void) {
                             throw TypeAnalysisException("Cannot return a value from a void function.")
                         }
                         checkType(function.returnType, getActualTypeOrThrow(statement.expression, function), "Return statement type")
@@ -160,61 +160,22 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     private fun getActualTypeOrThrow(expr: Expression, function: Function?): Type {
         return when(expr) {
             is WhenExpression -> {
-                if (function != null) {
-                    val subjectType = expr.subject?.let { (it as VariableStatement).variable.type }
-                    expr.subject?.let { checkCodeBlock(function, mutableListOf(it)) }
-
-                    expr.branches.forEach { branch ->
-                        checkType(Type.bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
-                        subjectType?.let { expected ->
-                            if (!branch.isElse) {
-                                val actualBranchExpr = (branch.cond as BinaryExpression).right
-                                val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
-                                if (!branchExprType.isAssignable(expected)) {
-                                    throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
-                                }
-                            }
-                        }
-                        checkCodeBlock(function, branch.block.code, isWhenBranch = true)
-                    }
-                }
-
-                val allBranchesReturnExpression = expr.branches.all {
-                    it.block.code.lastOrNull() is ExpressionStatement
-                }
-
-                if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-                    val branchTypes = expr.branches.map {
-                        val branchExpr = (it.block.code.last() as ExpressionStatement).expression
-                        getActualTypeOrThrow(branchExpr, function)
-                    }
-                    val unifiedType = branchTypes.reduce { left, right ->
-                        if (left.isAssignable(right)) left
-                        else if (right.isAssignable(left)) right
-                        else throw TypeAnalysisException("When branches return different types.")
-                    }
-                    if (unifiedType != Type.void && !isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
-                        throw TypeAnalysisException("When expression used as value must have an else branch or be exhaustive")
-                    }
-                    unifiedType
-                } else {
-                    Type.void
-                }
+                figureOutWhenExpressionType(function, expr)
             }
             is BinaryExpression -> figureOutBinaryExprReturn(expr, function)
             is UnaryExpression -> {
                 val operandType = getActualTypeOrThrow(expr.expression, function)
                 when (expr.operator) {
                     UnaryOperator.PLUS, UnaryOperator.MINUS -> {
-                        if (operandType == Type.int || operandType == Type.float) {
+                        if (operandType == PrimitiveType.Integer || operandType == PrimitiveType.Float) {
                             operandType
                         } else {
                             throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
                         }
                     }
                     UnaryOperator.NOT -> {
-                        if (operandType == Type.bool) {
-                            Type.bool
+                        if (operandType == PrimitiveType.Bool) {
+                            PrimitiveType.Bool
                         } else {
                             throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
                         }
@@ -225,11 +186,11 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftType = getActualTypeOrThrow(expr.left, function)
                 val rightType = getActualTypeOrThrow(expr.right, function)
 
-                val leftOk = leftType.isPrimitive && leftType != Type.void && leftType != Type.nullType
-                val rightOk = rightType.isPrimitive && rightType != Type.void && rightType != Type.nullType
+                val leftOk = leftType.isPrimitive && leftType != PrimitiveType.Void && leftType != PrimitiveType.Null
+                val rightOk = rightType.isPrimitive && rightType != PrimitiveType.Void && rightType != PrimitiveType.Null
                 if (!leftOk || !rightOk) throw TypeAnalysisException("Either $leftType or $rightType isn't concattable")
 
-                Type.str
+                PrimitiveType.Str
             }
             is CallExpression -> {
                 if (ListLib.listFuncs.contains(expr.func)) {
@@ -248,24 +209,74 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
             is NonNullAssertExpression -> {
                 val innerType = getActualTypeOrThrow(expr.expression, function)
-                if (!innerType.nullable) {
+                if (innerType !is NullableType) {
                     throw TypeAnalysisException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
                 }
                 innerType.asNonNull()
             }
 
             //these already have their type determined
-            is BooleanLiteral -> Type.bool
-            is FloatLiteral -> Type.float
-            is IntLiteral -> Type.int
-            is StringLiteral -> Type.str
-            is NullExpression -> Type.nullType
+            is BooleanLiteral -> PrimitiveType.Bool
+            is FloatLiteral -> PrimitiveType.Float
+            is IntLiteral -> PrimitiveType.Integer
+            is StringLiteral -> PrimitiveType.Str
+            is NullExpression -> PrimitiveType.Null
             is LocalVariableExpression -> expr.variable.type
             is VariableExpression -> expr.variable.type
             is EnumLiteral -> expr.enum.type
             is ParameterExpression -> expr.parameter.type
+            is FunctionLiteral -> expr.function.returnType
 
             is TemporaryExpression -> throw UnreachableException()
+        }
+    }
+
+    private fun figureOutWhenExpressionType(
+        function: Function?,
+        expr: WhenExpression
+    ): Type {
+        if (function != null) {
+            val subjectType = ExpressionTypes.getSubjectType(expr.subject)
+            expr.subject?.let { checkCodeBlock(function, mutableListOf(it)) }
+
+            if (subjectType != null) {
+                val baseType = subjectType.asNonNull()
+                val isEnum = (baseType as? SimpleType)?.sourceAST?.enums?.any { it.type.asNonNull() == baseType } ?: false
+                if (isEnum && !ExpressionTypes.isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
+                    throw TypeAnalysisException("When statement/expression on enum must be exhaustive or have an else branch")
+                }
+            }
+
+            expr.branches.forEach { branch ->
+                checkType(PrimitiveType.Bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
+                subjectType?.let { expected ->
+                    if (!branch.isElse) {
+                        val actualBranchExpr = (branch.cond as BinaryExpression).right
+                        val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
+                        if (!branchExprType.isAssignable(expected)) {
+                            throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
+                        }
+                    }
+                }
+                checkCodeBlock(function, branch.block.code, isWhenBranch = true)
+            }
+        }
+
+        val allBranchesReturnExpression = expr.branches.all {
+            it.block.code.lastOrNull() is ExpressionStatement
+        }
+
+        return if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
+            val branchTypes = expr.branches.map {
+                val branchExpr = (it.block.code.last() as ExpressionStatement).expression
+                getActualTypeOrThrow(branchExpr, function)
+            }
+            val unifiedType = branchTypes.reduce { left, right ->
+                unifyTypes(left, right) ?: throw TypeAnalysisException("When branches return different types.")
+            }
+            unifiedType
+        } else {
+            PrimitiveType.Void
         }
     }
 
@@ -276,7 +287,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         return when (expr.operator) {
             BinaryOperator.ADD -> {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
-                    if (leftType == Type.float || rightType == Type.float) Type.float else Type.int
+                    if (leftType == PrimitiveType.Float || rightType == PrimitiveType.Float) PrimitiveType.Float else PrimitiveType.Integer
                 } else {
                     throw TypeAnalysisException("Operator '+' cannot be applied to $leftType and $rightType")
                 }
@@ -287,7 +298,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             BinaryOperator.DIVIDE,
             BinaryOperator.MODULO -> {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
-                    if (leftType == Type.float || rightType == Type.float) Type.float else Type.int
+                    if (leftType == PrimitiveType.Float || rightType == PrimitiveType.Float) PrimitiveType.Float else PrimitiveType.Integer
                 } else {
                     throw TypeAnalysisException("Operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
                 }
@@ -298,7 +309,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             BinaryOperator.LESS_EQUAL,
             BinaryOperator.GREATER_EQUAL -> {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
-                    Type.bool
+                    PrimitiveType.Bool
                 } else {
                     throw TypeAnalysisException("Comparison operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
                 }
@@ -306,12 +317,12 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
             BinaryOperator.EQUAL,
             BinaryOperator.NOT_EQUAL -> {
-                if (leftType == rightType ||
+                if (leftType.asNonNull() == rightType.asNonNull() ||
                     (isNumeric(leftType) && isNumeric(rightType)) ||
-                    (leftType.nullable && rightType == Type.nullType) ||
-                    (rightType.nullable && leftType == Type.nullType)
+                    (leftType is NullableType && rightType == PrimitiveType.Null) ||
+                    (rightType is NullableType && leftType == PrimitiveType.Null)
                 ) {
-                    Type.bool
+                    PrimitiveType.Bool
                 } else {
                     throw TypeAnalysisException("Cannot compare $leftType and $rightType for equality")
                 }
@@ -319,8 +330,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
             BinaryOperator.AND,
             BinaryOperator.OR -> {
-                if (leftType == Type.bool && rightType == Type.bool) {
-                    Type.bool
+                if (leftType == PrimitiveType.Bool && rightType == PrimitiveType.Bool) {
+                    PrimitiveType.Bool
                 } else {
                     throw TypeAnalysisException("Logical operator '${expr.operator.symbol}' requires boolean operands, but got $leftType and $rightType")
                 }
@@ -329,6 +340,6 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     }
 
     private fun isNumeric(type: Type): Boolean {
-        return type == Type.int || type == Type.float
+        return type == PrimitiveType.Integer || type == PrimitiveType.Float
     }
 }

@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.MotionExpressions
@@ -12,13 +13,13 @@ import dev.betterclient.scratcher.std.dsl.compileInline
 
 object MotionLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        compileInline(lib, "getX", returnType = Type.float) {
+        compileInline(lib, "getX", returnType = PrimitiveType.Float) {
             MotionExpressions.XPosition()
         }
-        compileInline(lib, "getY", returnType = Type.float) {
+        compileInline(lib, "getY", returnType = PrimitiveType.Float) {
             MotionExpressions.YPosition()
         }
-        compileInline(lib, "getDirection", returnType = Type.float) {
+        compileInline(lib, "getDirection", returnType = PrimitiveType.Float) {
             MotionExpressions.Direction()
         }
 
@@ -26,13 +27,13 @@ object MotionLib {
         compileGlideToFunctions(lib)
 
         compileInline(lib, "turnLeft", parameters = mutableListOf(
-            Parameter("degrees", Type.float)
+            Parameter("degrees", PrimitiveType.Float)
         )) {
             MotionStatements.TurnLeft(it[0])
         }
 
         compileInline(lib, "turnRight", parameters = mutableListOf(
-            Parameter("degrees", Type.float)
+            Parameter("degrees", PrimitiveType.Float)
         )) {
             MotionStatements.TurnRight(it[0])
         }
@@ -50,9 +51,9 @@ object MotionLib {
 
     private fun compileGlideToFunctions(lib: ASTFile) {
         compileInline(lib, "glideToXY", warp = false, parameters = mutableListOf(
-            Parameter("x", Type.float),
-            Parameter("y", Type.float),
-            Parameter("secs", Type.float)
+            Parameter("x", PrimitiveType.Float),
+            Parameter("y", PrimitiveType.Float),
+            Parameter("secs", PrimitiveType.Float)
         )) {
             MotionStatements.GlideTo(
                 MotionStatements.GotoPosition.XY(it[1], it[2]),
@@ -61,8 +62,8 @@ object MotionLib {
         }
 
         compileInline(lib, "glideToX", warp = false, parameters = mutableListOf(
-            Parameter("x", Type.float),
-            Parameter("secs", Type.float),
+            Parameter("x", PrimitiveType.Float),
+            Parameter("secs", PrimitiveType.Float),
         )) {
             MotionStatements.GlideTo(
                 MotionStatements.GotoPosition.X(it[1]),
@@ -71,8 +72,8 @@ object MotionLib {
         }
 
         compileInline(lib, "glideToY", warp = false, parameters = mutableListOf(
-            Parameter("y", Type.float),
-            Parameter("secs", Type.float),
+            Parameter("y", PrimitiveType.Float),
+            Parameter("secs", PrimitiveType.Float),
         )) {
             MotionStatements.GlideTo(
                 MotionStatements.GotoPosition.Y(it[1]),
@@ -81,7 +82,7 @@ object MotionLib {
         }
 
         compileInline(lib, "glideToMouse", warp = false, parameters = mutableListOf(
-            Parameter("secs", Type.float),
+            Parameter("secs", PrimitiveType.Float),
         )) {
             MotionStatements.GlideTo(
                 MotionStatements.GotoPosition.Mode(GotoMode.MOUSE),
@@ -90,7 +91,7 @@ object MotionLib {
         }
 
         compileInline(lib, "glideToRandom", warp = false, parameters = mutableListOf(
-            Parameter("secs", Type.float)
+            Parameter("secs", PrimitiveType.Float)
         )) {
             MotionStatements.GlideTo(
                 MotionStatements.GotoPosition.Mode(GotoMode.RANDOM),
@@ -102,8 +103,8 @@ object MotionLib {
     private fun compileGotoFunctions(lib: ASTFile) {
         compileInline(
             lib, "gotoXY", parameters = mutableListOf(
-                Parameter("x", Type.float),
-                Parameter("y", Type.float)
+                Parameter("x", PrimitiveType.Float),
+                Parameter("y", PrimitiveType.Float)
             )
         ) {
             MotionStatements.Goto(MotionStatements.GotoPosition.XY(it[0], it[1]))
@@ -111,7 +112,7 @@ object MotionLib {
 
         compileInline(
             lib, "gotoX", parameters = mutableListOf(
-                Parameter("x", Type.float),
+                Parameter("x", PrimitiveType.Float),
             )
         ) {
             MotionStatements.Goto(MotionStatements.GotoPosition.X(it[0]))
@@ -119,7 +120,7 @@ object MotionLib {
 
         compileInline(
             lib, "gotoY", parameters = mutableListOf(
-                Parameter("y", Type.float)
+                Parameter("y", PrimitiveType.Float)
             )
         ) {
             MotionStatements.Goto(MotionStatements.GotoPosition.Y(it[0]))

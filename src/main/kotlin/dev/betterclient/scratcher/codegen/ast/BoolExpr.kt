@@ -1,10 +1,10 @@
 package dev.betterclient.scratcher.codegen.ast
 
-import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
-import dev.betterclient.scratcher.except.TypeException
+import dev.betterclient.scratcher.ast.TypeException
 
 sealed class ScratchBoolExpression : ScratchExpression()
 private val ScratchValue?.boolean: ScratchBoolean
@@ -13,8 +13,8 @@ private val ScratchValue?.boolean: ScratchBoolean
 class SBoolParameterExpression(val parameter: ScratchFuncArgument) : ScratchBoolExpression() {
     init {
         if (parameter.type != ScratchType.BOOL) throw TypeException(
-            expected = Type.bool,
-            found = Type.str,
+            expected = PrimitiveType.Bool,
+            found = PrimitiveType.Str,
             "${parameter.name} is not of bool type"
         )
     }

@@ -41,6 +41,7 @@ SEMI   : ';';
 COLONCOLON : '::';
 DOT    : '.';
 ARROW  : '->';
+AMPERSAND : '&';
 
 ADD_ASSIGN : '+=';
 SUB_ASSIGN : '-=';

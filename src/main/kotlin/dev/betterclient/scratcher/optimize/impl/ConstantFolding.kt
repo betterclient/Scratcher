@@ -10,7 +10,7 @@ import dev.betterclient.scratcher.ast.Literal
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.except.UnreachableException
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph

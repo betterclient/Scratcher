@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ast.LooksStatements
 import dev.betterclient.scratcher.std.dsl.compileInline
@@ -11,7 +12,7 @@ object LooksLib {
         compileInline(
             lib,
             "say",
-            parameters = mutableListOf(Parameter("message", Type.str))
+            parameters = mutableListOf(Parameter("message", PrimitiveType.Str))
         ) { args ->
             LooksStatements.Say(args[0], null)
         }
@@ -21,8 +22,8 @@ object LooksLib {
             "say",
             warp = false,
             parameters = mutableListOf(
-                Parameter("message", Type.str),
-                Parameter("seconds", Type.float)
+                Parameter("message", PrimitiveType.Str),
+                Parameter("seconds", PrimitiveType.Float)
             )
         ) { args ->
             LooksStatements.Say(args[0], args[1])

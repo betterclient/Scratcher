@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
-import dev.betterclient.scratcher.except.GeneralCompilerException
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 import org.json.JSONArray
 import org.json.JSONObject
 
