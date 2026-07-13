@@ -2,7 +2,6 @@ package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
@@ -14,9 +13,9 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.translation.*
 import dev.betterclient.scratcher.translation.heap.ConvertToHeapAccess
+import dev.betterclient.scratcher.translation.heap.ReParseLocalVariables
 import dev.betterclient.scratcher.translation.visitor.CallExpressionLowering
 import dev.betterclient.scratcher.translation.visitor.FunctionReachability
-import dev.betterclient.scratcher.translation.heap.ReParseLocalVariables
 import dev.betterclient.scratcher.translation.visitor.RemoveEmptyAllocations
 import java.io.File
 

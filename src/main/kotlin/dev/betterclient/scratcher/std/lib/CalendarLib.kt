@@ -2,7 +2,6 @@ package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ast.SensingExpressions
 import dev.betterclient.scratcher.codegen.opcode.CalendarMenu
 import dev.betterclient.scratcher.std.dsl.compileInline

@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.Stage1Parser
@@ -31,8 +30,8 @@ object StandardLibASTGenerator {
         SensingLib.init(sensingLib)
         CalendarLib.init(calendarLib)
         CastLib.init(castLib, editor)
-        PenLib.init(penLib, editor)
-        MotionLib.init(motionLib, editor)
+        PenLib.init(penLib)
+        MotionLib.init(motionLib)
         UtilsLib.init(utilsLib)
         this.editor = editor
 

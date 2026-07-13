@@ -3,8 +3,6 @@ package dev.betterclient.scratcher.std.lib
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.MotionExpressions
 import dev.betterclient.scratcher.codegen.ast.MotionStatements
 import dev.betterclient.scratcher.codegen.opcode.GotoMode
@@ -12,7 +10,7 @@ import dev.betterclient.scratcher.codegen.opcode.RotationStyle
 import dev.betterclient.scratcher.std.dsl.compileInline
 
 object MotionLib {
-    fun init(lib: ASTFile, editor: ScratchEditor) {
+    fun init(lib: ASTFile) {
         compileInline(lib, "getX", returnType = PrimitiveType.Float) {
             MotionExpressions.XPosition()
         }

@@ -12,8 +12,6 @@ import dev.betterclient.scratcher.optimize.visit
 class ConvertToHeapAccess(
     val functions: List<Function>
 ) {
-    private val temporaryExpression = mutableMapOf<Function, TemporaryHeapGetExpression>() //used as a marker
-    private val temporaryNameExpression = mutableMapOf<Function, TemporaryHeapGetExpression>()
     private lateinit var hasLocalsMap: Map<Function, Boolean>
 
     fun run(): Map<Function, Pair<Int, GCInfo>> {

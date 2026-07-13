@@ -1,13 +1,7 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.TLVariable
-import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.TemporaryScratchStmt
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator

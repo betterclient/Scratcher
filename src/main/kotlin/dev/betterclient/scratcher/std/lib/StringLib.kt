@@ -5,22 +5,11 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.SBinaryOperator
-import dev.betterclient.scratcher.std.dsl.DSLFromCreator
-import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.concat
-import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.dsl.gt
-import dev.betterclient.scratcher.std.dsl.length
-import dev.betterclient.scratcher.std.dsl.lte
-import dev.betterclient.scratcher.std.dsl.minus
-import dev.betterclient.scratcher.std.dsl.plus
-import dev.betterclient.scratcher.std.dsl.sc
+import dev.betterclient.scratcher.std.dsl.*
 
 object StringLib {
     fun init(lib: ASTFile, editor: ScratchEditor) {

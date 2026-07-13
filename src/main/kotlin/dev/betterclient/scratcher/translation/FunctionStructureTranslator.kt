@@ -2,9 +2,8 @@ package dev.betterclient.scratcher.translation
 
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.ScratchFuncArgument
 import dev.betterclient.scratcher.codegen.ast.ScratchType

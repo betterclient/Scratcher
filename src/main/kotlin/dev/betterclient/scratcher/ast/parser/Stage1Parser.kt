@@ -648,7 +648,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             name = child.IDENTIFIER().text,
             child.type()?.let {
                 figureOutType(this.ctx, ast, it)
-            }?: (type as ListType).elementType
+            }?: type.elementType
         )
         val indexVariable = LocalVariable(
             obfuscate("compiler@forStmtIndex${getUniqueName()}"),

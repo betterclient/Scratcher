@@ -3,7 +3,6 @@ package dev.betterclient.scratcher.std.lib
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ast.SensingBoolExpressions
 import dev.betterclient.scratcher.codegen.ast.SensingExpressions
 import dev.betterclient.scratcher.codegen.ast.SensingStatements
