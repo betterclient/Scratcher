@@ -1,10 +1,32 @@
 package dev.betterclient.scratcher.optimize.impl
 
-import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.BooleanLiteral
+import dev.betterclient.scratcher.ast.CallExpression
+import dev.betterclient.scratcher.ast.CodeBlock
+import dev.betterclient.scratcher.ast.CompositeStatement
+import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.IfElseStatement
+import dev.betterclient.scratcher.ast.IfStatement
+import dev.betterclient.scratcher.ast.LocalVariable
+import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.LocalVariableExpression
+import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.ParameterExpression
+import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.ReturnStatement
+import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.VariableStatement
+import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.optimize.*
+import dev.betterclient.scratcher.optimize.ASTVisitor
+import dev.betterclient.scratcher.optimize.Optimization
+import dev.betterclient.scratcher.optimize.OptimizationUtils
+import dev.betterclient.scratcher.optimize.TCallGraph
+import dev.betterclient.scratcher.optimize.VisitMode
+import dev.betterclient.scratcher.optimize.visit
 
 object TailCallOptimization : Optimization("Tail call optimization") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
@@ -83,7 +105,12 @@ object TailCallOptimization : Optimization("Tail call optimization") {
                         }
                         expression.arguments.forEachIndexed { i, _ ->
                             val shadowVar = args[func.parameters[i]]!!
-                            statements.add(LocalVariableAssignmentStatement(shadowVar, LocalVariableExpression(tempVars[i])))
+                            statements.add(
+                                LocalVariableAssignmentStatement(
+                                    shadowVar,
+                                    LocalVariableExpression(tempVars[i])
+                                )
+                            )
                         }
                     }
 

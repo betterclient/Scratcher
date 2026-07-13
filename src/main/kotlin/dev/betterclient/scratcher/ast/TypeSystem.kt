@@ -88,38 +88,40 @@ data class ListType(
     }
 }
 
-/*data class FunctionType(
+data class FunctionType(
     val parameterTypes: List<Type>,
-    val returnType: Type,
-    override val nullable: Boolean = false
+    val returnType: Type
 ) : Type {
     override val isPrimitive: Boolean = false
-
-    override fun asNullable() = copy(nullable = true)
-    override fun asNonNull() = copy(nullable = false)
-
     override fun isAssignable(other: Type): Boolean {
         if (this == other) return true
-        val baseThis = this.asNonNull() as FunctionType
-        val baseOther = other.asNonNull()
 
-        if (baseOther !is FunctionType) return false
-        if (baseThis.parameterTypes.size != baseOther.parameterTypes.size) return false
+        val target = other.asNonNull() as? FunctionType ?: return false
 
-        if (!baseThis.returnType.isAssignable(baseOther.returnType)) return false
-
-        for (i in baseThis.parameterTypes.indices) {
-            if (!baseOther.parameterTypes[i].isAssignable(baseThis.parameterTypes[i])) return false
+        if (this.parameterTypes.size != target.parameterTypes.size) return false
+        for (i in this.parameterTypes.indices) {
+            if (this.parameterTypes[i] != target.parameterTypes[i]) {
+                return false
+            }
         }
 
-        return other.nullable || !this.nullable
+        return this.returnType.isAssignable(target.returnType)
     }
 
     override fun toString(): String {
         val params = parameterTypes.joinToString(", ") { it.toString() }
-        return "($params) -> $returnType" + if (nullable) "?" else ""
+        return "($params) -> $returnType"
     }
-}*/
+
+    companion object {
+        fun from(function: Function): FunctionType {
+            return FunctionType(
+                function.parameters.map { it.type },
+                function.returnType
+            )
+        }
+    }
+}
 
 fun unifyTypes(left: Type, right: Type): Type? {
     if (left == right) return left

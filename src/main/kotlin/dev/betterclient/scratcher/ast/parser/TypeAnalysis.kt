@@ -98,7 +98,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             when(statement) {
                 is ExpressionStatement -> {
                     getActualTypeOrThrow(statement.expression, function)
-                    if (!isWhenBranch && statement.expression !is CallExpression && statement.expression !is WhenExpression) {
+                    if (!isWhenBranch && statement.expression !is CallExpression && statement.expression !is WhenExpression && statement.expression !is DynamicCallExpression) {
                         throw TypeAnalysisException("Unsupported expression as top level. ${statement.expression}")
                     }
                 }
@@ -203,6 +203,18 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     expr.func.returnType
                 }
             }
+            is DynamicCallExpression -> {
+                checkType(
+                    expected = expr.type,
+                    found = getActualTypeOrThrow(expr.function, function),
+                    errorMessage = "Dynamic call expression is not the correct function type"
+                )
+                expr.arguments.forEachIndexed { index, expression ->
+                    checkType(expr.type.parameterTypes[index], getActualTypeOrThrow(expression, function), "Call parameter type is not correct")
+                }
+
+                expr.type.returnType
+            }
             is MemberExpression -> {
                 checkType(expr.struct.type, getActualTypeOrThrow(expr.expression, function), "Struct type is not correct")
                 expr.member.type
@@ -225,7 +237,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is VariableExpression -> expr.variable.type
             is EnumLiteral -> expr.enum.type
             is ParameterExpression -> expr.parameter.type
-            is FunctionLiteral -> expr.function.returnType
+            is FunctionLiteral -> FunctionType.from(expr.function)
 
             is TemporaryExpression -> throw UnreachableException()
         }

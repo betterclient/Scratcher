@@ -126,6 +126,7 @@ interface BaseExpressionVisitor {
     fun visitTemporaryStackSizeExpression(func: Function): Expression = TemporaryStackSizeExpression(func)
     fun visitTemporaryStackNameExpression(func: Function): Expression = TemporaryStackNameExpression(func)
     fun visitFunctionLiteral(func: Function): Expression = FunctionLiteral(func)
+    fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression = DynamicCallExpression(type, function, args)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -187,6 +188,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is TemporaryStackNameExpression -> this.visitTemporaryStackNameExpression(expression.function)
         is TemporaryStackSizeExpression -> this.visitTemporaryStackSizeExpression(expression.function)
         is FunctionLiteral -> this.visitFunctionLiteral(expression.function)
+        is DynamicCallExpression -> this.visitDynamicCallExpression(visit(expression.function), expression.arguments.map { visit(it) }, expression.type)
     }
 }
 

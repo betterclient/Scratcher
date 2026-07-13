@@ -17,6 +17,12 @@ data class CallExpression(
     val arguments: List<Expression>
 ) : Expression()
 
+data class DynamicCallExpression(
+    val type: FunctionType,
+    val function: Expression,
+    val arguments: List<Expression>
+) : Expression()
+
 data class ConcatExpression(
     val left: Expression,
     val right: Expression

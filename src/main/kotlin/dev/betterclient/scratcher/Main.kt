@@ -37,12 +37,8 @@ fun main() {
 
     println("Reachability")
     val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
-    val reachableTopLevelVariables = (reachableEntrypoints.asSequence()
-        .flatMap { it.sourceAST.variables.asSequence() }
-        .plus(StandardLibASTGenerator.optimizationsLib.variables.asSequence())
-        .associateWith { it.defaultValue })
+    val (reachableFunctions, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
     reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null } //clear default values as we already know them
-    val reachableFunctions = FunctionReachability(reachableEntrypoints).run()
 
     println("Top level variables")
     val topLevelTranslator = TopLevelVariableTranslator()
@@ -50,7 +46,7 @@ fun main() {
     scratchTopLevels.forEach { (_, scratch) -> editor.addVariable(scratch) }
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
-    GCLib.generate(reachableTopLevelVariables.keys.toList(), { scratchTopLevels[it]!! })
+    GCLib.generate(reachableTopLevelVariables.keys.toList()) { scratchTopLevels[it]!! }
 
     println("Lower expressions")
     reachableFunctions.forEach { CallExpressionLowering(context, it).run() }

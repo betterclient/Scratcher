@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.optimize.impl
+package dev.betterclient.scratcher.optimize.impl.control
 
 import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CodeBlock

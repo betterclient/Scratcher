@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.optimize.impl
+package dev.betterclient.scratcher.optimize.impl.expr
 
 import dev.betterclient.scratcher.ast.BinaryOperator
 import dev.betterclient.scratcher.ast.BooleanLiteral

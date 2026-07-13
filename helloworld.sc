@@ -50,20 +50,30 @@ on GreenFlag {
 
     while(true) {
         pen::eraseAll();
-        when(mode) {
-            TriangleRenderMode.OFF -> {}
-            TriangleRenderMode.RENDER -> render(triangles);
-            else -> looks::say("How are you here???");
-        };
+        render(mode!!, triangles);
     }
 }
 
-warp void render(Triangle[] triangles) {
+warp void render(TriangleRenderMode mode, Triangle[] triangles) {
     looks::say("X1 ${a.x1}");
     a.x1++;
-    for(auto t in triangles) {
-        triangle::fill(
-            t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
-        );
+
+    &forEach(triangles, when(mode) {
+        TriangleRenderMode.RENDER -> &triRender;
+        else -> &noRender;
+    });
+}
+
+warp void triRender(Triangle t) {
+    triangle::fill(
+        t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
+    );
+}
+
+warp void noRender(Triangle t) {}
+
+warp void forEach(Triangle[] a, (Triangle) -> void action) {
+    for(auto t in a) {
+        action(t);
     }
 }

@@ -140,6 +140,7 @@ class ScratchFunctionTranslator(
             }
 
             is CallExpression,
+            is DynamicCallExpression,
             is MemberExpression,
             is TemporaryLocalVariableIndexExpression,
             is TemporaryStackNameExpression,

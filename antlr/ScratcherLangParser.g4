@@ -132,6 +132,7 @@ expression
     | expression LBRACK expression RBRACK               # indexExpr
     | LIST LPAREN type RPAREN                           # listCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
+    | expression LPAREN argList? RPAREN                 # dynamicCallExpr
     | expression DOUBLE_BANG                            # assertNonNull
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr

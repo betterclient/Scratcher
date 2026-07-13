@@ -292,6 +292,14 @@ fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: Scratc
                 it.toString() == type.primitiveType().text
             }!!
         }
+        is ScratcherLangParser.FuncRefTypeContext -> {
+            FunctionType(
+                parameterTypes = type.type().dropLast(1).map {
+                    figureOutType(context, currentAST, it)
+                },
+                returnType = figureOutType(context, currentAST, type.type().last())
+            )
+        }
 
         else -> throw GeneralCompilerException("Type parser not implemented for ${type.text}")
     }

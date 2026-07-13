@@ -318,6 +318,34 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                     parseIfExpr(ctx.ifExpression())
                 )
             }
+            is ScratcherLangParser.FuncRefExprContext -> {
+                FunctionLiteral(
+                    figureOutFunctionSimple(ctx.functionIdentifier())
+                )
+            }
+            is ScratcherLangParser.DynamicCallExprContext -> {
+                val innerExpr = ctx.expression()
+                when (innerExpr) {
+                    is ScratcherLangParser.IdExprContext -> {
+                        figureOutFunctionInternal(null, innerExpr.text, innerExpr.text, ctx.argList())
+                    }
+                    is ScratcherLangParser.ScopeExprContext -> {
+                        val importName = innerExpr.IDENTIFIER(0)!!.text
+                        val funcName = innerExpr.IDENTIFIER(1)!!.text
+                        figureOutFunctionInternal(importName, funcName, innerExpr.text, ctx.argList())
+                    }
+                    else -> {
+                        val func = parseExpression(innerExpr)
+                        DynamicCallExpression(
+                            function = func,
+                            type = ExpressionTypes.getExpressionType(this.ctx, func) as? FunctionType ?: throw GeneralCompilerException(
+                                "Dynamic call without a function?"
+                            ),
+                            arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+                        )
+                    }
+                }
+            }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
     }
@@ -485,17 +513,21 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         funcCall: ScratcherLangParser.FunctionIdentifierContext,
         argList: ScratcherLangParser.ArgListContext?
     ): Expression {
-        val sourceAST = if (funcCall.IDENTIFIER() != null) {
+        val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.typePath()!!.IDENTIFIER(0)!!.text
+        val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.typePath()!!.IDENTIFIER(1)!!.text
+        return figureOutFunctionInternal(importName, funcName, funcCall.text, argList)
+    }
+
+    private fun figureOutFunctionInternal(
+        importName: String?,
+        funcName: String,
+        errorText: String,
+        argList: ScratcherLangParser.ArgListContext?
+    ): Expression {
+        val sourceAST = if (importName == null) {
             ast
         } else {
-            val import = funcCall.typePath()!!.IDENTIFIER(0)!!.text
-            ast.imports[import]?: throw NotFoundException("Import not found $import for ${funcCall.text}.")
-        }
-
-        val funcName = if (funcCall.IDENTIFIER() != null) {
-            funcCall.IDENTIFIER()!!.text
-        } else {
-            funcCall.typePath()!!.IDENTIFIER(1)!!.text
+            ast.imports[importName]?: throw NotFoundException("Import not found $importName for $errorText.")
         }
 
         val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(this.ctx, parseExpression(expr)) }?: listOf()
@@ -510,7 +542,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         if (sourceAST == StandardLibASTGenerator.listLib && funcName != "newList") {
             //AAAAAAAAAAAAAAAAAAAAAAAAAAA
-            resolvedFunc = sourceAST.functions.find { it.name == funcName }?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${currentFunction?.name} at ${funcCall.text}")
+            resolvedFunc = sourceAST.functions.find { it.name == funcName }?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${currentFunction?.name} at $errorText")
         }
 
         if (resolvedFunc == null) {
@@ -524,12 +556,42 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         resolvedFunc?.let {
             if (!it.userAccessible) {
-                throw NotFoundException("Function ${funcCall.text} is not accessible.")
+                throw NotFoundException("Function $errorText is not accessible.")
             }
             return CallExpression(
                 func = it,
                 arguments = args
             )
+        }
+
+        //dynamic call?
+        if (sourceAST == ast) {
+            //first check local variables
+            localVariables.find { it.name == funcName && it.type is FunctionType }?.let {
+                if (matchesArguments(
+                        provided = (it.type as FunctionType).parameterTypes,
+                        expected = expectedArgListTypes
+                    )) {
+                    return DynamicCallExpression(
+                        type = it.type,
+                        function = LocalVariableExpression(it),
+                        arguments = args
+                    )
+                }
+            }
+
+            currentFunction?.parameters?.find { it.name == funcName && it.type is FunctionType }?.let {
+                if (matchesArguments(
+                        provided = (it.type as FunctionType).parameterTypes,
+                        expected = expectedArgListTypes
+                    )) {
+                    return DynamicCallExpression(
+                        type = it.type,
+                        function = ParameterExpression(it),
+                        arguments = args
+                    )
+                }
+            }
         }
 
         sourceAST.structs.find {
@@ -547,13 +609,49 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.toString() }})"
         val candidates = mutableListOf<String>()
         sourceAST.functions.filter { it.name == funcName }.forEach { func ->
-            candidates.add("Function \"${func.returnType.toString()} ${func.name}(${func.parameters.joinToString(", ") { "${it.type} ${it.name}" }})\"")
+            candidates.add("Function \"${func.returnType} ${func.name}(${func.parameters.joinToString(", ") { "${it.type} ${it.name}" }})\"")
         }
         sourceAST.structs.filter { it.name == targetFunc }.forEach { struct ->
             candidates.add("Struct \"${struct.name}\"")
         }
 
         throw NotFoundException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
+    }
+
+    private fun figureOutFunctionSimple(
+        funcCall: ScratcherLangParser.FunctionIdentifierContext
+    ): Function {
+        val sourceAST = if (funcCall.IDENTIFIER() != null) {
+            ast
+        } else {
+            val import = funcCall.typePath()!!.IDENTIFIER(0)!!.text
+            ast.imports[import]?: throw NotFoundException("Import not found $import for ${funcCall.text}.")
+        }
+
+        val funcName = if (funcCall.IDENTIFIER() != null) {
+            funcCall.IDENTIFIER()!!.text
+        } else {
+            funcCall.typePath()!!.IDENTIFIER(1)!!.text
+        }
+
+        val resolvedFunc = sourceAST.functions.filter {
+            it.name == funcName
+        }
+
+        return when(resolvedFunc.size) {
+            0 -> {
+                throw NotFoundException("Unable to find ${funcCall.text}.")
+            }
+            1 -> {
+                if (!resolvedFunc[0].userAccessible) {
+                    throw NotFoundException("Function ${funcCall.text} is not accessible.")
+                }
+                resolvedFunc[0]
+            }
+            else -> {
+                throw DuplicateDefinitionException("Ambiguous function reference ${funcCall.text}.")
+            }
+        }
     }
 
     private fun matchesArgumentsExactly(

@@ -82,6 +82,10 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
                 out.add(expr.func)
                 expr.arguments.forEach { generate(it, out) }
             }
+            is DynamicCallExpression -> {
+                generate(expr.function, out)
+                expr.arguments.forEach { generate(it, out) }
+            }
             is ConcatExpression -> {
                 generate(expr.left, out)
                 generate(expr.right, out)

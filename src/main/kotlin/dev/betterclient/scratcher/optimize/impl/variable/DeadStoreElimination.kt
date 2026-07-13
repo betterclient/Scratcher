@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.optimize.impl
+package dev.betterclient.scratcher.optimize.impl.variable
 
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
@@ -69,7 +69,7 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
             is BinaryExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
             is ConcatExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
             is MemberExpression -> hasSideEffects(expr.expression)
-            is CallExpression -> true
+            is CallExpression, is DynamicCallExpression -> true
             is NonNullAssertExpression -> true
             is TemporaryExpression -> true
             is WhenExpression -> true

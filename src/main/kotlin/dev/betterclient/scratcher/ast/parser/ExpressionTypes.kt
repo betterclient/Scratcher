@@ -30,9 +30,8 @@ object ExpressionTypes {
             is WhenExpression -> {
                 parseWhenExpressionType(expr, context)
             }
-            is FunctionLiteral -> {
-                expr.function.returnType
-            }
+            is FunctionLiteral -> FunctionType.from(expr.function)
+            is DynamicCallExpression -> expr.type.returnType
             is TemporaryExpression -> throw UnreachableException()
         }
     }

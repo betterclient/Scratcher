@@ -4,6 +4,18 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.impl.*
+import dev.betterclient.scratcher.optimize.impl.dynamic.DynamicDispatchHandler
+import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
+import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
+import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
+import dev.betterclient.scratcher.optimize.impl.control.RepeatToWhile
+import dev.betterclient.scratcher.optimize.impl.dynamic.DirectReferenceCallInlining
+import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
+import dev.betterclient.scratcher.optimize.impl.expr.SimplifyBooleanEquality
+import dev.betterclient.scratcher.optimize.impl.expr.SimplifyDoubleNegation
+import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination
+import dev.betterclient.scratcher.optimize.impl.variable.InlineSingleUseAssignment
+import dev.betterclient.scratcher.optimize.impl.variable.SequentialConstantPropagation
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 typealias TCallGraph = Map<Function, List<Function>>
@@ -19,11 +31,13 @@ object Optimizations {
         SequentialConstantPropagation,
         DeadStoreElimination,
         FunctionInlining,
-        TailCallOptimization
+        TailCallOptimization,
+        DirectReferenceCallInlining,
     )
 
-    val applyLast = listOf<Optimization>(
-        PromoteToGlobals
+    val applyLast = listOf(
+        PromoteToGlobals,
+        DynamicDispatchHandler
     )
 
     fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
