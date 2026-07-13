@@ -18,7 +18,7 @@ warp int collect() {
     int rootIndex = 1;
     repeat(self::lengthOfRoots()) {
         markRoot(cast::toIntOrDefault(self::getRoots(rootIndex), -1));
-        rootIndex = rootIndex + 1;
+        rootIndex++;
     }
     markTopLevels();
 
@@ -26,7 +26,7 @@ warp int collect() {
     int freeIndex = 1;
     repeat(self::lengthOfFreeList()) {
         self::addMarked(cast::toIntOrDefault(self::getFreeList(freeIndex), -1));
-        freeIndex = freeIndex + 1;
+        freeIndex++;
     }
 
     return sweep();
@@ -38,9 +38,9 @@ warp int sweep() {
     repeat(self::getHeapSize()) {
         if(!self::isMarked(index)) {
             self::freeHeap(index);
-            freed = freed + 1;
+            freed++;
         }
-        index = index + 1;
+        index++;
     }
     return freed;
 }
@@ -59,7 +59,7 @@ warp void markRoot(int addr) {
     repeat(count) {
         str type = self::getFieldType(start + typeIndex);
         markType(addr + typeIndex, type);
-        typeIndex = typeIndex + 1;
+        typeIndex++;
     }
     //self::freeStrArray(types); freeing this breaks everything????????????
 }
@@ -96,7 +96,7 @@ warp void markList(int addr, str type) {
     repeat(string::length(type) - 1) {
         str char = string::charAt(type, index);
         out = string::concat(out, char);
-        index = index + 1;
+        index++;
     }
 
     //^ actual list type
@@ -110,7 +110,7 @@ warp void markList(int addr, str type) {
         } else {
             self::addMarked(data + index);
         }
-        index = index + 1;
+        index++;
     }
 }
 
@@ -129,7 +129,7 @@ warp void markStruct(int addr, str type) {
         } else {
             markType(actualAddr, fieldType);
         }
-        typeIndex = typeIndex + 1;
+        typeIndex++;
     }
 }
 
@@ -139,7 +139,7 @@ warp str findName(int addr) {
         if(self::getAllocAddressList(index) == cast::toStr(addr)) {
             return self::getAllocNameList(index);
         }
-        index = index + 1;
+        index++;
     }
     return "0";
 }
@@ -170,6 +170,6 @@ warp void markTopLevels() {
             currentType = obj;
         }
 
-        index = index + 1;
+        index++;
     }
 }
