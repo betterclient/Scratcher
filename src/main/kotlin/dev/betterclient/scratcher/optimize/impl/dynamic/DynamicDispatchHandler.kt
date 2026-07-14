@@ -25,7 +25,9 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.math.BigInteger
 
 object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
+    var modified = false
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
+        modified = false
         val literalTypes = mutableMapOf<FunctionType, MutableSet<Function>>()
         graph.keys.forEach { countLiterals(it, literalTypes) }
         val dispatchers = literalTypes.keys.zip(
@@ -38,7 +40,7 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
             rewriteToUseDispatcher(it, dispatchers)
         }
 
-        return true
+        return modified
     }
 
     private fun rewriteToUseDispatcher(func: Function, dispatchers: Map<FunctionType, DispatcherConfig>) {
@@ -49,6 +51,7 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
                 type: FunctionType
             ): Expression {
                 val dispatcher = dispatchers[type]!!
+                modified = true
 
                 return CallExpression(
                     func = dispatcher.dispatcher,
@@ -57,6 +60,7 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
             }
 
             override fun visitFunctionLiteral(func: Function): Expression {
+                modified = true
                 return IntLiteral(dispatchers[FunctionType.from(func)]!!.targets.indexOf(func).toBigInteger())
             }
         })

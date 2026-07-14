@@ -58,7 +58,7 @@ warp void render(TriangleRenderMode mode, Triangle[] triangles) {
     looks::say("X1 ${a.x1}");
     a.x1++;
 
-    &forEach(triangles, when(mode) {
+    forEach(triangles, when(mode) {
         TriangleRenderMode.RENDER -> &triRender;
         else -> &noRender;
     });

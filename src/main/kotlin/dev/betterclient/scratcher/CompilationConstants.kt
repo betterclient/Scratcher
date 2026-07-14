@@ -2,7 +2,7 @@ package dev.betterclient.scratcher
 
 object CompilationConstants {
     //obfuscation
-    const val OBFUSCATION = false //obfuscate your code to make it unreadable or just reduce size
+    const val OBFUSCATION = true //obfuscate your code to make it unreadable or just reduce size
     const val OBFUSCATION_MINIFICATION = true //use short sequential names instead of randomized strings
     const val NON_MINIFICATION_LENGTH = 20 //randomized string length, only relevant if OBFUSCATION_MINIFICATION is false
 
