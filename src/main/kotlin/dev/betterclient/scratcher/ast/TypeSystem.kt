@@ -5,6 +5,7 @@ sealed interface Type {
     fun asNullable(): Type = this as? NullableType ?: NullableType(this)
     fun asNonNull(): Type = if (this is NullableType) this.inner.asNonNull() else this
     fun isAssignable(other: Type): Boolean
+    fun toSafeString(): String
 }
 
 data class NullableType(
@@ -23,6 +24,8 @@ data class NullableType(
     override fun toString(): String {
         return "$inner?"
     }
+
+    override fun toSafeString() = "${inner.toSafeString()}?"
 }
 
 sealed interface PrimitiveType : Type {
@@ -46,6 +49,8 @@ sealed interface PrimitiveType : Type {
     object Void : PrimitiveType { override fun toString() = "void" }
     object Null : PrimitiveType { override fun toString() = "null" }
     object Auto : PrimitiveType { override fun toString() = "auto" }
+
+    override fun toSafeString() = toString()
 }
 
 data class SimpleType(
@@ -61,6 +66,8 @@ data class SimpleType(
     override fun toString(): String {
         return "${sourceAST.simplePath}::$name"
     }
+
+    override fun toSafeString() = toString()
 }
 
 data class ListType(
@@ -86,6 +93,8 @@ data class ListType(
         }
         return self
     }
+
+    override fun toSafeString() = "${elementType.toSafeString()}[]"
 }
 
 data class FunctionType(
@@ -121,6 +130,15 @@ data class FunctionType(
             )
         }
     }
+
+    override fun toSafeString() = "${parameterTypes.joinToString { it.toSafeString() }} ${returnType.toSafeString()}}"
+}
+
+data class PlaceholderType(val name: String) : Type {
+    override val isPrimitive: Boolean = false
+    override fun isAssignable(other: Type): Boolean = true
+    override fun toString(): String = name
+    override fun toSafeString() = toString()
 }
 
 fun unifyTypes(left: Type, right: Type): Type? {

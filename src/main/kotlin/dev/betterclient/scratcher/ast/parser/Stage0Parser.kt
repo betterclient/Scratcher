@@ -135,15 +135,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         for (context in initialRead.topLevelElement()) {
             if (context.funcDecl() != null) {
                 val func = context.funcDecl()!!
+                val typeParams = func.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
-                    val type = figureOutType(ctx, ast, it.type())
+                    val type = figureOutType(ctx, ast, it.type(), typeParams)
                     if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                     Parameter(it.IDENTIFIER().text, type)
                 }.toMutableList()
 
                 checkDuplicates(parameterList, "function ${ast.simplePath}::${func.IDENTIFIER().text}")
 
-                val returnType = figureOutType(ctx, ast, func.type())
+                val returnType = figureOutType(ctx, ast, func.type(), typeParams)
                 val funcName = func.IDENTIFIER().text
 
                 val duplicate = ast.functions.find { existing ->
@@ -183,11 +184,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = returnType,
                     warp = isWarp,
                     export = isExport,
-                    sourceAST = ast
+                    sourceAST = ast,
+                    typeParameters = typeParams,
                 )
                 funcAST.ctx = func.block()
 
-                ast.functions.add(funcAST)
+                if (typeParams.isEmpty()) {
+                    ast.functions.add(funcAST)
+                } else {
+                    ast.templates.add(funcAST)
+                }
             } else if (context.tlVarDecl() != null) {
                 val variable = context.tlVarDecl()!!
                 if (variable.expression() == null && variable.AUTO() != null) {
@@ -251,20 +257,35 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
     }
 }
 
-fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: ScratcherLangParser.TypeContext): Type {
+fun figureOutType(
+    context: CompilationContext,
+    currentAST: ASTFile,
+    type: ScratcherLangParser.TypeContext,
+    typeParameters: List<String> = emptyList(),
+    localTypeBindings: Map<String, Type> = emptyMap()
+): Type {
     return when(type) {
         is ScratcherLangParser.ArrayTypeContext -> {
             ListType(
-                figureOutType(context, currentAST, type.type())
+                figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
             )
         }
         is ScratcherLangParser.NullableTypeContext -> {
             NullableType(
-                figureOutType(context, currentAST, type.type())
+                figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
             )
         }
         is ScratcherLangParser.PathTypeContext -> {
             val id = type.typePath().IDENTIFIER()
+            if (id.size == 1) {
+                val typeName = id[0].text
+                if (localTypeBindings.containsKey(typeName)) {
+                    return localTypeBindings[typeName]!!
+                }
+                if (typeParameters.contains(typeName)) {
+                    return PlaceholderType(typeName)
+                }
+            }
             when (id.size) {
                 2 -> {
                     //from other file
@@ -295,9 +316,9 @@ fun figureOutType(context: CompilationContext, currentAST: ASTFile, type: Scratc
         is ScratcherLangParser.FuncRefTypeContext -> {
             FunctionType(
                 parameterTypes = type.type().dropLast(1).map {
-                    figureOutType(context, currentAST, it)
+                    figureOutType(context, currentAST, it, typeParameters, localTypeBindings)
                 },
-                returnType = figureOutType(context, currentAST, type.type().last())
+                returnType = figureOutType(context, currentAST, type.type().last(), typeParameters, localTypeBindings)
             )
         }
 

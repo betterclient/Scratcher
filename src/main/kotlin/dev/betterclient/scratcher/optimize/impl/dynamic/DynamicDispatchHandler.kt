@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.IfElseStatement
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.Parameter
@@ -50,9 +51,11 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
                 args: List<Expression>,
                 type: FunctionType
             ): Expression {
-                val dispatcher = dispatchers[type]!!
-                modified = true
+                val dispatcher = dispatchers.entries.find { (literalType, _) ->
+                    literalType.isAssignable(type)
+                }?.value ?: throw GeneralCompilerException("No compatible dynamic dispatch target found for signature: $type")
 
+                modified = true
                 return CallExpression(
                     func = dispatcher.dispatcher,
                     arguments = listOf(function) + args

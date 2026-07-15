@@ -40,7 +40,11 @@ varDecl
     ;
 
 funcDecl
-    : modifier* type IDENTIFIER LPAREN paramList? RPAREN block
+    : modifier* typeParameters? type IDENTIFIER LPAREN paramList? RPAREN block
+    ;
+
+typeParameters
+    : LT IDENTIFIER (COMMA IDENTIFIER)* GT
     ;
 
 modifier

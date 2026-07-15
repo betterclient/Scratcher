@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.optimize
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -21,6 +22,13 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
+    private val requiredOptimizations = listOf(
+        RepeatToWhile
+    )
+    private val requiredRunLastOptimizations = listOf(
+        DynamicDispatchHandler
+    )
+
     private val optimizations = listOf(
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
@@ -36,8 +44,8 @@ object Optimizations {
     )
 
     val applyLast = listOf(
-        PromoteToGlobals,
-        DynamicDispatchHandler
+        DynamicDispatchHandler,
+        PromoteToGlobals
     )
 
     fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
@@ -64,6 +72,8 @@ object Optimizations {
         applyLast.forEach {
             val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
             callGraph.forEach { (func, _) ->
+                if (it !in requiredRunLastOptimizations && CompilationConstants.DISABLE_OPTIMIZATIONS) return@forEach
+
                 if (it.shouldApply(func, callGraph)) {
                     val applied = it.apply(func, callGraph, context)
                     if(applied) applyCounts[it] = (applyCounts[it]?: 0) + 1
@@ -80,7 +90,8 @@ object Optimizations {
     private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {
         if (StandardLibASTGenerator.isStandardLib(func)) return false
         var funcModified = false
-        optimizations.forEach { optimization ->
+        val opts = if (CompilationConstants.DISABLE_OPTIMIZATIONS) requiredOptimizations else optimizations
+        opts.forEach { optimization ->
             if (optimization.shouldApply(func, graph)) {
                 val applied = optimization.apply(func, graph, context)
                 if (applied)

@@ -14,6 +14,7 @@ class ASTFile(
     val functions: MutableList<Function> = mutableListOf(),
     val eventListeners: MutableList<ASTEventListener> = mutableListOf(),
     val enums: MutableList<ASTEnum> = mutableListOf(),
+    val templates: MutableList<Function> = mutableListOf()
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
@@ -62,7 +63,9 @@ open class Function(
     val warp: Boolean,
     val userAccessible: Boolean = true,
     val sourceAST: ASTFile,
-    val isEventListener: Boolean = false
+    val isEventListener: Boolean = false,
+    val typeParameters: List<String> = emptyList(),
+    val typeBindings: Map<String, Type> = emptyMap()
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }

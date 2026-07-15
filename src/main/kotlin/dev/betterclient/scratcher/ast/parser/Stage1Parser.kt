@@ -27,6 +27,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
     val localVariables = mutableListOf<LocalVariable>() //keep track of local variables
     var currentFunction: Function? = null
+    var currentTypeBindings: Map<String, Type> = emptyMap()
 
     private fun parseInternal() {
         for (variable in ast.variables) {
@@ -49,9 +50,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
         currentFunction = null
         localVariables.clear()
+        currentTypeBindings = emptyMap()
 
-        ast.functions.forEach {
+        ast.functions.toList().forEach {
             currentFunction = it
+            currentTypeBindings = it.typeBindings
             localVariables.clear()
             if (ast.path != "typecheck") {
                 addParameterChecks(it.code, it.parameters)
@@ -59,10 +62,11 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             parseBlock(it.code, it.ctx!!)
             it.ctx = null
         }
+        currentTypeBindings = emptyMap()
         currentFunction = null
     }
 
-    private fun addParameterChecks(
+    fun addParameterChecks(
         code: CodeBlock,
         parameters: MutableList<Parameter>
     ) {
@@ -101,7 +105,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
+    fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
         val prevLocalVariables = localVariables.map { it }
         localVariables.addAll(injectVariables)
         blockCtx.statement().map { parseStatement(it); }.forEach {
@@ -122,7 +126,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val name = child.IDENTIFIER().text
                 val value = parseExpression(child.expression())
                 val type = child.type()?.let {
-                    figureOutType(this.ctx, ast, it)
+                    figureOutType(this.ctx, ast, it, localTypeBindings = currentTypeBindings)
                 }?: ExpressionTypes.getExpressionType(this.ctx, value)
 
                 if (type == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${currentFunction?.name}")
@@ -288,7 +292,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
             }
             is ScratcherLangParser.ListCreationExprContext -> {
-                val list = figureOutType(this.ctx, ast, ctx.type())
+                val list = figureOutType(this.ctx, ast, ctx.type(), localTypeBindings = currentTypeBindings)
                 CallExpression(
                     ListLib.newList,
                     mutableListOf(
@@ -530,8 +534,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             ast.imports[importName]?: throw NotFoundException("Import not found $importName for $errorText.")
         }
 
-        val expectedArgListTypes = argList?.expression()?.map { expr -> ExpressionTypes.getExpressionType(this.ctx, parseExpression(expr)) }?: listOf()
+        val expectedArgListTypes = argList?.expression()?.map { expr ->
+            ExpressionTypes.getExpressionType(this.ctx, parseExpression(expr))
+        }?: listOf()
         val args = argList?.expression()?.map { parseExpression(it) }?: listOf()
+
+        Generics.tryResolve(sourceAST, funcName, expectedArgListTypes, args, this)?.let {
+            return it
+        }
 
         var resolvedFunc = sourceAST.functions.find {
             if (it.name != funcName) return@find false
@@ -745,7 +755,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         val variable = LocalVariable(
             name = child.IDENTIFIER().text,
             child.type()?.let {
-                figureOutType(this.ctx, ast, it)
+                figureOutType(this.ctx, ast, it, localTypeBindings = currentTypeBindings)
             }?: type.elementType
         )
         val indexVariable = LocalVariable(

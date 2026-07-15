@@ -72,8 +72,8 @@ warp void triRender(Triangle t) {
 
 warp void noRender(Triangle t) {}
 
-warp void forEach(Triangle[] a, (Triangle) -> void action) {
-    for(auto t in a) {
+warp <T> void forEach(T[] a, (T) -> void action) {
+    for(T t in a) {
         action(t);
     }
 }
