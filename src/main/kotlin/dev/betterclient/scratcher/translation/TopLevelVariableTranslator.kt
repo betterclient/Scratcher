@@ -13,7 +13,7 @@ class TopLevelVariableTranslator {
 
     fun createFunction(vars: Map<TLVariable, Expression?>): Function {
         val func = Function(
-            name = "compiler@initTopLevel",
+            name = "initTopLevel",
             returnType = PrimitiveType.Void,
             export = false,
             warp = true,

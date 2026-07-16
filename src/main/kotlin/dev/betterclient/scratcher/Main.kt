@@ -26,7 +26,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("helloworld.sc"))
+    val (ast, context) = compile(File("test/helloworld.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }
@@ -46,6 +46,10 @@ fun main() {
     scratchTopLevels.forEach { (_, scratch) -> editor.addVariable(scratch) }
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
+
+    StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)
+    Optimizations.apply(StandardLibASTGenerator.compilerLib, context, print = false) //optimize the top level init
+
     GCLib.generate(reachableTopLevelVariables.keys.toList()) { scratchTopLevels[it]!! }
 
     println("Lower expressions")

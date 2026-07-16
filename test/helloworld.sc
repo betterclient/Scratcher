@@ -5,6 +5,8 @@ import list;
 import pen;
 import sensing;
 import except;
+import "fps.sc" as counter;
+import cast;
 
 struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
 enum TriangleRenderMode(OFF, RENDER, ITHINK);
@@ -51,11 +53,12 @@ on GreenFlag {
     while(true) {
         pen::eraseAll();
         render(mode!!, triangles);
+        counter::update();
+        looks::say("FPS: ${counter::get()}");
     }
 }
 
 warp void render(TriangleRenderMode mode, Triangle[] triangles) {
-    looks::say("X1 ${a.x1}");
     a.x1++;
 
     forEach(triangles, when(mode) {

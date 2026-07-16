@@ -41,10 +41,10 @@ object Optimizations {
         FunctionInlining,
         TailCallOptimization,
         DirectReferenceCallInlining,
+        DynamicDispatchHandler
     )
 
-    val applyLast = listOf(
-        DynamicDispatchHandler,
+    val applyLast = listOf<Optimization>(
         PromoteToGlobals
     )
 
