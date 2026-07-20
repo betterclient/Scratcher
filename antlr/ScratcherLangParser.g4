@@ -65,7 +65,7 @@ enumDecl
     ;
 
 structDecl
-    : STRUCT IDENTIFIER LPAREN structField (COMMA structField)* RPAREN SEMI
+    : STRUCT IDENTIFIER typeParameters? LPAREN structField (COMMA structField)* RPAREN SEMI
     ;
 
 structField
@@ -163,7 +163,7 @@ argList
     ;
 
 type
-    : typePath                                      # pathType
+    : typePath (LT type (COMMA type)* GT)?          # pathType
     | primitiveType                                 # primType
     | type LBRACK RBRACK                            # arrayType
     | type NULLABLE                                 # nullableType

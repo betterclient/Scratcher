@@ -42,15 +42,21 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         //first read for types
         for (context in initialRead.topLevelElement().filter { it.structDecl() != null }) {
             val struct = context.structDecl()!!
-            val structAST =
-                Struct(struct.IDENTIFIER().text, sourceAST = ast)
-            structAST.parseInfo = struct
-            ctx.types.add(structAST.type)
-            ast.structs.find { it.name == structAST.name }?.let {
-                throw DuplicateDefinitionException("Duplicate struct definition ${ast.simplePath}::${it.name}")
-            }
+            val typeParams = struct.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
 
-            ast.structs.add(structAST)
+            val structAST = Struct(
+                name = struct.IDENTIFIER().text,
+                sourceAST = ast,
+                typeParameters = typeParams
+            )
+            structAST.parseInfo = struct
+
+            if (typeParams.isNotEmpty()) {
+                ast.structTemplates.add(structAST)
+            } else {
+                ctx.types.add(structAST.type)
+                ast.structs.add(structAST)
+            }
         }
 
         for (context in initialRead.topLevelElement().filter { it.enumDecl() != null }) {
@@ -112,9 +118,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
 
         //second read for parameters
-        ast.structs.forEach { struct ->
+        (ast.structs + ast.structTemplates).forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
-                val type = figureOutType(ctx, ast, field.type())
+                val type = figureOutType(ctx, ast, field.type(), struct.typeParameters)
                 val isNullable = type is NullableType
                 if (isNullable && type.isPrimitive) {
                     throw NotNullableException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
@@ -129,7 +135,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 )
             }
             checkDuplicates(struct.parameters, "struct ${ast.simplePath}::${struct.name}")
-            struct.parseInfo = null
+            if (struct !in ast.structTemplates) {
+                struct.parseInfo = null
+            }
         }
 
         for (context in initialRead.topLevelElement()) {
@@ -277,6 +285,14 @@ fun figureOutType(
         }
         is ScratcherLangParser.PathTypeContext -> {
             val id = type.typePath().IDENTIFIER()
+            val typeName = id.last().text
+            val typeArgsCtx = type.type()
+
+            if (typeArgsCtx.isNotEmpty()) {
+                val resolvedArgs = typeArgsCtx.map { figureOutType(context, currentAST, it, typeParameters, localTypeBindings) }
+                return Generics.resolveGenericStruct(context, currentAST, typeName, resolvedArgs)
+            }
+
             if (id.size == 1) {
                 val typeName = id[0].text
                 if (localTypeBindings.containsKey(typeName)) {

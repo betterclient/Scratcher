@@ -14,7 +14,8 @@ class ASTFile(
     val functions: MutableList<Function> = mutableListOf(),
     val eventListeners: MutableList<ASTEventListener> = mutableListOf(),
     val enums: MutableList<ASTEnum> = mutableListOf(),
-    val templates: MutableList<Function> = mutableListOf()
+    val templates: MutableList<Function> = mutableListOf(),
+    val structTemplates: MutableList<Struct> = mutableListOf(),
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
@@ -31,7 +32,9 @@ class ASTEventListener(
 class Struct(
     val name: String,
     val parameters: MutableList<Parameter> = mutableListOf(),
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val typeParameters: List<String> = emptyList(),
+    val typeBindings: Map<String, Type> = emptyMap()
 ) {
     val type = SimpleType(name, sourceAST)
     val sizeOnHeap: Int

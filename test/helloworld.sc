@@ -8,10 +8,10 @@ import except;
 import "fps.sc" as counter;
 import cast;
 
-struct Triangle(float x1, float y1, float x2, float y2, float x3, float y3);
+struct Triangle<Num>(Num x1, Num y1, Num x2, Num y2, Num x3, Num y3);
 enum TriangleRenderMode(OFF, RENDER, ITHINK);
 
-auto a = Triangle(5, 15, 60, -120, 240, 67);
+Triangle<float> a = Triangle(5, 15, 60, -120, 240, 67);
 
 on GreenFlag {
     auto mode = when(sensing::ask("mode")) {
@@ -25,7 +25,7 @@ on GreenFlag {
         }
     };
 
-    auto triangles = List(Triangle);
+    auto triangles = List(Triangle<float>);
     repeat(150) {
         list::add(triangles, Triangle(
             utils::random(-240, 240),
@@ -58,7 +58,7 @@ on GreenFlag {
     }
 }
 
-warp void render(TriangleRenderMode mode, Triangle[] triangles) {
+warp void render(TriangleRenderMode mode, Triangle<float>[] triangles) {
     a.x1++;
 
     forEach(triangles, when(mode) {
@@ -67,13 +67,13 @@ warp void render(TriangleRenderMode mode, Triangle[] triangles) {
     });
 }
 
-warp void triRender(Triangle t) {
+warp void triRender(Triangle<float> t) {
     triangle::fill(
         t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
     );
 }
 
-warp void noRender(Triangle t) {}
+warp void noRender(Triangle<float> t) {}
 
 warp <T> void forEach(T[] a, (T) -> void action) {
     for(T t in a) {

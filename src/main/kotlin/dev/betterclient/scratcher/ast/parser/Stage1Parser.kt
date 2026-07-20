@@ -32,7 +32,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     private fun parseInternal() {
         for (variable in ast.variables) {
             variable.ctx?.let {
-                variable.defaultValue = parseExpression(it)
+                variable.defaultValue = parseExpression(it, variable.type)
                 if (variable.type == PrimitiveType.Auto) {
                     variable.type = ExpressionTypes.getExpressionType(this.ctx, variable.defaultValue!!)
                 }
@@ -62,6 +62,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             parseBlock(it.code, it.ctx!!)
             it.ctx = null
         }
+
+        ast.templates.toList().forEach {
+            currentFunction = it
+            currentTypeBindings = it.typeParameters.associateWith { name -> PlaceholderType(name) }
+            localVariables.clear()
+            parseBlock(it.code, it.ctx!!)
+        }
+
         currentTypeBindings = emptyMap()
         currentFunction = null
     }
@@ -124,13 +132,14 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         return when (val child = ctx.getChild(0)) {
             is ScratcherLangParser.VarDeclContext -> {
                 val name = child.IDENTIFIER().text
-                val value = parseExpression(child.expression())
                 val type = child.type()?.let {
                     figureOutType(this.ctx, ast, it, localTypeBindings = currentTypeBindings)
-                }?: ExpressionTypes.getExpressionType(this.ctx, value)
+                }
+                val value = parseExpression(child.expression(), type)
+                val resolvedType = type ?: ExpressionTypes.getExpressionType(this.ctx, value)
 
-                if (type == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${currentFunction?.name}")
-                val variable = LocalVariable(name, type)
+                if (resolvedType == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${currentFunction?.name}")
+                val variable = LocalVariable(name, resolvedType)
                 if (variable.type == PrimitiveType.Void) throw VoidVariableException("Variable ${ast.simplePath}::${currentFunction?.name}::${variable.name} is type void.")
                 if (localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${currentFunction?.name}")
                 localVariables.add(variable)
@@ -221,10 +230,10 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun parseExpression(ctx: ScratcherLangParser.ExpressionContext): Expression {
+    private fun parseExpression(ctx: ScratcherLangParser.ExpressionContext, expectedType: Type? = null): Expression {
         return when (ctx) {
-            is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression())
-            is ScratcherLangParser.CallExprContext -> figureOutFunction(ctx.functionIdentifier(), ctx.argList())
+            is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression(), expectedType)
+            is ScratcherLangParser.CallExprContext -> figureOutFunction(ctx.functionIdentifier(), ctx.argList(), expectedType)
             is ScratcherLangParser.UnaryExprContext -> UnaryExpression(
                 operator = when {
                     ctx.PLUS() != null -> UnaryOperator.PLUS
@@ -331,12 +340,12 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 val innerExpr = ctx.expression()
                 when (innerExpr) {
                     is ScratcherLangParser.IdExprContext -> {
-                        figureOutFunctionInternal(null, innerExpr.text, innerExpr.text, ctx.argList())
+                        figureOutFunctionInternal(null, innerExpr.text, innerExpr.text, ctx.argList(), expectedType)
                     }
                     is ScratcherLangParser.ScopeExprContext -> {
                         val importName = innerExpr.IDENTIFIER(0)!!.text
                         val funcName = innerExpr.IDENTIFIER(1)!!.text
-                        figureOutFunctionInternal(importName, funcName, innerExpr.text, ctx.argList())
+                        figureOutFunctionInternal(importName, funcName, innerExpr.text, ctx.argList(), expectedType)
                     }
                     else -> {
                         val func = parseExpression(innerExpr)
@@ -515,18 +524,20 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
 
     private fun figureOutFunction(
         funcCall: ScratcherLangParser.FunctionIdentifierContext,
-        argList: ScratcherLangParser.ArgListContext?
+        argList: ScratcherLangParser.ArgListContext?,
+        expectedType: Type?
     ): Expression {
         val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.typePath()!!.IDENTIFIER(0)!!.text
         val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.typePath()!!.IDENTIFIER(1)!!.text
-        return figureOutFunctionInternal(importName, funcName, funcCall.text, argList)
+        return figureOutFunctionInternal(importName, funcName, funcCall.text, argList, expectedType)
     }
 
     private fun figureOutFunctionInternal(
         importName: String?,
         funcName: String,
         errorText: String,
-        argList: ScratcherLangParser.ArgListContext?
+        argList: ScratcherLangParser.ArgListContext?,
+        expectedType: Type?
     ): Expression {
         val sourceAST = if (importName == null) {
             ast
@@ -539,8 +550,53 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         }?: listOf()
         val args = argList?.expression()?.map { parseExpression(it) }?: listOf()
 
-        Generics.tryResolve(sourceAST, funcName, expectedArgListTypes, args, this)?.let {
+        Generics.tryResolve(this.ctx, sourceAST, funcName, expectedArgListTypes, args, this)?.let {
             return it
+        }
+
+        val structTemplate = sourceAST.structTemplates.find {
+            it.name == funcName
+        } ?: sourceAST.imports.values.flatMap { it.structTemplates }.find {
+            it.name == funcName
+        }
+
+        if (structTemplate != null) {
+            val bindings = mutableMapOf<String, Type>()
+            var matches = true
+
+            val expectedStruct = (expectedType as? SimpleType)?.let { t ->
+                t.sourceAST.structs.find { it.type == t }
+            }
+            if (expectedStruct != null && expectedStruct.name.substringBefore("@") == structTemplate.name) {
+                bindings.putAll(expectedStruct.typeBindings)
+            }
+
+            for (i in expectedArgListTypes.indices) {
+                if (i < structTemplate.parameters.size) {
+                    if (!Generics.deduceTypeArgs(structTemplate.parameters[i].type, expectedArgListTypes[i], structTemplate.typeParameters, bindings)) {
+                        matches = false
+                        break
+                    }
+                }
+            }
+
+            if (matches && structTemplate.typeParameters.all { bindings.containsKey(it) }) {
+                val resolvedTypes = structTemplate.typeParameters.map { bindings[it]!! }
+
+                val typeSuffix = resolvedTypes.joinToString("_") { it.toSafeString() }
+                val instantiatedName = "$funcName@$typeSuffix"
+
+                var concreteStruct = sourceAST.structs.find { it.name == instantiatedName }
+
+                if (concreteStruct == null) {
+                    val concreteType = Generics.resolveGenericStruct(this.ctx, sourceAST, funcName, resolvedTypes) as SimpleType
+                    concreteStruct = sourceAST.structs.find { it.type == concreteType }
+                }
+
+                if (concreteStruct != null) {
+                    return CallExpression(concreteStruct.allocFunc, args)
+                }
+            }
         }
 
         var resolvedFunc = sourceAST.functions.find {

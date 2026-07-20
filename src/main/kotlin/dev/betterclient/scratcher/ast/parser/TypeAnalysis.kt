@@ -35,11 +35,13 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
 
-        for (function in ast.functions) {
+        val allFunctionsToVerify = ast.functions + ast.templates
+
+        for (function in allFunctionsToVerify) {
             checkCodeBlock(function, function.code.code)
 
             if (function.returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(function.code.code)) {
-                throw TypeAnalysisException("Function ${ast.simplePath}::${function.name} does not have a guaranteed return")
+                throw TypeAnalysisException("Function/Template ${ast.simplePath}::${function.name} does not have a guaranteed return")
             }
             pruneUnreachableCode(function.code.code)
         }

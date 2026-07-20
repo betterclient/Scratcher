@@ -136,7 +136,11 @@ data class FunctionType(
 
 data class PlaceholderType(val name: String) : Type {
     override val isPrimitive: Boolean = false
-    override fun isAssignable(other: Type): Boolean = true
+
+    override fun isAssignable(other: Type): Boolean {
+        return other is PlaceholderType && this.name == other.name
+    }
+
     override fun toString(): String = name
     override fun toSafeString() = toString()
 }

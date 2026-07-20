@@ -136,10 +136,11 @@ object MemoryLib {
         val structs = mutableMapOf<ASTFile, List<Struct>>().also { figureOutReachableStructs(it, compilationStartAST) }.flatMap { (_, structs) -> structs }
 
         for (struct in structs) {
-            var name = "new${struct.sourceAST.simplePath}::${struct.name}"
-            if (lib.functions.find { it.name == name } != null) {
-                println("WARN: Potentially duplicate structs(?) ${struct.sourceAST.simplePath}::${struct.name}")
-                name = "$name${getUniqueName()}"
+            val name = "new${struct.sourceAST.simplePath}::${struct.name}"
+            val existingFunc = lib.functions.find { it.name == name }
+            if (existingFunc != null) {
+                struct.allocFunc = existingFunc
+                continue
             }
 
             struct.allocFunc = compileInline(
