@@ -37,8 +37,6 @@ object GCLib {
     val reflectList = ScratchList(obfuscate("GC: TLReflect"))
 
     fun init(lib: ASTFile) {
-        accessFunctions(lib, MemoryLib.allocAddressList, "AllocAddressList")
-        accessFunctions(lib, MemoryLib.allocNameList, "AllocNameList")
         accessFunctions(lib, MemoryLib.freeList, "FreeList")
         accessFunctions(lib, rootsList, "Roots")
         accessFunctions(lib, reflectList, "Reflect")
@@ -112,12 +110,12 @@ object GCLib {
 
         compileInline(
             lib,
-            "freeHeap",
-            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer))
+            "freeHeapBlock",
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer), Parameter("size", PrimitiveType.Integer))
         ) {
             CallFunction(
                 func = MemoryLib.free.precompiledCode,
-                args = listOf(it[0], "1".scratch)
+                args = listOf(it[0], it[1])
             )
         }
 

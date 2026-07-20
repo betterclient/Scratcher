@@ -80,8 +80,6 @@ class EntrypointTranslator(
             code = mutableListOf<ScratchStatement>(
                 ListStatements.ClearList(MemoryLib.heap),
                 ListStatements.ClearList(MemoryLib.freeList),
-                ListStatements.ClearList(MemoryLib.allocNameList),
-                ListStatements.ClearList(MemoryLib.allocAddressList),
                 ListStatements.ClearList(GCLib.rootsList)
             ).also { list ->
                 repeat(entrypointCount) {

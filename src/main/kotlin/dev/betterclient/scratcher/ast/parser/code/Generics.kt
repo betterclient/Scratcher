@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.ast.parser
+package dev.betterclient.scratcher.ast.parser.code
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
@@ -15,6 +15,8 @@ import dev.betterclient.scratcher.ast.PlaceholderType
 import dev.betterclient.scratcher.ast.SimpleType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.parser.CompilationContext
+import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -140,8 +142,8 @@ object Generics {
         parser.currentFunction = resolvedFunc
         parser.currentTypeBindings = bindings
         parser.localVariables.clear()
-        parser.addParameterChecks(resolvedFunc.code, resolvedFunc.parameters)
-        parser.parseBlock(resolvedFunc.code, template.ctx!!)
+        TypeCheckParameters.addParameterChecks(resolvedFunc.code, resolvedFunc.parameters, template.sourceAST, template)
+        parser.statementParser.parseBlock(resolvedFunc.code, template.ctx!!)
         resolvedFunc.ctx = null
 
         parser.currentFunction = oldFunction
@@ -188,7 +190,8 @@ object Generics {
         }
 
         for (field in template.parseInfo!!.structField()) {
-            val abstractType = figureOutType(context, template.sourceAST, field.type(), template.typeParameters, bindings)
+            val abstractType =
+                figureOutType(context, template.sourceAST, field.type(), template.typeParameters, bindings)
             val concreteType = substituteType(context, abstractType, bindings)
 
             instantiatedStruct.parameters.add(Parameter(field.IDENTIFIER().text, concreteType))

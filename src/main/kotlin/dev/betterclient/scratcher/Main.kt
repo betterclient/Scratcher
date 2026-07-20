@@ -4,7 +4,7 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.ast.parser.Stage1Parser
+import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
 import dev.betterclient.scratcher.gc.GCLib

@@ -302,13 +302,13 @@ object ListLib {
             //dataPtr
             call(
                 MemoryLib.free,
-                dataPtr, capacity
+                dataPtr - 1.sc, capacity + 1.sc
             )
 
             //arr
             call(
                 MemoryLib.free,
-                list, 4.sc
+                list - 1.sc, 5.sc
             )
         }
     }

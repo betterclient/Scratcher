@@ -14,45 +14,21 @@ import dev.betterclient.scratcher.std.dsl.*
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))
     val freeList = ScratchList(obfuscate("FreeList"))
-    val allocAddressList = ScratchList(obfuscate("AllocAddressList"))
-    val allocNameList = ScratchList(obfuscate("AllocNameList"))
     lateinit var free: StandardLibASTFunction
     lateinit var alloc: StandardLibASTFunction
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
         editor.addList(heap)
         editor.addList(freeList)
-        if (!CompilationConstants.MANUAL_MEMORY) {
-            editor.addList(allocAddressList)
-            editor.addList(allocNameList)
-        }
 
         free = editor.compile(lib, "free") {
             val index = arg("index", PrimitiveType.Integer)
             val size = arg("size", PrimitiveType.Integer)
 
-            val currentIndex = variable("currentIndex")
-            val left = variable("left")
-            val right = variable("right")
-            val middle = variable("middle")
-
-            if (!CompilationConstants.MANUAL_MEMORY) {
-                val searchIndex = variable("searchIndex")
-                searchIndex.set(1.sc)
-                control.repeatUntil(searchIndex gt allocAddressList.length) {
-                    control.ifElse(
-                        condition = allocAddressList[searchIndex] equals index,
-                        thenBlock = {
-                            allocAddressList.remove(searchIndex)
-                            allocNameList.remove(searchIndex)
-                            searchIndex.set(allocAddressList.length + 1.sc)
-                        },
-                        elseBlock = {
-                            searchIndex.changeBy(1.sc)
-                        }
-                    )
-                }
-            }
+            val currentIndex = variable("free::currentIndex")
+            val left = variable("free::left")
+            val right = variable("free::right")
+            val middle = variable("free::middle")
 
             left.set(1.sc)
             right.set(freeList.length)
@@ -83,30 +59,32 @@ object MemoryLib {
             val name = arg("name", PrimitiveType.Str)
             val returnIndex = arg("returnIndex", PrimitiveType.Integer)
 
-            val variable = variable("variable")
-            val maxSearchIndex = variable("maxSearchIndex")
-            val allocatedAddress = variable("allocatedAddress")
+            val variable = variable("alloc::variable")
+            val maxSearchIndex = variable("alloc::maxSearchIndex")
+            val allocatedAddress = variable("alloc::allocatedAddress")
+            val actualSize = variable("alloc::actualSize")
+
+            actualSize.set(size + 1.sc)
 
             if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
                 control.ifThen(size equals 0.sc) {
-                    //OH NO!!!
-                    call(ExceptionLib.panic, "Scratcher Runtime error: Alloc called with size 0! (this is probably a bug in the compiler)".sc)
+                    call(ExceptionLib.panic, "Scratcher Runtime error: Alloc called with size 0!".sc)
                 }
             }
 
             allocatedAddress.set((-1).sc)
-            control.ifThen(freeList.length gte size) {
+            control.ifThen(freeList.length gte actualSize) {
                 variable.set(1.sc)
-                maxSearchIndex.set((freeList.length - size) + 1.sc)
+                maxSearchIndex.set((freeList.length - actualSize) + 1.sc)
 
                 control.repeatUntil(
                     (variable gt maxSearchIndex) or (allocatedAddress gt 0.sc)
                 ) {
                     control.ifElse(
-                        condition = (freeList[(variable + size) - 1.sc] - freeList[variable]) equals (size - 1.sc),
+                        condition = (freeList[(variable + actualSize) - 1.sc] - freeList[variable]) equals (actualSize - 1.sc),
                         thenBlock = {
                             allocatedAddress.set(freeList[variable])
-                            control.repeat(size) {
+                            control.repeat(actualSize) {
                                 freeList.remove(variable)
                             }
                         },
@@ -119,16 +97,13 @@ object MemoryLib {
 
             control.ifThen(allocatedAddress equals (-1).sc) {
                 allocatedAddress.set(heap.length + 1.sc)
-                control.repeat(size) {
+                control.repeat(actualSize) {
                     heap.add("".sc)
                 }
             }
 
-            if (!CompilationConstants.MANUAL_MEMORY) {
-                allocAddressList.add(allocatedAddress)
-                allocNameList.add(name)
-            }
-            heap[returnIndex] = allocatedAddress
+            heap[allocatedAddress] = name
+            heap[returnIndex] = allocatedAddress + 1.sc
         }
     }
 
@@ -181,7 +156,7 @@ object MemoryLib {
                         it.parameters.size == 1 &&
                         it.parameters[0].type == struct.type
             }
-            if (!freeExists) {
+            if (!freeExists && CompilationConstants.MANUAL_MEMORY) {
                 compileInline(
                     library = lib,
                     name = "free",
@@ -191,7 +166,10 @@ object MemoryLib {
                     val pointerArg = args[0]
                     CallFunction(
                         free.precompiledCode,
-                        listOf(pointerArg, struct.sizeOnHeap.toString().scratch)
+                        listOf(
+                            OperatorExpressions.BinaryExpression(pointerArg, "1".scratch, OperatorExpressions.BinaryOperator.SUBTRACT),
+                            (struct.sizeOnHeap + 1).toString().scratch
+                        )
                     )
                 }
             }

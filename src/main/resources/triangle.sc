@@ -19,7 +19,7 @@ warp void fill(
     float dia = 2.0 * math::sqrt(
         ((halfDia - side23) * (halfDia - side13) * (halfDia - side12)) / halfDia
     );
-    halfDia = halfDia + halfDia;
+    halfDia *= 2;
 
     float xPos = ((side23 * x1) + (side13 * x2) + (side12 * x3)) / halfDia;
     float yPos = ((side23 * y1) + (side13 * y2) + (side12 * y3)) / halfDia;
@@ -31,15 +31,15 @@ warp void fill(
     if (dia > 0.0) {
         if ((side13 < side23) || (side12 < side23)) {
             if (side12 < side13) {
-                halfDia = xPos - x3;
-                side23 = yPos - y3;
+                halfDia = motion::getX() - x3;
+                side23 = motion::getY() - y3;
             } else {
-                halfDia = xPos - x2;
-                side23 = yPos - y2;
+                halfDia = motion::getX() - x2;
+                side23 = motion::getY() - y2;
             }
         } else {
-            halfDia = xPos - x1;
-            side23 = yPos - y1;
+            halfDia = motion::getX() - x1;
+            side23 = motion::getY() - y1;
         }
 
         halfDia = math::sqrt((halfDia * halfDia) + (side23 * side23)) / (dia / 2.0);

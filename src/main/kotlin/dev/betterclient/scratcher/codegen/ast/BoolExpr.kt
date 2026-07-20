@@ -73,8 +73,12 @@ object BoolOperatorExpressions {
             if (operand1 is SNotExpression) {
                 return operand1.operand1.lower()
             }
+            val lowered = operand1.lower()
+            if (lowered.value is NotOpcode) {
+                return (lowered.value as NotOpcode).operand
+            }
 
-            return NotOpcode(operand1.lower().boolean).asValue
+            return NotOpcode(lowered.boolean).asValue
         }
     }
 }

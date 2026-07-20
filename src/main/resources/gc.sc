@@ -35,12 +35,27 @@ warp int collect() {
 warp int sweep() {
     int freed = 0;
     int index = 1;
+    int blockStart = -1;
+    int blockSize = 0;
+
     repeat(self::getHeapSize()) {
         if(!self::isMarked(index)) {
-            self::freeHeap(index);
+            if (blockStart == -1) {
+                blockStart = index;
+            }
+            blockSize++;
             freed++;
+        } else {
+            if (blockSize > 0) {
+                self::freeHeapBlock(blockStart, blockSize);
+                blockStart = -1;
+                blockSize = 0;
+            }
         }
         index++;
+    }
+    if (blockSize > 0) {
+        self::freeHeapBlock(blockStart, blockSize);
     }
     return freed;
 }
@@ -52,6 +67,8 @@ warp void markRoot(int addr) {
 
     str name = findName(addr);
     return if(name == "0");
+
+    self::addMarked(addr - 1);
 
     int start = self::getFieldsStart(name);
     int count = self::getFieldsCount(name);
@@ -77,13 +94,14 @@ warp void markType(int addr, str type) {
     if(string::contains(type, "l")) {
         markList(self::getHeap(addr), type);
     } else {
-         markStruct(self::getHeap(addr), type);
+        markStruct(self::getHeap(addr), type);
     }
 }
 
 warp void markList(int addr, str type) {
     return if !isValid(addr);
     int capacity = self::getHeap(addr + 1);
+    self::addMarked(addr - 1); //alloc name
     self::addMarked(addr); //length
     self::addMarked(addr + 1); //capacity
     self::addMarked(addr + 2); //dataPtr
@@ -102,6 +120,9 @@ warp void markList(int addr, str type) {
     //^ actual list type
     //now we gotta go to the dataPtr in the heap
     int data = self::getHeap(addr + 2);
+    if(data != -1) {
+        self::addMarked(data - 1);
+    }
     index = 0;
     repeat(capacity) {
         //now recurse!!
@@ -117,6 +138,8 @@ warp void markList(int addr, str type) {
 warp void markStruct(int addr, str type) {
     return if !isValid(addr);
     return if(self::isStack(type)); //stacks already mark themselves
+
+    self::addMarked(addr - 1);
 
     int start = self::getFieldsStart(type);
     int count = self::getFieldsCount(type);
@@ -134,14 +157,7 @@ warp void markStruct(int addr, str type) {
 }
 
 warp str findName(int addr) {
-    int index = 1;
-    repeat(self::lengthOfAllocAddressList()) {
-        if(self::getAllocAddressList(index) == cast::toStr(addr)) {
-            return self::getAllocNameList(index);
-        }
-        index++;
-    }
-    return "0";
+    return cast::toStr(self::getHeap(addr - 1));
 }
 
 warp bool isValid(int addr) {
