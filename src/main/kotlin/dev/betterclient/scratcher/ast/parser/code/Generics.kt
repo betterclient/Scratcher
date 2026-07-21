@@ -185,7 +185,7 @@ object Generics {
         template.sourceAST.structs.add(instantiatedStruct)
         context.types.add(instantiatedStruct.type)
 
-        if (!CompilationConstants.MANUAL_MEMORY) {
+        if (CompilationConstants.MARK_AND_SWEEP_GC) {
             addGC(StructGCInfo(instantiatedStruct.type, instantiatedStruct))
         }
 

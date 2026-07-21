@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.findGC
-import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.dsl.*
 
@@ -156,7 +155,7 @@ object MemoryLib {
                         it.parameters.size == 1 &&
                         it.parameters[0].type == struct.type
             }
-            if (!freeExists && CompilationConstants.MANUAL_MEMORY) {
+            if (!freeExists && !(CompilationConstants.MARK_AND_SWEEP_GC || CompilationConstants.REFCOUNT_GC)) {
                 compileInline(
                     library = lib,
                     name = "free",

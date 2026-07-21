@@ -15,7 +15,7 @@ import java.io.File
 
 class CompilationContext {
     fun generateGCNames() {
-        if (CompilationConstants.MANUAL_MEMORY) return
+        if (!CompilationConstants.MARK_AND_SWEEP_GC) return
 
         asts.values.flatMap { it.structs }.forEach {
             addGC(StructGCInfo(it.type, it))
@@ -88,7 +88,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 val stdLib = StandardLibASTGenerator.lib[moduleName]
                     ?: throw NotFoundException("Standard library module $moduleName not found")
-                if (moduleName == "gc" && CompilationConstants.MANUAL_MEMORY) throw GeneralCompilerException("GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
+                if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) throw GeneralCompilerException("Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
                 if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
 
                 val key = alias ?: moduleName

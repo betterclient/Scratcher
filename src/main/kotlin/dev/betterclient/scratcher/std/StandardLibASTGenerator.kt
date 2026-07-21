@@ -78,7 +78,7 @@ object StandardLibASTGenerator {
     )
 
     val memLib = ASTFile("mem").also {
-        if (CompilationConstants.MANUAL_MEMORY) lib["mem"] = it
+        if (!CompilationConstants.MARK_AND_SWEEP_GC && !CompilationConstants.REFCOUNT_GC) lib["mem"] = it
     }
 
     val typeChecker by lazy {
@@ -97,7 +97,7 @@ object StandardLibASTGenerator {
     val gc by lazy {
         bypassRestrictions = true //gc needs gc_internal
         val out = compile("/gc.sc", GC_LIB_NAME).also {
-            if (!CompilationConstants.MANUAL_MEMORY) lib[GC_LIB_NAME] = it
+            if (CompilationConstants.MARK_AND_SWEEP_GC) lib[GC_LIB_NAME] = it
         }
         bypassRestrictions = false
         out
@@ -109,7 +109,7 @@ object StandardLibASTGenerator {
 
     fun isRestricted(library: ASTFile): Boolean {
         if (bypassRestrictions) return false
-        if(CompilationConstants.MANUAL_MEMORY && library == gcLib) return true
+        if(!CompilationConstants.MARK_AND_SWEEP_GC && library == gcLib) return true
         return library.path == "typecheck" ||
                 library == memoryLib ||
                 library == globalPromotionLib ||

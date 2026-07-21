@@ -33,7 +33,7 @@ fun main() {
 
     println("Optimizations")
     Optimizations.apply(ast, context)
-    if (!CompilationConstants.MANUAL_MEMORY) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
+    if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Reachability")
     val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()

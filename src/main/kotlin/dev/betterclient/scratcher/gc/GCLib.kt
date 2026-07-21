@@ -19,7 +19,6 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
-import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
@@ -216,7 +215,7 @@ object GCLib {
     fun gcFuncs(): List<ASTEventListener> {
         if (!CompilationConstants.AUTOMATIC_GC) return listOf()
 
-        return if (!CompilationConstants.MANUAL_MEMORY) {
+        return if (CompilationConstants.MARK_AND_SWEEP_GC) {
             StandardLibASTGenerator.gc.eventListeners
         } else listOf()
     }
