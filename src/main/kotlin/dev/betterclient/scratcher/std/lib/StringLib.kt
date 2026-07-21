@@ -105,7 +105,11 @@ object StringLib {
                     call(ExceptionLib.panic, "Split delimiter must be length 1".sc)
                 }
             }
-            call(ListLib.newList, out, "l0".sc) //use l0, primitive list
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                call(ListLib.newList, out, "l0".sc) //use l0, primitive list
+            } else {
+                call(ListLib.newList, out)
+            }
             val realList = MemoryLib.heap[out] //pointer!!!
 
             val start = variable("substring::start")

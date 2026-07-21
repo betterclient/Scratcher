@@ -37,7 +37,11 @@ class ScratchFunctionTranslator(
                         ?: throw NotFoundException("Not able to find $typeName in types list?")
                     return listOf(CallFunction(
                         func = lookup(stmt.func),
-                        args = listOf(translateExpr(stmt.args.last()), "${"l".repeat(lCount)}${findGC(type)}".scratch) //its fake!!! the argument is fake!!
+                        args = mutableListOf(translateExpr(stmt.args.last())).also { //its fake!!! the argument is fake!!
+                            if(CompilationConstants.MARK_AND_SWEEP_GC) {
+                                it.add("${"l".repeat(lCount)}${findGC(type)}".scratch)
+                            }
+                        }
                     ))
                 }
 

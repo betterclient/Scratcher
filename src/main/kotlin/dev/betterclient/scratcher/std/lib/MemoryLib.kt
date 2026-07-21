@@ -55,15 +55,19 @@ object MemoryLib {
 
         alloc = editor.compile(lib, "alloc") {
             val size = arg("size", PrimitiveType.Integer)
-            val name = arg("name", PrimitiveType.Str)
+            val name = if(CompilationConstants.MARK_AND_SWEEP_GC) arg("name", PrimitiveType.Str) else null
             val returnIndex = arg("returnIndex", PrimitiveType.Integer)
 
             val variable = variable("alloc::variable")
             val maxSearchIndex = variable("alloc::maxSearchIndex")
             val allocatedAddress = variable("alloc::allocatedAddress")
-            val actualSize = variable("alloc::actualSize")
-
-            actualSize.set(size + 1.sc)
+            val actualSize = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                val variable = variable("alloc::actualSize")
+                variable.set(size + 1.sc)
+                variable
+            } else {
+                size
+            }
 
             if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
                 control.ifThen(size equals 0.sc) {
@@ -101,8 +105,12 @@ object MemoryLib {
                 }
             }
 
-            heap[allocatedAddress] = name
-            heap[returnIndex] = allocatedAddress + 1.sc
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                heap[allocatedAddress] = name!!
+                heap[returnIndex] = allocatedAddress + 1.sc
+            } else {
+                heap[returnIndex] = allocatedAddress
+            }
         }
     }
 
@@ -130,7 +138,11 @@ object MemoryLib {
 
                     val allocCall = CallFunction(
                         alloc.precompiledCode,
-                        listOf(struct.sizeOnHeap.toString().scratch, findGC(struct).toString().scratch, lastArg)
+                        mutableListOf(struct.sizeOnHeap.toString().scratch, lastArg).also {
+                            if(CompilationConstants.MARK_AND_SWEEP_GC) {
+                                it.add(1, findGC(struct).toString().scratch)
+                            }
+                        }
                     )
 
                     val replaceStatements = otherArgs.mapIndexed { index, arg ->

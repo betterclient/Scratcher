@@ -50,11 +50,14 @@ class AllocAndFreeStackAdder(
             result.add(VariableStatement(null, allocVar))
             result.add(TemporaryCallStatement(
                 MemoryLib.alloc,
-                mutableListOf(
+                mutableListOf<Expression>(
                     TemporaryStackSizeExpression(func),
-                    TemporaryStackNameExpression(func),
                     TemporaryLocalVariableIndexExpression(allocVar)
-                )
+                ).also {
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        it.add(1, TemporaryStackNameExpression(func))
+                    }
+                }
             ))
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
                 result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->

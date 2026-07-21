@@ -69,7 +69,7 @@ class EntrypointTranslator(
             listOf(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
-                    listOf(localSize.toString().scratch, gc.name.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
+                    listOf(localSize.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
@@ -110,7 +110,9 @@ class EntrypointTranslator(
                 if (index != -1) {
                     list.add(CallFunction(
                         MemoryLib.alloc.precompiledCode, //alloc for initLocals
-                        listOf(topLevelInitLocals.first.toString().scratch, topLevelInitLocals.second.name.toString().scratch, index.toString().scratch)
+                        mutableListOf(topLevelInitLocals.first.toString().scratch, index.toString().scratch).also {
+                            if (CompilationConstants.MARK_AND_SWEEP_GC) it.add(1, topLevelInitLocals.second.name.toString().scratch)
+                        }
                     ))
                 }
 

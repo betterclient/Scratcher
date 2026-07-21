@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
@@ -127,11 +128,14 @@ class ExpressionParser(
                     mutableListOf(
                         StringLiteral( //so sorry for this but im not bothering adding more expressions just for this one fricking function
                             list.toString()
-                        ),
-                        StringLiteral(
-                            "l"
                         )
-                    )
+                    ).also {
+                        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                            it.add(StringLiteral(
+                                "l"
+                            ))
+                        }
+                    }
                 )
             }
             is ScratcherLangParser.IndexExprContext -> {
