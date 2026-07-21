@@ -10,8 +10,9 @@ object CompilationConstants {
     const val PRINT_STDLIB = false //print the stdlib function structures and exit
 
     //garbage collector settings
-    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector, only downside is speed
     const val REFCOUNT_GC = false //reference counting garbage collector, cannot detect cycles
+
+    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector, only downside is speed
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call gc::collect yourself)
     const val REFLECT_GC = false //use hacked blocks to do top level marking in garbage collection, might be incompatible with turbowarp
 

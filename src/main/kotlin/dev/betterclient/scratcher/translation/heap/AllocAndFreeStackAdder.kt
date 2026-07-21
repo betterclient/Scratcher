@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.translation.heap
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
@@ -26,12 +27,12 @@ class AllocAndFreeStackAdder(
             args = mutableListOf(ParameterExpression(stackParameter), TemporaryStackSizeExpression(func))
         )
         val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(stackParameter))) { scratchExpressions ->
-            listOf(
-                ListStatements.DeleteItem(
+            if(CompilationConstants.MARK_AND_SWEEP_GC) {
+                listOf(ListStatements.DeleteItem(
                     GCLib.rootsList,
                     ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])
-                )
-            )
+                ))
+            } else emptyList()
         }
         return listOf(freeStmt, deleteStmt)
     }
@@ -55,11 +56,13 @@ class AllocAndFreeStackAdder(
                     TemporaryLocalVariableIndexExpression(allocVar)
                 )
             ))
-            result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
-                listOf(
-                    ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
-                )
-            })
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                    listOf(
+                        ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
+                    )
+                })
+            }
             result.add(TemporaryCallStatement(func, (listOf(LocalVariableExpression(allocVar)) + args).toMutableList()))
 
             addStatements(result)

@@ -97,7 +97,7 @@ fun main() {
         editor, reachableEntrypoints
     )
 
-    GCLib.populateList(editor)
+    if (CompilationConstants.MARK_AND_SWEEP_GC) GCLib.populateList(editor)
 
     println("Compile to scratch")
     scratchStubs.map { it.value }.forEach { editor.addFunction(it) }

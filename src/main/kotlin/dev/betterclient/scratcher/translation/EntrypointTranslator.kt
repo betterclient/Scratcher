@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.translation
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.ScratchEditor
@@ -43,18 +44,32 @@ class EntrypointTranslator(
         val func = listener.ctx ?: return
         val (localSize, gc) = getFunctionLocalSize(func)
         val exec = if (localSize == 0) {
-            listOf(CallFunction(
-                toScratch(func), listOf("-1".scratch)
-            ))
-        } else {
+            listOf(
+                CallFunction(
+                    toScratch(func), listOf("-1".scratch)
+                )
+            )
+        } else if (CompilationConstants.MARK_AND_SWEEP_GC) {
             listOf(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
                     listOf(localSize.toString().scratch, gc.name.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
-                ListStatements.AddToList(
+                ListStatements.AddToList( //tell the garbage collector about us
                     GCLib.rootsList,
                     ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
+                ),
+                CallFunction(
+                    toScratch(func), listOf( //call the entrypoint
+                        ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
+                    )
+                )
+            )
+        } else {
+            listOf(
+                CallFunction(
+                    MemoryLib.alloc.precompiledCode,
+                    listOf(localSize.toString().scratch, gc.name.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
                 ),
                 CallFunction(
                     toScratch(func), listOf( //call the entrypoint
@@ -79,9 +94,11 @@ class EntrypointTranslator(
             args = listOf(),
             code = mutableListOf<ScratchStatement>(
                 ListStatements.ClearList(MemoryLib.heap),
-                ListStatements.ClearList(MemoryLib.freeList),
-                ListStatements.ClearList(GCLib.rootsList)
+                ListStatements.ClearList(MemoryLib.freeList)
             ).also { list ->
+                if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    list.add(ListStatements.ClearList(GCLib.rootsList))
+                }
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
                 }
