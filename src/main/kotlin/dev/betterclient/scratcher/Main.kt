@@ -2,12 +2,15 @@ package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
 import dev.betterclient.scratcher.gc.GCLib
+import dev.betterclient.scratcher.gc.RefCountGC
 import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
@@ -31,26 +34,40 @@ fun main() {
         StandardLibASTGenerator.print()
     }
 
+    println("Reachability")
+    val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
+    val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run()
+
+    if (CompilationConstants.REFCOUNT_GC) {
+        RefCountGC.run(context, reachableFunctions)
+    }
+
     println("Optimizations")
     Optimizations.apply(ast, context)
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
-    println("Reachability")
-    val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
-    val (reachableFunctions, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
-    reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null } //clear default values as we already know them
-
     println("Top level variables")
+    val (_, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
+    reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null }
+
     val topLevelTranslator = TopLevelVariableTranslator()
-    val scratchTopLevels = reachableTopLevelVariables.map { (variable, _) -> variable to topLevelTranslator.translate(variable) }.toMap().toMutableMap()
-    scratchTopLevels.forEach { (_, scratch) -> editor.addVariable(scratch) }
+    val scratchTopLevels = mutableMapOf<TLVariable, ScratchVariable>()
+
     val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
     reachableFunctions.add(topLevelInit)
 
     StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)
-    Optimizations.apply(StandardLibASTGenerator.compilerLib, context, print = false) //optimize the top level init
+    Optimizations.apply(mutableListOf(topLevelInit), context, print = false) //optimize the top level init
 
-    GCLib.generate(reachableTopLevelVariables.keys.toList()) { scratchTopLevels[it]!! }
+    GCLib.generate(reachableTopLevelVariables.keys.toList()) { variable ->
+        scratchTopLevels.computeIfAbsent(variable) {
+            topLevelTranslator.translate(variable).also { editor.addVariable(it) }
+        }
+    }
+
+    val uniqueFunctions = reachableFunctions.distinct()
+    reachableFunctions.clear()
+    reachableFunctions.addAll(uniqueFunctions)
 
     println("Lower expressions")
     reachableFunctions.forEach { CallExpressionLowering(context, it).run() }
@@ -81,8 +98,10 @@ fun main() {
             lookup = {
                 scratchStubs[it]!!
             },
-            lookupVar = {
-                scratchTopLevels[it]!!
+            lookupVar = { variable ->
+                scratchTopLevels.computeIfAbsent(variable) {
+                    topLevelTranslator.translate(variable).also { editor.addVariable(it) }
+                }
             }
         ).run()
     }

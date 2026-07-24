@@ -122,6 +122,8 @@ class StopOpcode(val mode: StopMode) : ScratchOpcode() {
     override val asValue = null
     override val opcode = "control_stop"
 
+    override val isCapBlock = mode != StopMode.OTHER_SCRIPTS_IN_SPRITE
+
     override fun toJSON(base: JSONObject) {
         base.put("fields", JSONObject().apply {
             put("STOP_OPTION", JSONArray(listOf(mode.id, JSONObject.NULL)))

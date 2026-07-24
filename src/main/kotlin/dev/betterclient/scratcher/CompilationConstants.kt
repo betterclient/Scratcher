@@ -8,11 +8,14 @@ object CompilationConstants {
 
     //standard library functions
     const val PRINT_STDLIB = false //print the stdlib function structures and exit
+    const val INLINE_STRUCT_INIT = false //have the struct initialization as inline, ignored(set to false) if refcount gc is enabled
 
     //garbage collector settings
-    const val REFCOUNT_GC = false //reference counting garbage collector, cannot detect cycles
+    //you can enable both collectors if you want
+    const val REFCOUNT_GC = true //reference counting garbage collector
 
-    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector, only downside is speed
+    //mark and sweep settings
+    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call gc::collect yourself)
     const val REFLECT_GC = false //use hacked blocks to do top level marking in garbage collection, might be incompatible with turbowarp
 

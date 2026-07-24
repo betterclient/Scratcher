@@ -150,7 +150,7 @@ class ProcedureCallOpcode(
                 it.put("children", JSONArray())
                 it.put("proccode", func.parent.prototype.getProcCode())
                 it.put("argumentids", JSONArray(ids).toString())
-                it.put("warp", "false")
+                it.put("warp", func.parent.prototype.warp.toString())
             })
             put("inputs", JSONObject().also {
                 for ((id, value) in ids.zip(args)) {

@@ -101,7 +101,7 @@ object MemoryLib {
             control.ifThen(allocatedAddress equals (-1).sc) {
                 allocatedAddress.set(heap.length + 1.sc)
                 control.repeat(actualSize) {
-                    heap.add("".sc)
+                    heap.add("-1".sc)
                 }
             }
 
@@ -125,41 +125,87 @@ object MemoryLib {
                 continue
             }
 
-            struct.allocFunc = compileInline(
-                lib,
-                name,
-                returnType = struct.type,
-                parameters = struct.parameters,
-                useLocal = true,
-                userAccessible = false,
-                prepend = { args ->
-                    val otherArgs = args.subList(0, args.size - 1)
-                    val lastArg = args.last()
+            struct.allocFunc = if (CompilationConstants.REFCOUNT_GC || !CompilationConstants.INLINE_STRUCT_INIT) {
+                Function(
+                    name = name,
+                    parameters = struct.parameters.map { Parameter(it.name, it.type) }.toMutableList(),
+                    returnType = struct.type,
+                    export = false,
+                    warp = true,
+                    sourceAST = lib,
+                    userAccessible = false
+                ).also { func ->
+                    val ptrVar = LocalVariable("compiler@ptr", struct.type)
+                    func.code.localVariables.add(ptrVar)
 
-                    val allocCall = CallFunction(
-                        alloc.precompiledCode,
-                        mutableListOf(struct.sizeOnHeap.toString().scratch, lastArg).also {
-                            if(CompilationConstants.MARK_AND_SWEEP_GC) {
-                                it.add(1, findGC(struct).toString().scratch)
-                            }
-                        }
-                    )
+                    val allocArgs = mutableListOf<Expression>(IntLiteral(java.math.BigInteger.valueOf(struct.sizeOnHeap.toLong())))
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        allocArgs.add(StringLiteral(findGC(struct).toString()))
+                    }
+                    allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar))
 
-                    val replaceStatements = otherArgs.mapIndexed { index, arg ->
-                        val targetIndexExpr = OperatorExpressions.BinaryExpression(
-                            left = ListExpressions.ItemAtIndex(heap, lastArg),
-                            operator = OperatorExpressions.BinaryOperator.ADD,
-                            right = index.toString().scratch
-                        )
+                    func.code.code.add(VariableStatement(null, ptrVar))
+                    func.code.code.add(TemporaryCallStatement(alloc, allocArgs))
 
-                        ListStatements.ReplaceItem(heap, arg, targetIndexExpr)
+                    struct.parameters.forEach { param ->
+                        val argExpr = ParameterExpression(func.parameters.find { it.name == param.name }!!)
+                        func.code.code.add(VariableAssignmentStatement(
+                            target = LocalVariableExpression(ptrVar),
+                            variable = param,
+                            struct = struct,
+                            assignment = argExpr
+                        ))
                     }
 
-                    listOf(allocCall) + replaceStatements
+                    func.code.code.add(ReturnStatement(LocalVariableExpression(ptrVar)))
+                    lib.functions.add(func)
+                    struct.allocFunc = func
                 }
-            ) { args ->
-                val pointerArg = args[args.size - 1]
-                ListExpressions.ItemAtIndex(heap, pointerArg)
+            } else {
+                compileInline(
+                    lib,
+                    name,
+                    returnType = struct.type,
+                    parameters = struct.parameters,
+                    useLocal = true,
+                    userAccessible = false,
+                    prepend = { args ->
+                        val otherArgs = if (CompilationConstants.REFCOUNT_GC) {
+                            listOf(0.toString().scratch) + args.subList(0, args.size - 1) //the 0 refcount
+                        } else {
+                            args.subList(0, args.size - 1)
+                        }
+                        val lastArg = args.last()
+
+                        val allocCall = CallFunction(
+                            alloc.precompiledCode,
+                            mutableListOf(struct.sizeOnHeap.toString().scratch, lastArg).also {
+                                if(CompilationConstants.MARK_AND_SWEEP_GC) {
+                                    it.add(1, findGC(struct).toString().scratch)
+                                }
+                            }
+                        )
+
+                        val replaceStatements = otherArgs.mapIndexed { index, arg ->
+                            val targetIndexExpr = if (index == 0) {
+                                ListExpressions.ItemAtIndex(heap, lastArg)
+                            } else {
+                                OperatorExpressions.BinaryExpression(
+                                    left = ListExpressions.ItemAtIndex(heap, lastArg),
+                                    operator = OperatorExpressions.BinaryOperator.ADD,
+                                    right = index.toString().scratch
+                                )
+                            }
+
+                            ListStatements.ReplaceItem(heap, arg, targetIndexExpr)
+                        }
+
+                        listOf(allocCall) + replaceStatements
+                    }
+                ) { args ->
+                    val pointerArg = args[args.size - 1]
+                    ListExpressions.ItemAtIndex(heap, pointerArg)
+                }
             }
 
             val freeExists = lib.functions.any {
@@ -174,12 +220,11 @@ object MemoryLib {
                     parameters = mutableListOf(Parameter("pointer", struct.type)),
                     returnType = PrimitiveType.Void
                 ) { args ->
-                    val pointerArg = args[0]
                     CallFunction(
                         free.precompiledCode,
                         listOf(
-                            OperatorExpressions.BinaryExpression(pointerArg, "1".scratch, OperatorExpressions.BinaryOperator.SUBTRACT),
-                            (struct.sizeOnHeap + 1).toString().scratch
+                            args[0],
+                            struct.sizeOnHeap.toString().scratch
                         )
                     )
                 }

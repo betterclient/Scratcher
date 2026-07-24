@@ -36,6 +36,8 @@ abstract class ScratchOpcode(
     open var shadow: Boolean = false
     open val alsoAdd: MutableList<ScratchOpcode> = mutableListOf() //when you need to add more
 
+    open val isCapBlock: Boolean = false
+
     protected abstract fun toJSON(base: JSONObject)
 
     fun toJson() = JSONObject().apply {
@@ -59,6 +61,9 @@ abstract class ScratchOpcode(
 
 fun autoSetNext(list: List<ScratchOpcode>): ScratchOpcode? {
     for (i in 0 until list.size - 1) {
+        if (list[i].isCapBlock) {
+            continue
+        }
         list[i].next = list[i + 1]
         list[i + 1].parent = list[i]
     }

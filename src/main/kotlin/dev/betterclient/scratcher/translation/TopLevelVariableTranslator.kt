@@ -22,9 +22,13 @@ class TopLevelVariableTranslator {
         )
 
         vars.forEach { (variable, value) ->
-            value?.let {
+            if(value == null) {
                 func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, it)
+                    TLVariableAssignmentStatement(variable, variable.sourceAST, IntLiteral((-1).toBigInteger()))
+                )
+            } else {
+                func.code.code.add(
+                    TLVariableAssignmentStatement(variable, variable.sourceAST, value)
                 )
             }
         }

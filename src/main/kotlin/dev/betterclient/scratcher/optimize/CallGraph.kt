@@ -8,7 +8,19 @@ value class CallGraphContext(
     val visitedASTS: MutableList<ASTFile>
 )
 
+fun generateCallGraph(functions: List<Function>): TCallGraph {
+    val map = mutableMapOf<Function, List<Function>>()
+    val dummyContext = CallGraphContext(mutableListOf())
+    functions.forEach { func ->
+        val calls = mutableListOf<Function>()
+        CallGraph(dummyContext, func.sourceAST).generate(func.code, calls)
+        map[func] = calls.distinct()
+    }
+    return map
+}
+
 class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
+
     fun generate(): TCallGraph {
         val map = mutableMapOf<Function, List<Function>>()
 
@@ -31,7 +43,7 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
         return out
     }
 
-    private fun generate(code: CodeBlock, out: MutableList<Function>) {
+    fun generate(code: CodeBlock, out: MutableList<Function>) {
         code.code.forEach { stmt ->
             when(stmt) {
                 is WhileStatement -> {

@@ -50,6 +50,14 @@ object ListLib {
         listOf(newList, add, remove, itemAt, clear, length, replace, contains, reserve, free)
     }
 
+    //offsets
+    val refCountOffset = if (CompilationConstants.REFCOUNT_GC) 0 else -1
+    val lengthOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
+    val capacityOffset = lengthOffset + 1
+    val dataPtrOffset = capacityOffset + 1
+    val nameCopyOffset = if (CompilationConstants.MARK_AND_SWEEP_GC) dataPtrOffset + 1 else -1
+    val headerSize = 3 + (if (CompilationConstants.MARK_AND_SWEEP_GC) 1 else 0) + (if (CompilationConstants.REFCOUNT_GC) 1 else 0)
+
     fun init(lib: ASTFile, editor: ScratchEditor) {
         generateFunctions(lib, editor)
     }
@@ -64,36 +72,34 @@ object ListLib {
             userAccessible = false
         ) {
             val returnArg = returnArg(PrimitiveType.Integer)
+            val name = if (CompilationConstants.MARK_AND_SWEEP_GC) arg("name", PrimitiveType.Str) else null
+
+            val allocArgs = mutableListOf<DSLExpression>(headerSize.sc)
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                val name = arg("name", PrimitiveType.Str)
-
-                call(
-                    MemoryLib.alloc,
-                    4.sc, name, returnArg
-                )
-                val out = MemoryLib.heap[returnArg]
-
-                MemoryLib.heap[out] = 0.sc //length
-                MemoryLib.heap[out + 1.sc] = 1.sc //capacity
-                MemoryLib.heap[out + 3.sc] = name //name
-                call(
-                    MemoryLib.alloc,
-                    1.sc, "n".sc concat name, out + 2.sc //listPtr
-                )
-            } else {
-                call(
-                    MemoryLib.alloc,
-                    3.sc, returnArg
-                )
-                val out = MemoryLib.heap[returnArg]
-
-                MemoryLib.heap[out] = 0.sc //length
-                MemoryLib.heap[out + 1.sc] = 1.sc //capacity
-                call(
-                    MemoryLib.alloc,
-                    1.sc, out + 2.sc //listPtr
-                )
+                allocArgs.add(name!!)
             }
+            allocArgs.add(returnArg)
+            call(MemoryLib.alloc, *allocArgs.toTypedArray()) //alloc structure
+
+            val out = MemoryLib.heap[returnArg]
+
+            if (CompilationConstants.REFCOUNT_GC) {
+                MemoryLib.heap[out + refCountOffset.sc] = 0.sc
+            }
+            MemoryLib.heap[out + lengthOffset.sc] = 0.sc //length
+            MemoryLib.heap[out + capacityOffset.sc] = 1.sc //capacity
+
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                MemoryLib.heap[out + nameCopyOffset.sc] = name!! //name
+            }
+
+            val dataAllocArgs = mutableListOf<DSLExpression>(1.sc)
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                dataAllocArgs.add("n".sc concat name!!)
+            }
+            dataAllocArgs.add(out + dataPtrOffset.sc)
+
+            call(MemoryLib.alloc, *dataAllocArgs.toTypedArray()) //dataPtr
         }
 
         replace = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
@@ -112,9 +118,9 @@ object ListLib {
                     index = OperatorExpressions.BinaryExpression(
                         left = ListExpressions.ItemAtIndex(
                             list = MemoryLib.heap,
-                            index = OperatorExpressions.BinaryExpression(
+                            index = if (dataPtrOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
                                 left = it[0],
-                                right = "2".scratch,
+                                right = dataPtrOffset.toString().scratch,
                                 operator = OperatorExpressions.BinaryOperator.ADD
                             )
                         ),
@@ -133,7 +139,7 @@ object ListLib {
                 val index = arg("index", PrimitiveType.Integer)
                 checkOutOfBounds(list, index)
 
-                MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index] = item
+                MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + index] = item
             }
         }
 
@@ -143,8 +149,8 @@ object ListLib {
         ) {
             val list = arg("list", PrimitiveType.Integer)
             val index = arg("index", PrimitiveType.Integer)
-            val length = MemoryLib.heap[list]
-            val dataPtr = MemoryLib.heap[list + 2.sc]
+            val length = MemoryLib.heap[list + lengthOffset.sc]
+            val dataPtr = MemoryLib.heap[list + dataPtrOffset.sc]
             checkOutOfBounds(list, index)
 
             val shiftIndex = variable("list::shiftIndex")
@@ -154,7 +160,7 @@ object ListLib {
                 MemoryLib.heap[dataPtr + shiftIndex] = MemoryLib.heap[dataPtr + shiftIndex + 1.sc]
                 shiftIndex.set(shiftIndex + 1.sc)
             }
-            MemoryLib.heap[list] = length - 1.sc
+            MemoryLib.heap[list + lengthOffset.sc] = length - 1.sc
         }
 
         itemAt = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
@@ -172,9 +178,9 @@ object ListLib {
                     OperatorExpressions.BinaryExpression(
                         left = ListExpressions.ItemAtIndex(
                             MemoryLib.heap,
-                            OperatorExpressions.BinaryExpression(
+                            if (dataPtrOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
                                 left = it[0],
-                                right = "2".scratch,
+                                right = dataPtrOffset.toString().scratch,
                                 operator = OperatorExpressions.BinaryOperator.ADD
                             )
                         ),
@@ -193,25 +199,39 @@ object ListLib {
                 val returnVal = returnArg(PrimitiveType.Integer)
                 checkOutOfBounds(list, index)
 
-                MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + 2.sc] + index]
+                MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + index]
             }
         }
 
-        clear = compileInline(lib, "clear", mutableListOf(Parameter("list", PrimitiveType.Integer))) {
+        clear = compileInline(
+            lib,
+            "clear",
+            mutableListOf(Parameter("list", PrimitiveType.Integer))
+        ) {
             ListStatements.ReplaceItem(
                 MemoryLib.heap,
                 item = "0".scratch,
-                index = ListExpressions.ItemAtIndex(
-                    MemoryLib.heap,
-                    it[0]
+                index = if (lengthOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                    left = it[0],
+                    right = lengthOffset.toString().scratch,
+                    operator = OperatorExpressions.BinaryOperator.ADD
                 )
             )
         }
 
-        length = compileInline(lib, "length", mutableListOf(Parameter("list", PrimitiveType.Integer)), returnType = PrimitiveType.Integer) {
+        length = compileInline(
+            lib,
+            "length",
+            mutableListOf(Parameter("list", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Integer
+        ) {
             ListExpressions.ItemAtIndex(
                 MemoryLib.heap,
-                it[0]
+                if (lengthOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                    left = it[0],
+                    right = lengthOffset.toString().scratch,
+                    operator = OperatorExpressions.BinaryOperator.ADD
+                )
             )
         }
 
@@ -223,8 +243,8 @@ object ListLib {
             val item = arg("item", PrimitiveType.Integer)
             val returnVal = returnArg(PrimitiveType.Integer)
 
-            val length = MemoryLib.heap[list]
-            val dataPtr = MemoryLib.heap[list + 2.sc]
+            val length = MemoryLib.heap[list + lengthOffset.sc]
+            val dataPtr = MemoryLib.heap[list + dataPtrOffset.sc]
 
             val found = variable("list::contains::found")
             found.set("false".sc)
@@ -249,37 +269,30 @@ object ListLib {
             val list = arg("list", PrimitiveType.Integer)
             val newCapacity = arg("newCapacity", PrimitiveType.Integer)
 
-            val length = MemoryLib.heap[list]
-            val capacity = MemoryLib.heap[list + 1.sc]
+            val length = MemoryLib.heap[list + lengthOffset.sc]
+            val capacity = MemoryLib.heap[list + capacityOffset.sc]
 
             control.ifThen(newCapacity gt capacity) {
                 val oldDataPtr = variable("list::reserve::oldData")
-                oldDataPtr.set(MemoryLib.heap[list + 2.sc])
+                oldDataPtr.set(MemoryLib.heap[list + dataPtrOffset.sc])
 
                 val oldCapacity = variable("list::reserve::oldCapacity")
                 oldCapacity.set(capacity)
 
-                MemoryLib.heap[list + 1.sc] = newCapacity
+                MemoryLib.heap[list + capacityOffset.sc] = newCapacity
 
+                val allocArgs = mutableListOf<DSLExpression>(newCapacity)
                 if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                    call(
-                        MemoryLib.alloc,
-                        newCapacity,
-                        "n".sc concat MemoryLib.heap[list + 3.sc],
-                        list + 2.sc
-                    )
-                } else {
-                    call(
-                        MemoryLib.alloc,
-                        newCapacity,
-                        list + 2.sc
-                    )
+                    allocArgs.add("n".sc concat MemoryLib.heap[list + nameCopyOffset.sc])
                 }
+                allocArgs.add(list + dataPtrOffset.sc)
+
+                call(MemoryLib.alloc, *allocArgs.toTypedArray())
 
                 val copyIndex = variable("list::reserve::copyIndex")
                 copyIndex.set(0.sc)
                 control.repeat(length) {
-                    MemoryLib.heap[MemoryLib.heap[list + 2.sc] + copyIndex] = MemoryLib.heap[oldDataPtr + copyIndex]
+                    MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + copyIndex] = MemoryLib.heap[oldDataPtr + copyIndex]
                     copyIndex.set(copyIndex + 1.sc)
                 }
 
@@ -298,8 +311,8 @@ object ListLib {
             val list = arg("list", PrimitiveType.Integer)
             val item = arg("item", PrimitiveType.Integer)
 
-            val length = MemoryLib.heap[list]
-            val capacity = MemoryLib.heap[list + 1.sc]
+            val length = MemoryLib.heap[list + lengthOffset.sc]
+            val capacity = MemoryLib.heap[list + capacityOffset.sc]
 
             control.ifThen(length equals capacity) {
                 call(
@@ -309,8 +322,8 @@ object ListLib {
                 )
             }
 
-            MemoryLib.heap[MemoryLib.heap[list + 2.sc] + length] = item
-            MemoryLib.heap[list] = length + 1.sc
+            MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + length] = item
+            MemoryLib.heap[list + lengthOffset.sc] = length + 1.sc
         }
 
         free = editor.compile(
@@ -319,32 +332,28 @@ object ListLib {
             userAccessible = false
         ) {
             val list = arg("list", PrimitiveType.Integer)
-            val capacity = MemoryLib.heap[list + 1.sc]
-            val dataPtr = MemoryLib.heap[list + 2.sc]
+            val capacity = MemoryLib.heap[list + capacityOffset.sc]
+            val dataPtr = MemoryLib.heap[list + dataPtrOffset.sc]
 
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                //dataPtr
                 call(
                     MemoryLib.free,
                     dataPtr - 1.sc, capacity + 1.sc
                 )
 
-                //arr
                 call(
                     MemoryLib.free,
-                    list - 1.sc, 5.sc
+                    list - 1.sc, (headerSize + 1).sc
                 )
             } else {
-                //dataPtr
                 call(
                     MemoryLib.free,
                     dataPtr, capacity
                 )
 
-                //arr
                 call(
                     MemoryLib.free,
-                    list, 3.sc
+                    list, headerSize.sc
                 )
             }
         }
@@ -468,8 +477,8 @@ object ListLib {
         list: DSLExpression,
         index: DSLExpression
     ) {
-        val length = MemoryLib.heap[list]
-        if(!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+        val length = MemoryLib.heap[list + lengthOffset.sc]
+        if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
             control.ifThen(index gt (length - 1.sc)) {
                 call(
                     ExceptionLib.panic,

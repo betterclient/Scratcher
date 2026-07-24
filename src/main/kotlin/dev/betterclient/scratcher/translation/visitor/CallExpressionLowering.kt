@@ -18,7 +18,7 @@ class CallExpressionLowering(
     val func: Function
 ) : ASTVisitor() {
     val doingReturnLowering = func.returnType != PrimitiveType.Void
-    val returnIndexParameter = Parameter(obfuscate("compiler@${func.name}Return"), PrimitiveType.Integer)
+    val returnIndexParameter = Parameter(obfuscate("compiler@return"), PrimitiveType.Integer)
 
     fun run() {
         if (func is StandardLibASTFunction) return //already lowered!!!
@@ -34,11 +34,11 @@ class CallExpressionLowering(
     }
 
     override fun visitReturnStatement(expression: Expression?): Statement? {
-        if (expression == NullExpression) return ReturnStatement(null)
+        if (expression == null || expression == NullExpression) return ReturnStatement(null)
 
         if (doingReturnLowering) {
             addStatements(listOf(
-                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expression!!)
+                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expression)
             ))
             return ReturnStatement(null) //codegen still needs a return statement to generate stop(this-script)
         }

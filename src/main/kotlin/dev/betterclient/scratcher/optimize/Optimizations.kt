@@ -48,7 +48,7 @@ object Optimizations {
         PromoteToGlobals
     )
 
-    fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
+    fun apply(functions: MutableList<Function>, context: CompilationContext, print: Boolean = true) {
         var changed: Boolean
         var iterations = 0
         val maxIterations = 20
@@ -56,10 +56,10 @@ object Optimizations {
 
         do {
             changed = false
+            val callGraph = generateCallGraph(functions)
 
-            val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
-
-            callGraph.forEach { (func, _) ->
+            val currentFunctions = functions.toList()
+            currentFunctions.forEach { func ->
                 if (applyAll(context, func, callGraph, applyCounts)) {
                     changed = true
                 }
@@ -68,15 +68,15 @@ object Optimizations {
             iterations++
         } while (changed && iterations < maxIterations)
 
-        //do optimize to globals last because maybe the locals are gonna get inlined, so optimize them to globals at the very end
         applyLast.forEach {
-            val callGraph = CallGraph(CallGraphContext(mutableListOf()), ast).generate()
-            callGraph.forEach { (func, _) ->
+            val callGraph = generateCallGraph(functions)
+            val currentFunctions = functions.toList()
+            currentFunctions.forEach { func ->
                 if (it !in requiredRunLastOptimizations && CompilationConstants.DISABLE_OPTIMIZATIONS) return@forEach
 
                 if (it.shouldApply(func, callGraph)) {
                     val applied = it.apply(func, callGraph, context)
-                    if(applied) applyCounts[it] = (applyCounts[it]?: 0) + 1
+                    if (applied) applyCounts[it] = (applyCounts[it] ?: 0) + 1
                 }
             }
         }
@@ -85,6 +85,11 @@ object Optimizations {
         applyCounts.forEach { (optimization, applyCount) ->
             println("   \"${optimization.name}\" applied $applyCount times")
         }
+    }
+
+    fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
+        val functions = (ast.functions + ast.imports.values.flatMap { it.functions }).toMutableList()
+        apply(functions, context, print)
     }
 
     private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {

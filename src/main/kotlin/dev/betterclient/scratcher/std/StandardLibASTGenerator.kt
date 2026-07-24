@@ -52,6 +52,7 @@ object StandardLibASTGenerator {
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
     val dynamicDispatchLib = ASTFile("dynamic_dispatch")
+    val refCountGC = ASTFile("ref_count_gc")
     val compilerLib = ASTFile("compiler")
     val gcInternalsLib = ASTFile("gc_internal")
     val gcLib = ASTFile("gc")
@@ -74,6 +75,7 @@ object StandardLibASTGenerator {
         "dynamic_dispatch" to dynamicDispatchLib,
         "compiler" to compilerLib,
         "gc_internal" to gcInternalsLib,
+        "ref_count_gc" to refCountGC,
         "gc" to gcLib
     )
 
@@ -116,7 +118,8 @@ object StandardLibASTGenerator {
                 library == compilerLib ||
                 library.path == GC_LIB_NAME ||
                 library == gcInternalsLib ||
-                library == dynamicDispatchLib
+                library == dynamicDispatchLib ||
+                library == refCountGC
     }
 
     fun isStandardLib(function: Function): Boolean {
