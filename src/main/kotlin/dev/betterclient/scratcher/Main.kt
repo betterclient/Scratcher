@@ -60,6 +60,9 @@ fun main() {
     reachableFunctions.add(topLevelInit)
 
     StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)
+    if (CompilationConstants.REFCOUNT_GC) {
+        reachableFunctions.addAll(RefCountGC.instrument(context, listOf(topLevelInit)))
+    }
     Optimizations.apply(mutableListOf(topLevelInit), context, print = false) //optimize the top level init
 
     GCLib.generate(reachableTopLevelVariables.keys.toList()) { variable ->

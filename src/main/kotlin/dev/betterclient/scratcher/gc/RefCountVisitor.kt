@@ -42,12 +42,6 @@ class RefCountVisitor(
             emptyList()
         }
 
-        for (temp in condTemps) {
-            getDecCall(temp.type, LocalVariableExpression(temp))?.let { decStmt ->
-                block.code.add(decStmt)
-            }
-        }
-
         val whileStmt = WhileStatement(condition, block)
 
         val afterLoopCleanups = condTemps.mapNotNull { temp ->
@@ -107,7 +101,12 @@ class RefCountVisitor(
         val stmts = mutableListOf<Statement>()
         val (targetExpr, targetStmt) = if (!target.simple) {
             val tempTarget = LocalVariable("compiler@gc_target_${getUniqueName()}", target.getType())
-            Pair(LocalVariableExpression(tempTarget), VariableStatement(target, tempTarget))
+            activeScopes.lastOrNull()?.add(tempTarget)
+            val targetStmts = mutableListOf<Statement>(VariableStatement(target, tempTarget))
+            if (!target.isReturningPlusOne()) {
+                targetStmts.add(LocalVariableExpression(tempTarget).asIncCall)
+            }
+            Pair(LocalVariableExpression(tempTarget), CompositeStatement(targetStmts))
         } else {
             Pair(target, null)
         }
@@ -136,6 +135,9 @@ class RefCountVisitor(
     ): Statement? {
         if (!variable.type.isRefCounted()) {
             return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment)
+        }
+        if (assignment == IntLiteral(BigInteger.valueOf(-1L))) {
+            return TLVariableAssignmentStatement(variable, sourceAST, assignment)
         }
 
         val stmts = mutableListOf<Statement>()
@@ -307,8 +309,9 @@ class RefCountVisitor(
                 addStatements(listOf(VariableStatement(arg, temp)))
                 if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
                     whileCondTempsStack.last().add(temp)
+                } else {
+                    activeScopes.lastOrNull()?.add(temp)
                 }
-                activeScopes.lastOrNull()?.add(temp)
                 LocalVariableExpression(temp)
             } else {
                 arg
@@ -329,8 +332,9 @@ class RefCountVisitor(
                 addStatements(listOf(VariableStatement(arg, temp)))
                 if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
                     whileCondTempsStack.last().add(temp)
+                } else {
+                    activeScopes.lastOrNull()?.add(temp)
                 }
-                activeScopes.lastOrNull()?.add(temp)
                 LocalVariableExpression(temp)
             } else {
                 arg

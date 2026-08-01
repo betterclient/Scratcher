@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.translation
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
@@ -20,6 +21,14 @@ class TopLevelVariableTranslator {
             userAccessible = false, //idk how you would access it?? This function is created after parsing
             sourceAST = StandardLibASTGenerator.compilerLib
         )
+
+        if (CompilationConstants.REFCOUNT_GC) {
+            vars.forEach { (variable, _) ->
+                func.code.code.add(
+                    TLVariableAssignmentStatement(variable, variable.sourceAST, IntLiteral((-1).toBigInteger()))
+                )
+            }
+        }
 
         vars.forEach { (variable, value) ->
             if(value == null) {

@@ -10,10 +10,41 @@ import dev.betterclient.scratcher.std.lib.MemoryLib
 import java.math.BigInteger
 
 object RefCountGC {
+    private var setupDone = false
+    private lateinit var lib: ASTFile
+    private lateinit var inc: Function
+    private lateinit var structDecs: Map<Struct, Function>
+
     fun run(
         context: CompilationContext,
         reachableFunctions: MutableList<Function>
     ) {
+        reachableFunctions.addAll(instrument(context, reachableFunctions))
+    }
+
+    fun instrument(
+        context: CompilationContext,
+        functions: Collection<Function>
+    ): List<Function> {
+        setup(context)
+        functions.forEach { func ->
+            visit(func, RefCountVisitor(
+                structDecs = structDecs,
+                inc = inc,
+                generateDecList = { list ->
+                    getOrCreateDecList(list, lib, structDecs)
+                },
+                compilationContext = context,
+                currentFunction = func
+            ))
+        }
+        return listOf(inc) + structDecs.values + listDecMap.values
+    }
+
+    private fun setup(context: CompilationContext) {
+        if (setupDone) return
+        setupDone = true
+
         val reachableStructs = context.asts.flatMap { (_, ast) -> ast.structs }
         reachableStructs.forEach { struct ->
             val refParam = Parameter("compiler@refcount", PrimitiveType.Integer)
@@ -31,10 +62,10 @@ object RefCountGC {
             }
         }
 
-        val lib = StandardLibASTGenerator.refCountGC
+        lib = StandardLibASTGenerator.refCountGC
 
         val ptrArg = Parameter("ptr", PrimitiveType.Integer)
-        val inc = Function(
+        inc = Function(
             name = "inc",
             parameters = mutableListOf(ptrArg),
             returnType = PrimitiveType.Void,
@@ -59,7 +90,7 @@ object RefCountGC {
             }
         ).also { lib.functions.add(it) }
 
-        val structDecs = reachableStructs.associateWith { struct ->
+        structDecs = reachableStructs.associateWith { struct ->
             Function(
                 name = "dec@${struct.sourceAST.simplePath}::${struct.name}",
                 parameters = mutableListOf(Parameter("ptr", PrimitiveType.Integer)),
@@ -129,19 +160,6 @@ object RefCountGC {
                 })
             )
         }
-
-        reachableFunctions.forEach { func ->
-            visit(func, RefCountVisitor(
-                structDecs = structDecs,
-                inc = inc,
-                generateDecList = { list ->
-                    getOrCreateDecList(list, lib, structDecs)
-                },
-                compilationContext = context,
-                currentFunction = func
-            ))
-        }
-        reachableFunctions.addAll(listOf(inc) + structDecs.values + listDecMap.values)
     }
 
     private fun isNotNeg1(left: Expression, then: CodeBlock): Statement {
