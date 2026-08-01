@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
+import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.std.lib.ListLib
 import java.math.BigInteger
 
@@ -13,13 +14,55 @@ class RefCountVisitor(
     val structDecs: Map<Struct, Function>,
     val inc: Function,
     val generateDecList: (ListType) -> Function,
-    val compilationContext: CompilationContext
+    val compilationContext: CompilationContext,
+    val currentFunction: Function? = null
 ) : ASTVisitor() {
+
+    private var isInWhileCondition = false
+    private val whileCondTempsStack = mutableListOf<MutableList<LocalVariable>>()
+    private val activeScopes = mutableListOf<MutableSet<LocalVariable>>()
+
+    override fun visitStatement(statement: Statement) {
+        if (statement is WhileStatement) {
+            isInWhileCondition = true
+            whileCondTempsStack.add(mutableListOf())
+        }
+        super.visitStatement(statement)
+    }
+
+    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+        isInWhileCondition = false
+        return super.shouldVisitCodeBlock(block)
+    }
+
+    override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement {
+        val condTemps = if (whileCondTempsStack.isNotEmpty()) {
+            whileCondTempsStack.removeAt(whileCondTempsStack.lastIndex)
+        } else {
+            emptyList()
+        }
+
+        for (temp in condTemps) {
+            getDecCall(temp.type, LocalVariableExpression(temp))?.let { decStmt ->
+                block.code.add(decStmt)
+            }
+        }
+
+        val whileStmt = WhileStatement(condition, block)
+
+        val afterLoopCleanups = condTemps.mapNotNull { temp ->
+            getDecCall(temp.type, LocalVariableExpression(temp))
+        }
+
+        return if (afterLoopCleanups.isNotEmpty()) {
+            CompositeStatement(listOf(whileStmt) + afterLoopCleanups)
+        } else {
+            whileStmt
+        }
+    }
 
     override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
         if (variable.type.isRefCounted() && !variable.name.startsWith("compiler@")) {
-            //auto a = Struct()
-            //inc(a)
             activeScopes.lastOrNull()?.add(variable)
             if (defaultValue != null) {
                 addStatements(listOf(VariableStatement(defaultValue, variable)))
@@ -36,13 +79,16 @@ class RefCountVisitor(
         if (!variable.type.isRefCounted()) return super.visitLocalVariableAssignmentStatement(variable, assignment)
 
         val stmts = mutableListOf<Statement>()
-        val tempOld = LocalVariable("compiler@gc_old_${variable.name}", variable.type)
+        val tempRhs = LocalVariable("compiler@gc_new_${variable.name}_${getUniqueName()}", variable.type)
+        val tempOld = LocalVariable("compiler@gc_old_${variable.name}_${getUniqueName()}", variable.type)
 
+        stmts.add(VariableStatement(assignment, tempRhs))
         stmts.add(VariableStatement(LocalVariableExpression(variable), tempOld))
-        stmts.add(LocalVariableAssignmentStatement(variable, assignment))
+        stmts.add(LocalVariableAssignmentStatement(variable, LocalVariableExpression(tempRhs)))
         if (!assignment.isReturningPlusOne()) {
             stmts.add(LocalVariableExpression(variable).asIncCall)
         }
+
         getDecCall(variable.type, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
 
         return CompositeStatement(stmts)
@@ -60,7 +106,7 @@ class RefCountVisitor(
 
         val stmts = mutableListOf<Statement>()
         val (targetExpr, targetStmt) = if (!target.simple) {
-            val tempTarget = LocalVariable("compiler@gc_target", target.getType())
+            val tempTarget = LocalVariable("compiler@gc_target_${getUniqueName()}", target.getType())
             Pair(LocalVariableExpression(tempTarget), VariableStatement(target, tempTarget))
         } else {
             Pair(target, null)
@@ -69,12 +115,14 @@ class RefCountVisitor(
         targetStmt?.let { stmts.add(it) }
 
         val memberExpr = MemberExpression(targetExpr, variable, struct)
-        val tempOld = LocalVariable("compiler@gc_old_member", variable.type)
+        val tempRhs = LocalVariable("compiler@gc_new_member_${getUniqueName()}", variable.type)
+        val tempOld = LocalVariable("compiler@gc_old_member_${getUniqueName()}", variable.type)
 
+        stmts.add(VariableStatement(assignment, tempRhs))
         stmts.add(VariableStatement(memberExpr, tempOld))
-        stmts.add(VariableAssignmentStatement(targetExpr, variable, struct, assignment))
+        stmts.add(VariableAssignmentStatement(targetExpr, variable, struct, LocalVariableExpression(tempRhs)))
         if (!assignment.isReturningPlusOne()) {
-            stmts.add(memberExpr.asIncCall)
+            stmts.add(LocalVariableExpression(tempRhs).asIncCall)
         }
         getDecCall(variable.type, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
 
@@ -91,10 +139,12 @@ class RefCountVisitor(
         }
 
         val stmts = mutableListOf<Statement>()
-        val tempOld = LocalVariable("compiler@gc_old_${variable.name}", variable.type)
+        val tempRhs = LocalVariable("compiler@gc_new_${variable.name}_${getUniqueName()}", variable.type)
+        val tempOld = LocalVariable("compiler@gc_old_${variable.name}_${getUniqueName()}", variable.type)
 
+        stmts.add(VariableStatement(assignment, tempRhs))
         stmts.add(VariableStatement(VariableExpression(variable, sourceAST), tempOld))
-        stmts.add(TLVariableAssignmentStatement(variable, sourceAST, assignment))
+        stmts.add(TLVariableAssignmentStatement(variable, sourceAST, LocalVariableExpression(tempRhs)))
         if (!assignment.isReturningPlusOne()) {
             stmts.add(VariableExpression(variable, sourceAST).asIncCall)
         }
@@ -121,7 +171,9 @@ class RefCountVisitor(
 
                     stmts.add(VariableStatement(itemExpr, tempItem))
                     stmts.add(VariableStatement(CallExpression(ListLib.itemAt, listOf(listExpr, indexExpr)), tempOld))
-                    stmts.add(LocalVariableExpression(tempItem).asIncCall)
+                    if (!itemExpr.isReturningPlusOne()) {
+                        stmts.add(LocalVariableExpression(tempItem).asIncCall)
+                    }
                     stmts.add(ExpressionStatement(CallExpression(ListLib.replace, listOf(listExpr, LocalVariableExpression(tempItem), indexExpr))))
                     getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
 
@@ -131,22 +183,27 @@ class RefCountVisitor(
                     val itemExpr = expression.arguments[1]
                     val tempItem = LocalVariable("compiler@gc_add_item_${getUniqueName()}", elemType)
 
-                    return CompositeStatement(listOf(
-                        VariableStatement(itemExpr, tempItem),
-                        LocalVariableExpression(tempItem).asIncCall,
-                        ExpressionStatement(CallExpression(ListLib.add, listOf(listExpr, LocalVariableExpression(tempItem))))
-                    ))
+                    val stmts = mutableListOf<Statement>(
+                        VariableStatement(itemExpr, tempItem)
+                    )
+                    if (!itemExpr.isReturningPlusOne()) {
+                        stmts.add(LocalVariableExpression(tempItem).asIncCall)
+                    }
+                    stmts.add(ExpressionStatement(CallExpression(ListLib.add, listOf(listExpr, LocalVariableExpression(tempItem)))))
+
+                    return CompositeStatement(stmts)
 
                 } else if (expression.func == ListLib.remove && expression.arguments.size == 2) {
                     val indexExpr = expression.arguments[1]
-
                     val tempOld = LocalVariable("compiler@gc_old_item_${getUniqueName()}", elemType)
 
-                    return CompositeStatement(listOf(
+                    val stmts = mutableListOf<Statement>(
                         VariableStatement(CallExpression(ListLib.itemAt, listOf(listExpr, indexExpr)), tempOld),
-                        ExpressionStatement(expression),
-                        getDecCall(elemType, LocalVariableExpression(tempOld))!!
-                    ))
+                        ExpressionStatement(expression)
+                    )
+                    getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
+
+                    return CompositeStatement(stmts)
 
                 } else if (expression.func == ListLib.clear && expression.arguments.size == 1) {
                     val stmts = mutableListOf<Statement>()
@@ -190,9 +247,20 @@ class RefCountVisitor(
         return super.visitExpressionStatement(expression)
     }
 
-    private val activeScopes = mutableListOf<MutableSet<LocalVariable>>()
     override fun visitCodeBlock(block: CodeBlock): CodeBlock {
+        val isMainBlock = block === currentBlock
         activeScopes.add(mutableSetOf())
+
+        if (isMainBlock) {
+            currentFunction?.parameters?.forEach { param ->
+                if (param.type.isRefCounted()) {
+                    val paramLocal = LocalVariable(param.name, param.type)
+                    addStatements(listOf(ParameterExpression(param).asIncCall))
+                    activeScopes.last().add(paramLocal)
+                }
+            }
+        }
+
         val visited = super.visitCodeBlock(block)
 
         val blockLocals = activeScopes.removeAt(activeScopes.lastIndex)
@@ -209,12 +277,16 @@ class RefCountVisitor(
 
         var returnExpr = expression
         if (expression != null && expression.getType().isRefCounted()) {
-            if (expression !is LocalVariableExpression) {
-                val tempRet = LocalVariable("compiler@gc_ret", expression.getType())
-                stmts.add(VariableStatement(expression, tempRet))
-                returnExpr = LocalVariableExpression(tempRet)
+            if (currentFunction?.userAccessible == false && currentFunction.name.startsWith("new")) {
+
+            } else {
+                if (expression !is LocalVariableExpression) {
+                    val tempRet = LocalVariable("compiler@gc_ret_${getUniqueName()}", expression.getType())
+                    stmts.add(VariableStatement(expression, tempRet))
+                    returnExpr = LocalVariableExpression(tempRet)
+                }
+                stmts.add(returnExpr.asIncCall)
             }
-            stmts.add(returnExpr.asIncCall)
         }
 
         for (scope in activeScopes.reversed()) {
@@ -227,11 +299,51 @@ class RefCountVisitor(
         return CompositeStatement(stmts)
     }
 
+    override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+        val processedArgs = args.map { arg ->
+            val type = arg.getType()
+            if (type.isRefCounted() && arg.isReturningPlusOne() && arg !is LocalVariableExpression) {
+                val temp = LocalVariable("compiler@gc_arg_${getUniqueName()}", type)
+                addStatements(listOf(VariableStatement(arg, temp)))
+                if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
+                    whileCondTempsStack.last().add(temp)
+                }
+                activeScopes.lastOrNull()?.add(temp)
+                LocalVariableExpression(temp)
+            } else {
+                arg
+            }
+        }
+        return super.visitCallExpression(func, processedArgs)
+    }
+
+    override fun visitDynamicCallExpression(
+        function: Expression,
+        args: List<Expression>,
+        type: FunctionType
+    ): Expression {
+        val processedArgs = args.map { arg ->
+            val argType = arg.getType()
+            if (argType.isRefCounted() && arg.isReturningPlusOne() && arg !is LocalVariableExpression) {
+                val temp = LocalVariable("compiler@gc_arg_${getUniqueName()}", argType)
+                addStatements(listOf(VariableStatement(arg, temp)))
+                if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
+                    whileCondTempsStack.last().add(temp)
+                }
+                activeScopes.lastOrNull()?.add(temp)
+                LocalVariableExpression(temp)
+            } else {
+                arg
+            }
+        }
+        return super.visitDynamicCallExpression(function, processedArgs, type)
+    }
+
     private fun Type.isRefCounted(): Boolean {
         val nonNull = this.asNonNull()
         if (nonNull is ListType) return true
         if (nonNull is SimpleType) {
-            return compilationContext.asts.values.flatMap { it.structs }.any { it.type.asNonNull() == nonNull } //enums are technically SimpleType
+            return compilationContext.asts.values.flatMap { it.structs }.any { it.type.asNonNull() == nonNull }
         }
         return false
     }
@@ -252,9 +364,7 @@ class RefCountVisitor(
     }
 
     private val Expression.asIncCall: Statement
-        get() {
-            return ExpressionStatement(CallExpression(inc, listOf(this)))
-        }
+        get() = ExpressionStatement(CallExpression(inc, listOf(this)))
 
     private fun Expression.getType(): Type {
         return ExpressionTypes.getExpressionType(this@RefCountVisitor.compilationContext, this)
@@ -262,6 +372,9 @@ class RefCountVisitor(
 
     private fun Expression.isReturningPlusOne(): Boolean {
         if (this is CallExpression) {
+            if (this.func == ListLib.newList) return true
+            if (this.func.sourceAST.path == "string" && this.func.name == "split") return true
+
             return this.func !is StandardLibASTFunction && this.func !is InlineStandardLibFunction
         }
         if (this is DynamicCallExpression) {

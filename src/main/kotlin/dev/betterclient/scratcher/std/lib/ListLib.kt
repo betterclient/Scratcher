@@ -84,7 +84,7 @@ object ListLib {
             val out = MemoryLib.heap[returnArg]
 
             if (CompilationConstants.REFCOUNT_GC) {
-                MemoryLib.heap[out + refCountOffset.sc] = 0.sc
+                MemoryLib.heap[out + refCountOffset.sc] = 1.sc
             }
             MemoryLib.heap[out + lengthOffset.sc] = 0.sc //length
             MemoryLib.heap[out + capacityOffset.sc] = 1.sc //capacity

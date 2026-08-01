@@ -47,7 +47,10 @@ fun main() {
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Top level variables")
-    val (_, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
+    val (postReachableFuncs, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
+    reachableFunctions.clear()
+    reachableFunctions.addAll(postReachableFuncs)
+
     reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null }
 
     val topLevelTranslator = TopLevelVariableTranslator()

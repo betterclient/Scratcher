@@ -26,7 +26,7 @@ object RefCountGC {
                     target = LocalVariableExpression(ptrVar),
                     variable = refParam,
                     struct = struct,
-                    assignment = IntLiteral(BigInteger.ZERO)
+                    assignment = IntLiteral(BigInteger.ONE)
                 ))
             }
         }
@@ -130,14 +130,15 @@ object RefCountGC {
             )
         }
 
-        reachableFunctions.forEach {
-            visit(it, RefCountVisitor(
+        reachableFunctions.forEach { func ->
+            visit(func, RefCountVisitor(
                 structDecs = structDecs,
                 inc = inc,
                 generateDecList = { list ->
                     getOrCreateDecList(list, lib, structDecs)
                 },
-                compilationContext = context
+                compilationContext = context,
+                currentFunction = func
             ))
         }
         reachableFunctions.addAll(listOf(inc) + structDecs.values + listDecMap.values)
