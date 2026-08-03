@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
+import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 
 object InlineSingleUseAssignment : Optimization("Inline single-use assignments") {
@@ -79,11 +80,16 @@ class InlineSingleUseAnalysis {
     val activeVars = mutableMapOf<LocalVariable, SSAVar>()
     val allVars = mutableListOf<SSAVar>()
     val writeCounts = mutableMapOf<LocalVariable, Int>()
+    private val invalidated = mutableSetOf<LocalVariable>()
+    private var loopDepth = 0
 
     private val exprVisitor = object : ASTVisitor() {
         override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
-            activeVars[variable]?.let {
-                it.readCount++
+            val def = activeVars[variable]
+            if (def != null) {
+                def.readCount++
+            } else if (loopDepth > 0 && writeCounts.containsKey(variable)) {
+                invalidated.add(variable)
             }
 
             return super.visitLocalVariableExpression(variable)
@@ -91,13 +97,38 @@ class InlineSingleUseAnalysis {
     }
 
     fun analyze(function: Function) {
+        prescanWrites(function)
         analyzeBlock(function.code)
 
         allVars.forEach { def ->
+            if (def.variable in invalidated) {
+                def.isInvalid = true
+            }
             if ((writeCounts[def.variable] ?: 0) > 1) {
                 def.isInvalid = true
             }
         }
+    }
+
+    private fun prescanWrites(function: Function) {
+        visit(function, object : ASTVisitor() {
+            override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
+
+            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+                if (defaultValue != null) {
+                    writeCounts[variable] = (writeCounts[variable] ?: 0) + 1
+                }
+                return super.visitVariableStatement(defaultValue, variable)
+            }
+
+            override fun visitLocalVariableAssignmentStatement(
+                variable: LocalVariable,
+                assignment: Expression
+            ): Statement? {
+                writeCounts[variable] = (writeCounts[variable] ?: 0) + 1
+                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+            }
+        })
     }
 
     private fun analyzeBlock(code: CodeBlock) {
@@ -108,7 +139,6 @@ class InlineSingleUseAnalysis {
         when(stmt) {
             is VariableStatement -> {
                 stmt.defaultValue?.let { defaultValue ->
-                    writeCounts[stmt.variable] = (writeCounts[stmt.variable] ?: 0) + 1
                     exprVisitor.visit(defaultValue)
 
                     val def = SSAVar(stmt.variable, defaultValue)
@@ -122,7 +152,6 @@ class InlineSingleUseAnalysis {
                 }
             }
             is LocalVariableAssignmentStatement -> {
-                writeCounts[stmt.variable] = (writeCounts[stmt.variable] ?: 0) + 1
                 exprVisitor.visit(stmt.assignment)
 
                 val def = SSAVar(stmt.variable, stmt.assignment)
@@ -161,7 +190,9 @@ class InlineSingleUseAnalysis {
                 val modified = collectModifiedVariables(stmt)
                 removeDependents(modified)
 
+                loopDepth++
                 analyzeBlock(stmt.block)
+                loopDepth--
 
                 modified.forEach { activeVars.remove(it) }
             }
@@ -171,7 +202,9 @@ class InlineSingleUseAnalysis {
                 val modified = collectModifiedVariables(stmt)
                 removeDependents(modified)
 
+                loopDepth++
                 analyzeBlock(stmt.block)
+                loopDepth--
 
                 modified.forEach { activeVars.remove(it) }
             }

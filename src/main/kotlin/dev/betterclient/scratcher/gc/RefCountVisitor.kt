@@ -19,7 +19,7 @@ class RefCountVisitor(
 ) : ASTVisitor() {
 
     private var isInWhileCondition = false
-    private val whileCondTempsStack = mutableListOf<MutableList<LocalVariable>>()
+    private val whileCondTempsStack = mutableListOf<MutableList<Pair<LocalVariable, Expression>>>()
     private val activeScopes = mutableListOf<MutableSet<LocalVariable>>()
 
     override fun visitStatement(statement: Statement) {
@@ -44,7 +44,14 @@ class RefCountVisitor(
 
         val whileStmt = WhileStatement(condition, block)
 
-        val afterLoopCleanups = condTemps.mapNotNull { temp ->
+        condTemps.forEach { (temp, originalExpr) ->
+            val tempOld = LocalVariable("compiler@gc_old_cond_${getUniqueName()}", temp.type)
+            block.code.add(VariableStatement(LocalVariableExpression(temp), tempOld))
+            block.code.add(LocalVariableAssignmentStatement(temp, originalExpr))
+            getDecCall(temp.type, LocalVariableExpression(tempOld))?.let { block.code.add(it) }
+        }
+
+        val afterLoopCleanups = condTemps.mapNotNull { (temp, _) ->
             getDecCall(temp.type, LocalVariableExpression(temp))
         }
 
@@ -287,7 +294,15 @@ class RefCountVisitor(
                     stmts.add(VariableStatement(expression, tempRet))
                     returnExpr = LocalVariableExpression(tempRet)
                 }
-                stmts.add(returnExpr.asIncCall)
+                if (!expression.isReturningPlusOne()) {
+                    stmts.add(returnExpr.asIncCall)
+                }
+            }
+        }
+
+        for (condTempsLevel in whileCondTempsStack) {
+            for ((temp, _) in condTempsLevel) {
+                getDecCall(temp.type, LocalVariableExpression(temp))?.let { stmts.add(it) }
             }
         }
 
@@ -308,7 +323,7 @@ class RefCountVisitor(
                 val temp = LocalVariable("compiler@gc_arg_${getUniqueName()}", type)
                 addStatements(listOf(VariableStatement(arg, temp)))
                 if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
-                    whileCondTempsStack.last().add(temp)
+                    whileCondTempsStack.last().add(temp to arg)
                 } else {
                     activeScopes.lastOrNull()?.add(temp)
                 }
@@ -331,7 +346,7 @@ class RefCountVisitor(
                 val temp = LocalVariable("compiler@gc_arg_${getUniqueName()}", argType)
                 addStatements(listOf(VariableStatement(arg, temp)))
                 if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
-                    whileCondTempsStack.last().add(temp)
+                    whileCondTempsStack.last().add(temp to arg)
                 } else {
                     activeScopes.lastOrNull()?.add(temp)
                 }
@@ -383,6 +398,9 @@ class RefCountVisitor(
         }
         if (this is DynamicCallExpression) {
             return true
+        }
+        if (this is NonNullAssertExpression) {
+            return this.expression.isReturningPlusOne()
         }
         return false
     }
