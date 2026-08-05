@@ -72,6 +72,7 @@ class RefCountVisitor(
                 }
                 return LocalVariableExpression(variable).asIncCall
             }
+            return VariableStatement(NullExpression, variable)
         }
         return super.visitVariableStatement(defaultValue, variable)
     }
