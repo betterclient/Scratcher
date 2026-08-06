@@ -23,5 +23,5 @@ object CompilationConstants {
     const val DISABLE_INDEX_OUT_OF_BOUNDS = true //disable index out of bounds checking
     const val DISABLE_TYPE_CHECKER = true //disable the runtime type checker
 
-    const val DISABLE_OPTIMIZATIONS = false //disable optimizations to make performance worse for debugging
+    const val DISABLE_OPTIMIZATIONS = true //disable optimizations to make performance worse for debugging
 }

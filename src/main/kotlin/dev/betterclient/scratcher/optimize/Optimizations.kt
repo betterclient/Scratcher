@@ -23,9 +23,7 @@ typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
     private val requiredOptimizations = listOf(
-        RepeatToWhile
-    )
-    private val requiredRunLastOptimizations = listOf(
+        RepeatToWhile,
         DynamicDispatchHandler
     )
 
@@ -72,7 +70,7 @@ object Optimizations {
             val callGraph = generateCallGraph(functions)
             val currentFunctions = functions.toList()
             currentFunctions.forEach { func ->
-                if (it !in requiredRunLastOptimizations && CompilationConstants.DISABLE_OPTIMIZATIONS) return@forEach
+                if (CompilationConstants.DISABLE_OPTIMIZATIONS) return@forEach
 
                 if (it.shouldApply(func, callGraph)) {
                     val applied = it.apply(func, callGraph, context)
