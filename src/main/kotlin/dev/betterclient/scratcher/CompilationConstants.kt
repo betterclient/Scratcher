@@ -15,13 +15,13 @@ object CompilationConstants {
     const val REFCOUNT_GC = true //reference counting garbage collector
 
     //mark and sweep settings
-    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector
+    const val MARK_AND_SWEEP_GC = true //mark and sweep garbage collector
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call gc::collect yourself)
     const val REFLECT_GC = false //use hacked blocks to do top level marking in garbage collection, might be incompatible with turbowarp
 
     //improve performance by disabling safety, only disable if you already tested your project with them enabled
-    const val DISABLE_INDEX_OUT_OF_BOUNDS = true //disable index out of bounds checking
-    const val DISABLE_TYPE_CHECKER = true //disable the runtime type checker
+    const val DISABLE_INDEX_OUT_OF_BOUNDS = false //disable index out of bounds checking
+    const val DISABLE_TYPE_CHECKER = false //disable the runtime type checker
 
-    const val DISABLE_OPTIMIZATIONS = true //disable optimizations to make performance worse for debugging
+    const val DISABLE_OPTIMIZATIONS = false //disable optimizations to make performance worse for debugging
 }

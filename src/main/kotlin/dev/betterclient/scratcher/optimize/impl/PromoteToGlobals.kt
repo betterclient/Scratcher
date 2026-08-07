@@ -1,10 +1,12 @@
 package dev.betterclient.scratcher.optimize.impl
 
+import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.LocalVariable
+import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
@@ -46,6 +48,19 @@ object PromoteToGlobals : Optimization("Promote to globals") {
         }
 
         visit(func, object : ASTVisitor() {
+            override fun visitExpressionStatement(expression: Expression): Statement? {
+                if (expression is CallExpression &&
+                    (expression.func.name.startsWith("dec@") || expression.func.name.startsWith("decList@")) &&
+                    expression.arguments.size == 1
+                ) {
+                    val arg = expression.arguments[0]
+                    if (arg is LocalVariableExpression && globals.containsKey(arg.variable)) {
+                        return null
+                    }
+                }
+                return super.visitExpressionStatement(expression)
+            }
+
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
                 assignment: Expression

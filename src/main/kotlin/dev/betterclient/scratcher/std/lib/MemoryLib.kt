@@ -220,12 +220,21 @@ object MemoryLib {
                     parameters = mutableListOf(Parameter("pointer", struct.type)),
                     returnType = PrimitiveType.Void
                 ) { args ->
+                    val freePtr = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        OperatorExpressions.BinaryExpression(
+                            left = args[0],
+                            right = "1".scratch,
+                            operator = OperatorExpressions.BinaryOperator.SUBTRACT
+                        )
+                    } else args[0]
+
+                    val freeSize = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        (struct.sizeOnHeap + 1).toString().scratch
+                    } else struct.sizeOnHeap.toString().scratch
+
                     CallFunction(
                         free.precompiledCode,
-                        listOf(
-                            args[0],
-                            struct.sizeOnHeap.toString().scratch
-                        )
+                        listOf(freePtr, freeSize)
                     )
                 }
             }

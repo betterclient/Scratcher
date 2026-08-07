@@ -298,8 +298,8 @@ object ListLib {
 
                 call(
                     MemoryLib.free,
-                    oldDataPtr,
-                    oldCapacity
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) oldDataPtr - 1.sc else oldDataPtr,
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) oldCapacity + 1.sc else oldCapacity
                 )
             }
         }

@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.gc
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -118,13 +119,26 @@ object RefCountGC {
                     }
                 }
 
+                val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    BinaryExpression(
+                        left = ParameterExpression(ptrArg),
+                        right = IntLiteral(BigInteger.ONE),
+                        operator = BinaryOperator.SUBTRACT
+                    )
+                } else {
+                    ParameterExpression(ptrArg)
+                }
+
+                val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    IntLiteral((struct.sizeOnHeap + 1).toBigInteger())
+                } else {
+                    IntLiteral(struct.sizeOnHeap.toBigInteger())
+                }
+
                 it.code.add(ExpressionStatement(
                     CallExpression(
                         func = MemoryLib.free,
-                        arguments = listOf(
-                            ParameterExpression(ptrArg),
-                            IntLiteral(struct.sizeOnHeap.toBigInteger())
-                        )
+                        arguments = listOf(freePtr, freeSize)
                     )
                 ))
             }

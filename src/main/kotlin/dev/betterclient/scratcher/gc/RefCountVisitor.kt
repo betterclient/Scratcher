@@ -258,16 +258,18 @@ class RefCountVisitor(
     }
 
     override fun visitCodeBlock(block: CodeBlock): CodeBlock {
-        val isMainBlock = block === currentBlock
+        val isMainBlock = block === currentFunction?.code
         activeScopes.add(mutableSetOf())
 
         if (isMainBlock) {
-            currentFunction?.parameters?.forEach { param ->
+            val paramInits = currentFunction?.parameters?.mapNotNull { param ->
                 if (param.type.isRefCounted()) {
                     val paramLocal = LocalVariable(param.name, param.type)
-                    addStatements(listOf(ParameterExpression(param).asIncCall))
-                    activeScopes.last().add(paramLocal)
-                }
+                    VariableStatement(ParameterExpression(param), paramLocal)
+                } else null
+            }
+            if (!paramInits.isNullOrEmpty()) {
+                block.code.addAll(0, paramInits)
             }
         }
 
@@ -282,10 +284,23 @@ class RefCountVisitor(
         return visited
     }
 
+    override fun visitParameterExpression(parameter: Parameter): Expression {
+        if (parameter.type.isRefCounted()) {
+            val local = activeScopes.flatten().find { it.name == parameter.name }
+            if (local != null) {
+                return LocalVariableExpression(local)
+            }
+        }
+        return super.visitParameterExpression(parameter)
+    }
+
     override fun visitReturnStatement(expression: Expression?): Statement {
         val stmts = mutableListOf<Statement>()
 
         var returnExpr = expression
+        val transfersConstructorReference = currentFunction?.userAccessible == false &&
+                currentFunction.name.startsWith("new") &&
+                expression is LocalVariableExpression
         if (expression != null && expression.getType().isRefCounted()) {
             if (currentFunction?.userAccessible == false && currentFunction.name.startsWith("new")) {
 
@@ -309,7 +324,9 @@ class RefCountVisitor(
 
         for (scope in activeScopes.reversed()) {
             for (local in scope) {
-                getDecCall(local.type, LocalVariableExpression(local))?.let { stmts.add(it) }
+                if (!transfersConstructorReference || local != (returnExpr as? LocalVariableExpression)?.variable) {
+                    getDecCall(local.type, LocalVariableExpression(local))?.let { stmts.add(it) }
+                }
             }
         }
 

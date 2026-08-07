@@ -118,7 +118,13 @@ class EntrypointTranslator(
 
                 list.add(CallFunction(
                     topLevelInit,
-                    listOf(index.toString().scratch)
+                    listOf(
+                        if (index == -1) {
+                            "-1".scratch
+                        } else {
+                            ListExpressions.ItemAtIndex(MemoryLib.heap, index.toString().scratch)
+                        }
+                    )
                 ))
             }
         )

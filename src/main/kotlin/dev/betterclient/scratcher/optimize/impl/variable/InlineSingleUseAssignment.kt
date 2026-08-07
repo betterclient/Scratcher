@@ -213,7 +213,10 @@ class InlineSingleUseAnalysis {
             }
             is ExpressionStatement -> exprVisitor.visit(stmt.expression)
             is ReturnStatement -> stmt.expression?.let { exprVisitor.visit(it) }
-            is TLVariableAssignmentStatement -> exprVisitor.visit(stmt.assignment)
+            is TLVariableAssignmentStatement -> {
+                invalidateGlobalDependents(stmt.variable)
+                exprVisitor.visit(stmt.assignment)
+            }
             is VariableAssignmentStatement -> {
                 exprVisitor.visit(stmt.target)
                 exprVisitor.visit(stmt.assignment)
@@ -228,6 +231,14 @@ class InlineSingleUseAnalysis {
     }
 
     private fun removeDependents(modified: Set<LocalVariable>) {
+        activeVars.values.forEach { def ->
+            if (def.definitionExpr.dependsOn(modified)) {
+                def.isInvalid = true
+            }
+        }
+    }
+
+    private fun invalidateGlobalDependents(modified: TLVariable) {
         activeVars.values.forEach { def ->
             if (def.definitionExpr.dependsOn(modified)) {
                 def.isInvalid = true
@@ -250,6 +261,21 @@ class InlineSingleUseAnalysis {
                     branch.cond.dependsOn(variables) || blockDependsOn(branch.block, variables)
                 }
             }
+            else -> false
+        }
+    }
+
+    private fun Expression.dependsOn(variable: TLVariable): Boolean {
+        return when (this) {
+            is VariableExpression -> this.variable == variable
+            is BinaryExpression -> left.dependsOn(variable) || right.dependsOn(variable)
+            is UnaryExpression -> expression.dependsOn(variable)
+            is ConcatExpression -> left.dependsOn(variable) || right.dependsOn(variable)
+            is MemberExpression -> expression.dependsOn(variable)
+            is CallExpression -> arguments.any { it.dependsOn(variable) }
+            is NonNullAssertExpression -> expression.dependsOn(variable)
+            is TemporaryHeapGetExpression -> index.dependsOn(variable)
+            is TemporaryScratchExpr -> inputExprs.any { it.dependsOn(variable) }
             else -> false
         }
     }

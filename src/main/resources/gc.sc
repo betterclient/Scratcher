@@ -100,12 +100,14 @@ warp void markType(int addr, str type) {
 
 warp void markList(int addr, str type) {
     return if !isValid(addr);
-    int capacity = self::getHeap(addr + 1);
+    int capacity = self::getListCapacity(addr);
     self::addMarked(addr - 1); //alloc name
-    self::addMarked(addr); //length
-    self::addMarked(addr + 1); //capacity
-    self::addMarked(addr + 2); //dataPtr
-    self::addMarked(addr + 3); //name
+
+    int hIndex = 0;
+    repeat(self::getListHeaderSize()) {
+        self::addMarked(addr + hIndex);
+        hIndex++;
+    }
 
     //substring(1, length)
     //^^^ remove first letter
@@ -119,7 +121,7 @@ warp void markList(int addr, str type) {
 
     //^ actual list type
     //now we gotta go to the dataPtr in the heap
-    int data = self::getHeap(addr + 2);
+    int data = self::getListDataPtr(addr);
     if(data != -1) {
         self::addMarked(data - 1);
     }

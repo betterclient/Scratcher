@@ -19,6 +19,8 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.CallFunction
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
+import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
@@ -105,6 +107,46 @@ object GCLib {
             returnType = PrimitiveType.Integer
         ) {
             ListExpressions.LengthOfList(MemoryLib.heap)
+        }
+
+        compileInline(
+            lib,
+            "getListCapacity",
+            parameters = mutableListOf(Parameter("addr", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Integer
+        ) {
+            ListExpressions.ItemAtIndex(
+                MemoryLib.heap,
+                if (ListLib.capacityOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                    left = it[0],
+                    right = ListLib.capacityOffset.toString().scratch,
+                    operator = OperatorExpressions.BinaryOperator.ADD
+                )
+            )
+        }
+
+        compileInline(
+            lib,
+            "getListDataPtr",
+            parameters = mutableListOf(Parameter("addr", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Integer
+        ) {
+            ListExpressions.ItemAtIndex(
+                MemoryLib.heap,
+                if (ListLib.dataPtrOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                    left = it[0],
+                    right = ListLib.dataPtrOffset.toString().scratch,
+                    operator = OperatorExpressions.BinaryOperator.ADD
+                )
+            )
+        }
+
+        compileInline(
+            lib,
+            "getListHeaderSize",
+            returnType = PrimitiveType.Integer
+        ) {
+            ListLib.headerSize.toString().scratch
         }
 
         compileInline(

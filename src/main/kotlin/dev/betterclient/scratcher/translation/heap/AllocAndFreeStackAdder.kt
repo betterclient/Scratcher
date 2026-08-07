@@ -22,19 +22,41 @@ class AllocAndFreeStackAdder(
     }
 
     private fun createExitStatements(): List<Statement> {
+        if (hasLocalsMap[func] != true) return emptyList()
+
+        val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            BinaryExpression(
+                left = ParameterExpression(stackParameter),
+                right = IntLiteral(java.math.BigInteger.ONE),
+                operator = BinaryOperator.SUBTRACT
+            )
+        } else {
+            ParameterExpression(stackParameter)
+        }
+
+        val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            BinaryExpression(
+                left = TemporaryStackSizeExpression(func),
+                right = IntLiteral(java.math.BigInteger.ONE),
+                operator = BinaryOperator.ADD
+            )
+        } else {
+            TemporaryStackSizeExpression(func)
+        }
+
         val freeStmt = TemporaryCallStatement(
             MemoryLib.free,
-            args = mutableListOf(ParameterExpression(stackParameter), TemporaryStackSizeExpression(func))
+            args = mutableListOf(freePtr, freeSize)
         )
         val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(stackParameter))) { scratchExpressions ->
-            if(CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
                 listOf(ListStatements.DeleteItem(
                     GCLib.rootsList,
                     ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])
                 ))
             } else emptyList()
         }
-        return listOf(freeStmt, deleteStmt)
+        return listOf(deleteStmt, freeStmt)
     }
 
     override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
