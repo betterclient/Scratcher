@@ -122,6 +122,26 @@ class CallExpressionLowering(
         ))
     }
 
+    override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
+        val lhs = LocalVariable("nonNullOrElse@LHS@${getUniqueName()}", PrimitiveType.Integer)
+        addStatements(listOf(
+            VariableStatement(operand1, lhs),
+            IfStatement(BinaryExpression(
+                operator = BinaryOperator.EQUAL,
+                left = LocalVariableExpression(lhs),
+                right = NullExpression
+            ), thenBlock = CodeBlock().also { cb ->
+                val b = currentBlock.also { currentBlock = cb }
+                cb.code.add(
+                    LocalVariableAssignmentStatement(lhs, visit(operand2))
+                )
+                currentBlock = b
+            })
+        ))
+
+        return LocalVariableExpression(lhs)
+    }
+
     override fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression {
         return IntLiteral(ordinal.toBigInteger())
     }

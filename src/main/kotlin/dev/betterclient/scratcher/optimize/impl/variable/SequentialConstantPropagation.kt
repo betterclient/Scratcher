@@ -6,7 +6,6 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.*
 
 object SequentialConstantPropagation : Optimization("Sequential constant propagation") {
-
     override fun apply(
         func: Function,
         graph: TCallGraph,

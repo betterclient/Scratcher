@@ -111,6 +111,10 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
             is NonNullAssertExpression -> {
                 generate(expr.expression, out)
             }
+            is NonNullOrElseExpression -> {
+                generate(expr.operand1, out)
+                generate(expr.operand2, out)
+            }
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}

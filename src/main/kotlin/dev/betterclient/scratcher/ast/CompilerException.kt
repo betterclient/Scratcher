@@ -13,4 +13,4 @@ class TypeAnalysisException(message: String) : CompilerException(message)
 
 //compiler is to blame, not the code
 class NotImplementedException(message: String) : CompilerException(message)
-class UnreachableException(message: String? = null) : CompilerException("Unreachable,  $message")
+class UnreachableException(message: String? = null) : CompilerException("Unreachable, $message")

@@ -112,6 +112,7 @@ interface BaseExpressionVisitor {
     fun visitConcatExpression(left: Expression, right: Expression): Expression = ConcatExpression(left, right)
     fun visitUnaryExpression(operator: UnaryOperator, expression: Expression): Expression = UnaryExpression(operator, expression)
     fun visitNonNullAssertExpression(expression: Expression): Expression = NonNullAssertExpression(expression)
+    fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression = NonNullOrElseExpression(operand1, (this as ASTVisitor).visit(operand2))
     fun visitParameterExpression(parameter: Parameter): Expression = ParameterExpression(parameter)
     fun visitVariableExpression(variable: TLVariable, sourceAST: ASTFile): Expression = VariableExpression(variable, sourceAST)
     fun visitFloatLiteral(value: BigDecimal): Expression = FloatLiteral(value)
@@ -185,6 +186,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
                 it.isElse
             )
         }, expression.subject?.let { visit(it) })
+        is NonNullOrElseExpression -> this.visitNonNullOrElseExpression(visit(expression.operand1), expression.operand2)
         is TemporaryStackNameExpression -> this.visitTemporaryStackNameExpression(expression.function)
         is TemporaryStackSizeExpression -> this.visitTemporaryStackSizeExpression(expression.function)
         is FunctionLiteral -> this.visitFunctionLiteral(expression.function)

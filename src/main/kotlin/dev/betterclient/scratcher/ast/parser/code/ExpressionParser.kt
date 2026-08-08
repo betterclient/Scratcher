@@ -86,6 +86,12 @@ class ExpressionParser(
             is ScratcherLangParser.AssertNonNullContext -> {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
             }
+            is ScratcherLangParser.NonNullOrElseContext -> {
+                NonNullOrElseExpression(
+                    parseExpression(ctx.expression(0)!!),
+                    parseExpression(ctx.expression(1)!!)
+                )
+            }
             is ScratcherLangParser.ListCreationExprContext -> {
                 val list = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
                 CallExpression(

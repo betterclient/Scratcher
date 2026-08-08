@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.ast.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
+import kotlin.math.exp
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     fun run() {
@@ -227,6 +228,20 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     throw TypeAnalysisException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
                 }
                 innerType.asNonNull()
+            }
+            is NonNullOrElseExpression -> {
+                val op1 = getActualTypeOrThrow(expr.operand1, function)
+                val op2 = getActualTypeOrThrow(expr.operand2, function)
+
+                if (op1 !is NullableType) {
+                    println("WARN: First operand of elvis expression is non null, the right hand side will never run.")
+                }
+
+                if (op1.asNonNull() != op2.asNonNull()) {
+                    throw TypeAnalysisException("Elvis expression's operand types do not match, found $op1 and $op2")
+                }
+
+                op2
             }
 
             //these already have their type determined

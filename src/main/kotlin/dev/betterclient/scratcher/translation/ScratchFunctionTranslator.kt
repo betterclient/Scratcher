@@ -153,6 +153,7 @@ class ScratchFunctionTranslator(
             is EnumLiteral,
             is WhenExpression,
             is FunctionLiteral,
+            is NonNullOrElseExpression,
             is NonNullAssertExpression -> throw UnreachableException("$expr")
         }
     }

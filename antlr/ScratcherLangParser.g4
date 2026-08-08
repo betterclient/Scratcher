@@ -145,6 +145,7 @@ expression
     | expression (EQ | NE) expression                   # eqExpr
     | expression AND expression                         # andExpr
     | expression OR expression                          # orExpr
+    | <assoc=right> expression ELVIS expression         # nonNullOrElse
     | literal                                           # literalExpr
     | NULL                                              # nullExpr
     | IDENTIFIER                                        # idExpr

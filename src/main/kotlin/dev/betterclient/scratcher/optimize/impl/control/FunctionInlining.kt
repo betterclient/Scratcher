@@ -108,6 +108,7 @@ object InlineEligibility {
         if (func.warp != targetFunc.warp) return Int.MAX_VALUE //not happening...
 
         visit(targetFunc, object : ASTVisitor() {
+            override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
             override fun visitReturnStatement(expression: Expression?): Statement? {
                 currentCost += 600
                 return super.visitReturnStatement(expression)
@@ -153,6 +154,17 @@ object InlineEligibility {
                 }
 
                 return super.visitCallExpression(func, args)
+            }
+
+            override fun visitNonNullAssertExpression(expression: Expression): Expression {
+                currentCost += 100
+                return super.visitNonNullAssertExpression(expression)
+            }
+
+            override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
+                currentCost += 200
+
+                return super.visitNonNullOrElseExpression(operand1, operand2)
             }
         })
 

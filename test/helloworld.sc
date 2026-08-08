@@ -19,7 +19,7 @@ on GreenFlag {
         "render" -> TriangleRenderMode.RENDER
         else -> {
             looks::say("If thinking is your power, what are you without it?");
-            except::panic("If thinking is your power, what are you without it?");
+            //except::panic("If thinking is your power, what are you without it?");
 
             null;
         }
@@ -52,7 +52,7 @@ on GreenFlag {
 
     while(true) {
         pen::eraseAll();
-        render(mode!!, triangles);
+        render(mode?: TriangleRenderMode.OFF, triangles);
         counter::update();
         looks::say("FPS: ${counter::get()}");
     }

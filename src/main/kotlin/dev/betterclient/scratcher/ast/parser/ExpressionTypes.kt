@@ -27,6 +27,11 @@ object ExpressionTypes {
             is ConcatExpression -> PrimitiveType.Str
             is NullExpression -> PrimitiveType.Null
             is NonNullAssertExpression -> getExpressionType(context, expr.expression).asNonNull()
+            is NonNullOrElseExpression -> {
+                val op1 = getExpressionType(context, expr.operand1)
+                val op2 = getExpressionType(context, expr.operand2)
+                if (op2 is NullableType) op1 else op2
+            }
             is WhenExpression -> {
                 parseWhenExpressionType(expr, context)
             }

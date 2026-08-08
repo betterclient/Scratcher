@@ -83,7 +83,8 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
             is ConcatExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
             is MemberExpression -> hasSideEffects(expr.expression)
             is CallExpression, is DynamicCallExpression -> true
-            is NonNullAssertExpression -> true
+            is NonNullAssertExpression -> hasSideEffects(expr.expression)
+            is NonNullOrElseExpression -> hasSideEffects(expr.operand1) || hasSideEffects(expr.operand2)
             is TemporaryExpression -> true
             is WhenExpression -> true
         }

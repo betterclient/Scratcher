@@ -430,6 +430,7 @@ class RefCountVisitor(
             is UnaryExpression -> this.expression.simple
             is MemberExpression -> this.expression.simple
             is NonNullAssertExpression -> this.expression.simple
+            is NonNullOrElseExpression -> this.operand1.simple && this.operand2.simple
 
             is LocalVariableExpression -> true
             is ParameterExpression -> true

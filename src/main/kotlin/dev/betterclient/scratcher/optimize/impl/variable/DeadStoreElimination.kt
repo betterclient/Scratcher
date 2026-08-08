@@ -69,8 +69,9 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
             is BinaryExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
             is ConcatExpression -> hasSideEffects(expr.left) || hasSideEffects(expr.right)
             is MemberExpression -> hasSideEffects(expr.expression)
+            is NonNullAssertExpression -> hasSideEffects(expr.expression)
+            is NonNullOrElseExpression -> hasSideEffects(expr.operand1) || hasSideEffects(expr.operand2)
             is CallExpression, is DynamicCallExpression -> true
-            is NonNullAssertExpression -> true
             is TemporaryExpression -> true
             is WhenExpression -> true
         }

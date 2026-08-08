@@ -253,6 +253,8 @@ class InlineSingleUseAnalysis {
             is UnaryExpression -> expression.dependsOn(variables)
             is ConcatExpression -> left.dependsOn(variables) || right.dependsOn(variables)
             is MemberExpression -> expression.dependsOn(variables)
+            is NonNullAssertExpression -> expression.dependsOn(variables)
+            is NonNullOrElseExpression -> operand1.dependsOn(variables) || operand2.dependsOn(variables)
             is TemporaryHeapGetExpression -> index.dependsOn(variables)
             is TemporaryScratchExpr -> inputExprs.any { it.dependsOn(variables) }
             is WhenExpression -> {
@@ -274,6 +276,7 @@ class InlineSingleUseAnalysis {
             is MemberExpression -> expression.dependsOn(variable)
             is CallExpression -> arguments.any { it.dependsOn(variable) }
             is NonNullAssertExpression -> expression.dependsOn(variable)
+            is NonNullOrElseExpression -> operand1.dependsOn(variable) || operand2.dependsOn(variable)
             is TemporaryHeapGetExpression -> index.dependsOn(variable)
             is TemporaryScratchExpr -> inputExprs.any { it.dependsOn(variable) }
             else -> false

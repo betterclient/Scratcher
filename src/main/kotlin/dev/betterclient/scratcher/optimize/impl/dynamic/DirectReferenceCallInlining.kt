@@ -41,5 +41,4 @@ object DirectReferenceCallInlining : Optimization("Direct reference call inlinin
 
         return modified
     }
-
 }
