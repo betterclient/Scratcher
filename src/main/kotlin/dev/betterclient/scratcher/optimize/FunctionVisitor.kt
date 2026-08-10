@@ -17,6 +17,8 @@ enum class VisitMode {
 abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
     open fun shouldVisitCodeBlock(block: CodeBlock): VisitMode = VisitMode.ALL
 
+    open fun afterVisit(expression: Expression, result: Expression) {}
+
     private val statementBuffer = mutableListOf<MutableList<Statement>>()
     fun addStatements(list: List<Statement>) {
         val buffer = statementBuffer.lastOrNull()
@@ -160,7 +162,7 @@ fun visit(
 
 fun ASTVisitor.visit(expression: Expression): Expression {
     visitExpr(expression)
-    return when(expression) {
+    val result = when(expression) {
         is BinaryExpression -> this.visitBinaryExpression(visit(expression.left), visit(expression.right), expression.operator)
         is CallExpression -> this.visitCallExpression(expression.func, expression.arguments.map { visit(it) })
         is ConcatExpression -> this.visitConcatExpression(visit(expression.left), visit(expression.right))
@@ -192,6 +194,8 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is FunctionLiteral -> this.visitFunctionLiteral(expression.function)
         is DynamicCallExpression -> this.visitDynamicCallExpression(visit(expression.function), expression.arguments.map { visit(it) }, expression.type)
     }
+    afterVisit(expression, result)
+    return result
 }
 
 fun ASTVisitor.visit(statement: Statement): Statement? {

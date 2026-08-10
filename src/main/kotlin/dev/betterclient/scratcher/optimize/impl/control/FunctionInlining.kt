@@ -17,35 +17,9 @@ object FunctionInlining : Optimization("Function inlining") {
         context: CompilationContext
     ): Boolean {
         val eligible = InlineEligibility.findEligible(func, graph)
-
-        var modified = false
-        val inlinedExprs = mutableListOf<Expression>()
-        visit(func, object : ASTVisitor() {
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
-                if (eligible.contains(func)) {
-                    modified = true
-                    val out = inline(func, args)
-                    addStatements(out.prepend)
-                    return (out.expression?.also {
-                        inlinedExprs.add(it)
-                    })?: voidMarkerExpr
-                }
-
-                return super.visitCallExpression(func, args)
-            }
-
-            override fun visitExpressionStatement(expression: Expression): Statement? {
-                if (expression == voidMarkerExpr) {
-                    return null
-                }
-                if (inlinedExprs.contains(expression)) {
-                    return null //ignoring returns, huh? I see how it is
-                }
-
-                return super.visitExpressionStatement(expression)
-            }
-        })
-        return modified
+        val visitor = InliningVisitor(eligible)
+        visit(func, visitor)
+        return visitor.modified
     }
 
     private fun inline(func: Function, args: List<Expression>): ExpressionLowerResult {
@@ -84,6 +58,126 @@ object FunctionInlining : Optimization("Function inlining") {
             prepend
         )
     }
+
+    private class InliningVisitor(
+        private val eligible: List<Function>
+    ) : ASTVisitor() {
+    var modified = false
+    private val inlinedExprs = mutableListOf<Expression>()
+    private val frames = mutableListOf<Frame>()
+    private var isInWhileCondition = false
+    private val conditionLists = mutableListOf<MutableList<Statement>>()
+
+    private class Frame(
+        val expression: Expression,
+        val indexInParent: Int,
+        val children: MutableList<Frame> = mutableListOf()
+    )
+
+    override fun visitExpr(expression: Expression) {
+        val parent = frames.lastOrNull()
+        val frame = Frame(expression, parent?.children?.size ?: 0)
+        parent?.children?.add(frame)
+        frames.add(frame)
+    }
+
+    override fun afterVisit(expression: Expression, result: Expression) {
+        frames.removeAt(frames.lastIndex)
+    }
+
+    override fun visitStatement(statement: Statement) {
+        if (statement is WhileStatement) {
+            isInWhileCondition = true
+            conditionLists.add(mutableListOf())
+        }
+    }
+
+    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+        isInWhileCondition = false
+        return super.shouldVisitCodeBlock(block)
+    }
+
+    override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+        val conditionPrepended = conditionLists.removeAt(conditionLists.lastIndex)
+        val updates = conditionPrepended
+            .flatMap(::flatten)
+            .filter { it !is VariableStatement || it.defaultValue != null } //keep arg evaluation and hasReturned reset, skip pure declarations
+        block.code.addAll(updates)
+
+        return super.visitWhileStatement(condition, block)
+    }
+
+    private fun flatten(statement: Statement): List<Statement> {
+        return when (statement) {
+            is CompositeStatement -> statement.statements.flatMap(::flatten)
+            else -> listOf(statement)
+        }
+    }
+
+    override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+        if (func in eligible && isSafeToInline()) {
+            modified = true
+            val out = inline(func, args)
+            if (isInWhileCondition) {
+                conditionLists.last().addAll(out.prepend)
+            }
+            addStatements(out.prepend)
+            return (out.expression?.also {
+                inlinedExprs.add(it)
+            })?: voidMarkerExpr
+        }
+
+        return super.visitCallExpression(func, args)
+    }
+
+    override fun visitExpressionStatement(expression: Expression): Statement? {
+        if (expression == voidMarkerExpr) {
+            return null
+        }
+        if (inlinedExprs.contains(expression)) {
+            return null //ignoring returns
+        }
+
+        return super.visitExpressionStatement(expression)
+    }
+
+    private fun isSafeToInline(): Boolean {
+        var index = frames.lastIndex
+        while (index > 0) {
+            val parentFrame = frames[index - 1]
+            when (val parent = parentFrame.expression) {
+                is WhenExpression -> {
+                    if (parent.subject != null) return false
+                    if (isInWhileCondition) return false
+                }
+                else -> {}
+            }
+
+            val myIndex = frames[index].indexInParent
+            for (i in 0 until myIndex) {
+                if (!isPure(parentFrame.children[i].expression)) return false
+            }
+            index--
+        }
+        return true
+    }
+
+    private fun isPure(expression: Expression): Boolean {
+        return when (expression) {
+            is Literal -> true
+            is LocalVariableExpression -> true
+            is ParameterExpression -> true
+            is VariableExpression -> true
+            is BinaryExpression -> isPure(expression.left) && isPure(expression.right)
+            is UnaryExpression -> isPure(expression.expression)
+            is ConcatExpression -> isPure(expression.left) && isPure(expression.right)
+            is MemberExpression -> isPure(expression.expression)
+            is NonNullAssertExpression -> isPure(expression.expression)
+            is NonNullOrElseExpression -> isPure(expression.operand1) && isPure(expression.operand2)
+            else -> false
+        }
+    }
+}
 }
 
 object InlineEligibility {
