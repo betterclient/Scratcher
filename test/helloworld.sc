@@ -49,12 +49,18 @@ on GreenFlag {
             triangles[14].y3
         }
     );
+    auto s = hello();
+    if(s != null) {
+        looks::say(s!!);
+
+        return;
+    }
 
     while(true) {
         pen::eraseAll();
         render(mode?: TriangleRenderMode.OFF, triangles);
         counter::update();
-        looks::say("FPS: ${counter::get()} ${hello()}");
+        looks::say("FPS: ${counter::get()}");
     }
 }
 

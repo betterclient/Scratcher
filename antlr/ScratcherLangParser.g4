@@ -132,12 +132,12 @@ eventArg
 expression
     : LPAREN expression RPAREN                          # parensExpr
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
+    | expression DOUBLE_BANG                            # assertNonNull
     | expression DOT IDENTIFIER                         # memberExpr
     | expression LBRACK expression RBRACK               # indexExpr
     | LIST LPAREN type RPAREN                           # listCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
     | expression LPAREN argList? RPAREN                 # dynamicCallExpr
-    | expression DOUBLE_BANG                            # assertNonNull
     | (PLUS | MINUS | BANG) expression                  # unaryExpr
     | expression (STAR | SLASH | MOD) expression        # multExpr
     | expression (PLUS | MINUS) expression              # addExpr

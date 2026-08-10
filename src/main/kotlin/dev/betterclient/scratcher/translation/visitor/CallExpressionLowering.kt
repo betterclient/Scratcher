@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
@@ -111,7 +112,8 @@ class CallExpressionLowering(
     }
 
     override fun visitNonNullAssertExpression(expression: Expression): Expression {
-        return visit(CallExpression(
+        val type = ExpressionTypes.getExpressionType(context, expression)
+        val checked = visit(CallExpression(
             func = ExceptionLib.assertNonNull,
             arguments = listOf(expression, StringLiteral(if (CompilationConstants.OBFUSCATION) {
                 "Scratcher runtime error: NullPointerException"
@@ -119,6 +121,15 @@ class CallExpressionLowering(
                 "Scratcher runtime error: NullPointerException at ${func.name}"
             }))
         ))
+        return if (type is NullableType && type.asNonNull().toString() == "str") {
+            MemberExpression(
+                checked,
+                StringBoxing.stringBoxStruct.parameters.first { it.name == "str" },
+                StringBoxing.stringBoxStruct
+            )
+        } else {
+            checked
+        }
     }
 
     override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
