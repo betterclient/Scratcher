@@ -7,10 +7,13 @@ import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.Struct
+import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
+import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ControlStatements
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
@@ -33,6 +36,7 @@ object StandardLibASTGenerator {
         PenLib.init(penLib)
         MotionLib.init(motionLib)
         UtilsLib.init(utilsLib)
+        StringBoxing.init()
         this.editor = editor
 
         rawLibs

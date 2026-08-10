@@ -54,7 +54,7 @@ on GreenFlag {
         pen::eraseAll();
         render(mode?: TriangleRenderMode.OFF, triangles);
         counter::update();
-        looks::say("FPS: ${counter::get()}");
+        looks::say("FPS: ${counter::get()} ${hello()}");
     }
 }
 
@@ -65,6 +65,11 @@ warp void render(TriangleRenderMode mode, Triangle<float>[] triangles) {
         TriangleRenderMode.RENDER -> &triRender;
         else -> &noRender;
     });
+}
+
+warp str? hello() {
+    return null if(utils::random(0, 5) == 4);
+    return "yo!";
 }
 
 warp void triRender(Triangle<float> t) {

@@ -1,5 +1,7 @@
 package dev.betterclient.scratcher.ast
 
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
+
 sealed interface Type {
     val isPrimitive: Boolean
     fun asNullable(): Type = this as? NullableType ?: NullableType(this)
@@ -12,17 +14,28 @@ data class NullableType(
     val inner: Type
 ) : Type {
     init {
-        if (inner is PrimitiveType) throw GeneralCompilerException("Primitive types aren't allowed to be nullable")
         if (inner is NullableType) throw GeneralCompilerException("Double nullability is not allowed")
     }
     override val isPrimitive = false
 
     override fun isAssignable(other: Type): Boolean {
+        if (other == PrimitiveType.Null) return true
+        val targetInner = inner.asNonNull()
+        val otherInner = other.asNonNull()
+        if ((targetInner == PrimitiveType.Str || targetInner.toString() == "str") &&
+            (otherInner == PrimitiveType.Str || otherInner.toString() == "str")) {
+            return true
+        }
         return other is NullableType && this.inner.isAssignable(other.inner)
     }
 
     override fun toString(): String {
         return "$inner?"
+    }
+
+    override fun asNonNull(): Type {
+        if (inner.toString() == "str") return PrimitiveType.Str
+        return super.asNonNull()
     }
 
     override fun toSafeString() = "${inner.toSafeString()}?"
@@ -42,7 +55,15 @@ sealed interface PrimitiveType : Type {
         return false
     }
 
-    object Str : PrimitiveType { override fun toString() = "str" }
+    object Str : PrimitiveType {
+        override fun isAssignable(other: Type): Boolean {
+            if (other == Null) return false
+            val target = other.asNonNull()
+            return target == Str || target.toString() == "str"
+        }
+        override fun toString() = "str"
+    }
+
     object Integer : PrimitiveType { override fun toString() = "int" }
     object Float : PrimitiveType { override fun toString() = "float" }
     object Bool : PrimitiveType { override fun toString() = "bool" }
@@ -64,6 +85,7 @@ data class SimpleType(
     }
 
     override fun toString(): String {
+        if (sourceAST == StandardLibASTGenerator.compilerLib && name == "StringBox") return "str"
         return "${sourceAST.simplePath}::$name"
     }
 

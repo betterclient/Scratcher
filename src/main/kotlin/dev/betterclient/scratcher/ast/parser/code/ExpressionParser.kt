@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 
 class ExpressionParser(
@@ -17,7 +18,7 @@ class ExpressionParser(
         ctx: ScratcherLangParser.ExpressionContext,
         expectedType: Type? = null
     ): Expression {
-        return when (ctx) {
+        val expr = when (ctx) {
             is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression(), expectedType)
             is ScratcherLangParser.CallExprContext -> parser.functionResolver.figureOutFunction(ctx.functionIdentifier(), ctx.argList(), expectedType)
             is ScratcherLangParser.UnaryExprContext -> UnaryExpression(
@@ -61,15 +62,25 @@ class ExpressionParser(
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
-            is ScratcherLangParser.EqExprContext -> BinaryExpression(
-                left = parseExpression(ctx.expression(0)!!),
-                operator = when {
-                    ctx.EQ() != null -> BinaryOperator.EQUAL
-                    ctx.NE() != null -> BinaryOperator.NOT_EQUAL
-                    else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
-                },
-                right = parseExpression(ctx.expression(1)!!)
-            )
+            is ScratcherLangParser.EqExprContext -> {
+                val left = parseExpression(ctx.expression(0)!!)
+                val right = parseExpression(ctx.expression(1)!!)
+                val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+                val rightType = ExpressionTypes.getExpressionType(parser.ctx, right)
+
+                val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!
+                val stringBoxType = stringBoxStruct.type.asNullable()
+
+                if (leftType == stringBoxType && rightType == PrimitiveType.Str) {
+                    val strMember = stringBoxStruct.parameters.first { it.name == "str" }
+                    val unboxedLeft = MemberExpression(left, strMember, stringBoxStruct)
+
+                    val notNullCheck = BinaryExpression(left, BinaryOperator.NOT_EQUAL, NullExpression)
+                    val stringEqualCheck = BinaryExpression(unboxedLeft, BinaryOperator.EQUAL, right)
+
+                    BinaryExpression(notNullCheck, BinaryOperator.AND, stringEqualCheck)
+                } else BinaryExpression(left, BinaryOperator.EQUAL, right)
+            }
             is ScratcherLangParser.AndExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = BinaryOperator.AND,
@@ -156,6 +167,8 @@ class ExpressionParser(
             }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
+
+        return StringBoxing.autoConvert(expr, expectedType, parser.ctx)
     }
 
     fun parseIfExpr(ctx: ScratcherLangParser.IfExpressionContext): List<WhenBranch> {

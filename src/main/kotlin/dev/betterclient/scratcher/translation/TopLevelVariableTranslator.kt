@@ -25,7 +25,7 @@ class TopLevelVariableTranslator {
         if (CompilationConstants.REFCOUNT_GC) {
             vars.forEach { (variable, _) ->
                 func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, IntLiteral((-1).toBigInteger()))
+                    TLVariableAssignmentStatement(variable, variable.sourceAST, StringLiteral("null"))
                 )
             }
         }
@@ -33,7 +33,7 @@ class TopLevelVariableTranslator {
         vars.forEach { (variable, value) ->
             if(value == null) {
                 func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, IntLiteral((-1).toBigInteger()))
+                    TLVariableAssignmentStatement(variable, variable.sourceAST, StringLiteral("null"))
                 )
             } else {
                 func.code.code.add(

@@ -33,17 +33,16 @@ class CallExpressionLowering(
         return null //expr is lowered, and the "prepend" is already done, so just remove this statement...
     }
 
-    override fun visitReturnStatement(expression: Expression?): Statement? {
-        if (expression == null || expression == NullExpression) return ReturnStatement(null)
-
+    override fun visitReturnStatement(expression: Expression?): Statement {
         if (doingReturnLowering) {
+            val returnExpr = expression ?: NullExpression
             addStatements(listOf(
-                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), expression)
+                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), returnExpr)
             ))
             return ReturnStatement(null) //codegen still needs a return statement to generate stop(this-script)
         }
 
-        return super.visitReturnStatement(expression)
+        return ReturnStatement(null)
     }
 
     override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {

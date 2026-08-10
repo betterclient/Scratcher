@@ -26,7 +26,7 @@ object ExceptionLib {
             val out = returnArg(PrimitiveType.Integer)
 
             control.ifElse(
-                condition = value equals "-1".sc,
+                condition = value equals "null".sc,
                 thenBlock = {
                     call(panic, errorMsg)
                 },

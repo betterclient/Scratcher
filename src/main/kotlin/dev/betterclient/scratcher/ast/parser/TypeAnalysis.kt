@@ -189,8 +189,12 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftType = getActualTypeOrThrow(expr.left, function)
                 val rightType = getActualTypeOrThrow(expr.right, function)
 
-                val leftOk = leftType.isPrimitive && leftType != PrimitiveType.Void && leftType != PrimitiveType.Null
-                val rightOk = rightType.isPrimitive && rightType != PrimitiveType.Void && rightType != PrimitiveType.Null
+                val leftBase = leftType.asNonNull()
+                val rightBase = rightType.asNonNull()
+
+                val leftOk = leftBase is PrimitiveType && leftBase != PrimitiveType.Void && leftBase != PrimitiveType.Null
+                val rightOk = rightBase is PrimitiveType && rightBase != PrimitiveType.Void && rightBase != PrimitiveType.Null
+
                 if (!leftOk || !rightOk) throw TypeAnalysisException("Either $leftType or $rightType isn't concattable")
 
                 PrimitiveType.Str

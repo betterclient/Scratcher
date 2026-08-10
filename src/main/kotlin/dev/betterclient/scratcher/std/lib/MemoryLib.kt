@@ -47,7 +47,7 @@ object MemoryLib {
             currentIndex.set(index)
             control.repeat(size) {
                 freeList.insert(left, currentIndex)
-                heap[currentIndex] = (-1).sc
+                heap[currentIndex] = "null".sc
                 currentIndex.changeBy(1.sc)
                 left.changeBy(1.sc)
             }
@@ -101,7 +101,7 @@ object MemoryLib {
             control.ifThen(allocatedAddress equals (-1).sc) {
                 allocatedAddress.set(heap.length + 1.sc)
                 control.repeat(actualSize) {
-                    heap.add("-1".sc)
+                    heap.add("null".sc)
                 }
             }
 

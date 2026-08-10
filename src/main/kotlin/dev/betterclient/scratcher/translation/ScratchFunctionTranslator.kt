@@ -123,7 +123,7 @@ class ScratchFunctionTranslator(
             ) else {
                 ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
             }
-            is NullExpression -> "-1".scratch
+            is NullExpression -> "null".scratch
 
             is VariableExpression -> ListExpressions.Variable(lookupVar(expr.variable))
 

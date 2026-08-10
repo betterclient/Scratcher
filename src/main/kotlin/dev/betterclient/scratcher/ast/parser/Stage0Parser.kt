@@ -280,9 +280,16 @@ fun figureOutType(
             )
         }
         is ScratcherLangParser.NullableTypeContext -> {
-            NullableType(
-                figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
-            )
+            val inner = figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
+            if (inner == PrimitiveType.Str) {
+                NullableType(
+                    StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!.type
+                )
+            } else {
+                NullableType(
+                    inner
+                )
+            }
         }
         is ScratcherLangParser.PathTypeContext -> {
             val id = type.typePath().IDENTIFIER()

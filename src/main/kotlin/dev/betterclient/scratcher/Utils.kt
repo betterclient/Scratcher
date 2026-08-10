@@ -1,5 +1,14 @@
 package dev.betterclient.scratcher
 
+import dev.betterclient.scratcher.ast.CallExpression
+import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.MemberExpression
+import dev.betterclient.scratcher.ast.NullableType
+import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.parser.CompilationContext
+import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
@@ -55,5 +64,5 @@ inline fun getUniqueName(): String {
 }
 
 fun nextBlockPosition(): Int {
-    return Random.nextInt(2000)
+    return Random.nextInt(10000)
 }

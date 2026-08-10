@@ -180,7 +180,7 @@ object RefCountGC {
         return IfStatement(
             condition = BinaryExpression(
                 left = left,
-                right = IntLiteral(BigInteger.valueOf(-1L)),
+                right = StringLiteral("null"),
                 operator = BinaryOperator.NOT_EQUAL
             ),
             thenBlock = then

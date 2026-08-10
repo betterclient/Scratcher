@@ -164,6 +164,7 @@ warp str findName(int addr) {
 
 warp bool isValid(int addr) {
     return false if(addr == -1);
+    return false if(cast::toStr(addr) == "null");
     return false if(cast::toStr(addr) == "");
     return false if(self::isMarked(addr));
 
