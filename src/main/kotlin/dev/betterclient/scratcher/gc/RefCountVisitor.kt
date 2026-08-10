@@ -7,6 +7,8 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
+import dev.betterclient.scratcher.simple
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 import java.math.BigInteger
 
@@ -67,12 +69,12 @@ class RefCountVisitor(
             activeScopes.lastOrNull()?.add(variable)
             if (defaultValue != null) {
                 addStatements(listOf(VariableStatement(defaultValue, variable)))
-                if (defaultValue.isReturningPlusOne()) {
-                    return null
+                if (!defaultValue.isReturningPlusOne()) {
+                    addStatements(listOf(LocalVariableExpression(variable).asIncCall))
                 }
-                return LocalVariableExpression(variable).asIncCall
+                return null
             }
-            return VariableStatement(NullExpression, variable)
+            return super.visitVariableStatement(null, variable)
         }
         return super.visitVariableStatement(defaultValue, variable)
     }
@@ -144,7 +146,7 @@ class RefCountVisitor(
         if (!variable.type.isRefCounted()) {
             return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment)
         }
-        if (assignment == IntLiteral(BigInteger.valueOf(-1L))) {
+        if (assignment is StringLiteral && assignment.value == "null") {
             return TLVariableAssignmentStatement(variable, sourceAST, assignment)
         }
 
@@ -380,7 +382,7 @@ class RefCountVisitor(
         val nonNull = this.asNonNull()
         if (nonNull is ListType) return true
         if (nonNull is SimpleType) {
-            return compilationContext.asts.values.flatMap { it.structs }.any { it.type.asNonNull() == nonNull }
+            return (compilationContext.asts.values.flatMap { it.structs } + StandardLibASTGenerator.compilerLib.structs).any { it.type.asNonNull() == nonNull }
         }
         return false
     }
@@ -422,28 +424,4 @@ class RefCountVisitor(
         }
         return false
     }
-
-    private val Expression.simple: Boolean
-        get() = when(this) {
-            is BinaryExpression -> this.left.simple && this.right.simple
-            is ConcatExpression -> this.left.simple && this.right.simple
-            is UnaryExpression -> this.expression.simple
-            is MemberExpression -> this.expression.simple
-            is NonNullAssertExpression -> this.expression.simple
-            is NonNullOrElseExpression -> this.operand1.simple && this.operand2.simple
-
-            is LocalVariableExpression -> true
-            is ParameterExpression -> true
-            is TemporaryLocalVariableIndexExpression -> true
-            is TemporaryStackNameExpression -> true
-            is TemporaryStackSizeExpression -> true
-            is VariableExpression -> true
-            is Literal -> true
-
-            is TemporaryScratchExpr -> false
-            is WhenExpression -> false
-            is DynamicCallExpression -> false
-            is CallExpression -> false
-            is TemporaryHeapGetExpression -> false
-        }
 }

@@ -20,6 +20,9 @@ class CompilationContext {
         asts.values.flatMap { it.structs }.forEach {
             addGC(StructGCInfo(it.type, it))
         }
+        StandardLibASTGenerator.compilerLib.structs.forEach {
+            addGC(StructGCInfo(it.type, it))
+        }
     }
 
     var eventListenerIndex: Int = 0

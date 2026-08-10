@@ -41,7 +41,11 @@ class LiteralParser(
                     StringLiteral("$")
                 }
                 part.interpolation() != null -> {
-                    expressionParser.parseExpression(part.interpolation()!!.expression())
+                    StringBoxing.unboxIfNeeded(
+                        expressionParser.parseExpression(part.interpolation()!!.expression()),
+                        PrimitiveType.Str,
+                        parser.ctx
+                    )
                 }
                 else -> StringLiteral("")
             }

@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 
 object MemoryLib {
@@ -115,7 +116,7 @@ object MemoryLib {
     }
 
     fun initMem(lib: ASTFile, compilationStartAST: ASTFile) {
-        val structs = mutableMapOf<ASTFile, List<Struct>>().also { figureOutReachableStructs(it, compilationStartAST) }.flatMap { (_, structs) -> structs }
+        val structs = (mutableMapOf<ASTFile, List<Struct>>().also { figureOutReachableStructs(it, compilationStartAST) }.flatMap { (_, structs) -> structs } + StandardLibASTGenerator.compilerLib.structs)
 
         for (struct in structs) {
             val name = "new${struct.sourceAST.simplePath}::${struct.name}"
@@ -129,7 +130,7 @@ object MemoryLib {
                 Function(
                     name = name,
                     parameters = struct.parameters.map { Parameter(it.name, it.type) }.toMutableList(),
-                    returnType = struct.type,
+                    returnType = allocReturnType(struct),
                     export = false,
                     warp = true,
                     sourceAST = lib,
@@ -165,7 +166,7 @@ object MemoryLib {
                 compileInline(
                     lib,
                     name,
-                    returnType = struct.type,
+                    returnType = allocReturnType(struct),
                     parameters = struct.parameters,
                     useLocal = true,
                     userAccessible = false,
@@ -239,6 +240,10 @@ object MemoryLib {
                 }
             }
         }
+    }
+
+    private fun allocReturnType(struct: Struct): Type {
+        return if (struct.sourceAST == StandardLibASTGenerator.compilerLib) struct.type.asNullable() else struct.type
     }
 
     private fun figureOutReachableStructs(out: MutableMap<ASTFile, List<Struct>>, ast: ASTFile) {

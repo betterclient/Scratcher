@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
+import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
 
@@ -62,25 +63,7 @@ class ExpressionParser(
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
-            is ScratcherLangParser.EqExprContext -> {
-                val left = parseExpression(ctx.expression(0)!!)
-                val right = parseExpression(ctx.expression(1)!!)
-                val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
-                val rightType = ExpressionTypes.getExpressionType(parser.ctx, right)
-
-                val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!
-                val stringBoxType = stringBoxStruct.type.asNullable()
-
-                if (leftType == stringBoxType && rightType == PrimitiveType.Str) {
-                    val strMember = stringBoxStruct.parameters.first { it.name == "str" }
-                    val unboxedLeft = MemberExpression(left, strMember, stringBoxStruct)
-
-                    val notNullCheck = BinaryExpression(left, BinaryOperator.NOT_EQUAL, NullExpression)
-                    val stringEqualCheck = BinaryExpression(unboxedLeft, BinaryOperator.EQUAL, right)
-
-                    BinaryExpression(notNullCheck, BinaryOperator.AND, stringEqualCheck)
-                } else BinaryExpression(left, BinaryOperator.EQUAL, right)
-            }
+            is ScratcherLangParser.EqExprContext -> parseEqExpr(ctx)
             is ScratcherLangParser.AndExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = BinaryOperator.AND,
@@ -170,6 +153,110 @@ class ExpressionParser(
 
         return StringBoxing.autoConvert(expr, expectedType, parser.ctx)
     }
+
+    private fun parseEqExpr(ctx: ScratcherLangParser.EqExprContext): Expression {
+        val op = if (ctx.EQ() != null) BinaryOperator.EQUAL else BinaryOperator.NOT_EQUAL
+        val left = parseExpression(ctx.expression(0)!!)
+        val right = parseExpression(ctx.expression(1)!!)
+        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val rightType = ExpressionTypes.getExpressionType(parser.ctx, right)
+
+        if (leftType == PrimitiveType.Null || rightType == PrimitiveType.Null) {
+            return BinaryExpression(left, op, right)
+        }
+
+        val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" } ?: return BinaryExpression(left, op, right)
+        val leftIsBox = isStringBox(leftType, stringBoxStruct)
+        val rightIsBox = isStringBox(rightType, stringBoxStruct)
+
+        return when {
+            leftIsBox && rightIsBox -> boxVsBoxEquality(left, right, op, stringBoxStruct)
+            leftIsBox && rightType == PrimitiveType.Str -> boxVsStrEquality(left, right, op, stringBoxStruct)
+            rightIsBox && leftType == PrimitiveType.Str -> boxVsStrEquality(right, left, op, stringBoxStruct)
+            else -> BinaryExpression(left, op, right)
+        }
+    }
+
+    private fun isStringBox(type: Type, stringBoxStruct: Struct): Boolean {
+        return type is NullableType && type.inner == stringBoxStruct.type
+    }
+
+    private fun boxVsStrEquality(boxExpr: Expression, strExpr: Expression, op: BinaryOperator, stringBoxStruct: Struct): Expression {
+        return bindBoxOnce(boxExpr) { box ->
+            val unboxed = unboxStringBox(box, stringBoxStruct)
+
+            when (op) {
+                BinaryOperator.EQUAL -> and(neq(box, NullExpression), eq(unboxed, strExpr))
+                else -> or(eq(box, NullExpression), neq(unboxed, strExpr))
+            }
+        }
+    }
+
+    private fun boxVsBoxEquality(left: Expression, right: Expression, op: BinaryOperator, stringBoxStruct: Struct): Expression {
+        return bindBoxTwice(left, right) { l, r ->
+            val lIsNull = eq(l, NullExpression)
+            val rIsNull = eq(r, NullExpression)
+            val lNotNull = neq(l, NullExpression)
+            val rNotNull = neq(r, NullExpression)
+            val stringsEqual = eq(unboxStringBox(l, stringBoxStruct), unboxStringBox(r, stringBoxStruct))
+            val stringsNotEqual = neq(unboxStringBox(l, stringBoxStruct), unboxStringBox(r, stringBoxStruct))
+
+            when (op) {
+                BinaryOperator.EQUAL -> or(
+                    and(lIsNull, rIsNull),
+                    and(lNotNull, and(rNotNull, stringsEqual))
+                )
+                else -> or(
+                    and(lIsNull, rNotNull),
+                    or(and(lNotNull, rIsNull), and(lNotNull, and(rNotNull, stringsNotEqual)))
+                )
+            }
+        }
+    }
+
+    private fun bindBoxOnce(boxExpr: Expression, use: (Expression) -> Expression): Expression {
+        if (boxExpr.simple) return use(boxExpr)
+
+        val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, boxExpr))
+        return wrapInWhen(VariableStatement(boxExpr, temp), use(LocalVariableExpression(temp)))
+    }
+
+    private fun bindBoxTwice(left: Expression, right: Expression, use: (Expression, Expression) -> Expression): Expression {
+        val (leftSubject, leftRef) = if (left.simple) null to left else bindBox(left)
+        val (rightSubject, rightRef) = if (right.simple) null to right else bindBox(right)
+        val body = use(leftRef, rightRef)
+
+        return listOfNotNull(rightSubject, leftSubject).fold(body) { acc, subject ->
+            wrapInWhen(subject, acc)
+        }
+    }
+
+    private fun bindBox(expr: Expression): Pair<VariableStatement, Expression> {
+        val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, expr))
+        return VariableStatement(expr, temp) to LocalVariableExpression(temp)
+    }
+
+    private fun wrapInWhen(subject: Statement, value: Expression): WhenExpression {
+        return WhenExpression(
+            subject = subject,
+            branches = listOf(WhenBranch(
+                cond = BooleanLiteral(true),
+                block = CodeBlock().also {
+                    it.code.add(ExpressionStatement(value))
+                },
+                isElse = true
+            ))
+        )
+    }
+
+    private fun unboxStringBox(expr: Expression, stringBoxStruct: Struct): Expression {
+        return MemberExpression(expr, stringBoxStruct.parameters.first { it.name == "str" }, stringBoxStruct)
+    }
+
+    private fun eq(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.EQUAL, right)
+    private fun neq(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.NOT_EQUAL, right)
+    private fun and(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.AND, right)
+    private fun or(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.OR, right)
 
     fun parseIfExpr(ctx: ScratcherLangParser.IfExpressionContext): List<WhenBranch> {
         val branch = mutableListOf<WhenBranch>()

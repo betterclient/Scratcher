@@ -66,11 +66,12 @@ class StatementParser(
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
+                val elementType = (ExpressionTypes.getExpressionType(parser.ctx, list).asNonNull() as? ListType)?.elementType
 
                 ExpressionStatement(
                     CallExpression(
                         func = ListLib.replace,
-                        listOf(list, item, index)
+                        listOf(list, StringBoxing.autoConvert(item, elementType, parser.ctx), index)
                     )
                 )
             }
@@ -95,7 +96,7 @@ class StatementParser(
                 val cond = exprParser.parseExpression(child.expression().last())
 
                 IfStatement(cond, CodeBlock().also {
-                    it.code.add(ReturnStatement(returnExpr))
+                    it.code.add(ReturnStatement(returnExpr?.let { StringBoxing.autoConvert(it, parser.currentFunction?.returnType, parser.ctx) }))
                 })
             }
             is ScratcherLangParser.ForStmtContext -> {
@@ -232,11 +233,23 @@ class StatementParser(
     ): Statement {
         if (op == null) {
             return when (targetExpr) {
-                is LocalVariableExpression -> LocalVariableAssignmentStatement(targetExpr.variable, valueExpr)
-                is MemberExpression -> VariableAssignmentStatement(targetExpr.expression, targetExpr.member, targetExpr.struct, valueExpr)
+                is LocalVariableExpression -> LocalVariableAssignmentStatement(
+                    targetExpr.variable,
+                    StringBoxing.autoConvert(valueExpr, targetExpr.variable.type, parser.ctx)
+                )
+                is MemberExpression -> VariableAssignmentStatement(
+                    targetExpr.expression,
+                    targetExpr.member,
+                    targetExpr.struct,
+                    StringBoxing.autoConvert(valueExpr, targetExpr.member.type, parser.ctx)
+                )
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
-                    TLVariableAssignmentStatement(targetExpr.variable, targetExpr.sourceAST, valueExpr)
+                    TLVariableAssignmentStatement(
+                        targetExpr.variable,
+                        targetExpr.sourceAST,
+                        StringBoxing.autoConvert(valueExpr, targetExpr.variable.type, parser.ctx)
+                    )
                 }
                 else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
             }
@@ -244,12 +257,19 @@ class StatementParser(
             return when (targetExpr) {
                 is LocalVariableExpression -> {
                     val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
-                    LocalVariableAssignmentStatement(targetExpr.variable, actualAssignment)
+                    LocalVariableAssignmentStatement(
+                        targetExpr.variable,
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type, parser.ctx)
+                    )
                 }
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
                     val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
-                    TLVariableAssignmentStatement(targetExpr.variable, targetExpr.sourceAST, actualAssignment)
+                    TLVariableAssignmentStatement(
+                        targetExpr.variable,
+                        targetExpr.sourceAST,
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type, parser.ctx)
+                    )
                 }
                 is MemberExpression -> {
                     val baseExprType = ExpressionTypes.getExpressionType(parser.ctx, targetExpr.expression)
@@ -268,7 +288,7 @@ class StatementParser(
                         tempBaseExpr,
                         targetExpr.member,
                         targetExpr.struct,
-                        actualAssignment
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.member.type, parser.ctx)
                     )
 
                     IfStatement(
@@ -292,7 +312,7 @@ class StatementParser(
             block.code.add(it)
         }
         blockCtx.returnStmt()?.let {
-            block.code.add(ReturnStatement(it.expression()?.let { expr -> exprParser.parseExpression(expr) }))
+            block.code.add(ReturnStatement(it.expression()?.let { expr -> StringBoxing.autoConvert(exprParser.parseExpression(expr), parser.currentFunction?.returnType, parser.ctx) }))
         }
 
         block.localVariables.addAll(parser.localVariables)

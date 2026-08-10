@@ -47,6 +47,9 @@ class FunctionResolver(
             ExpressionTypes.getExpressionType(parser.ctx, parser.expressionParser.parseExpression(expr))
         }?: listOf()
         val args = argList?.expression()?.map { parser.expressionParser.parseExpression(it) }?: listOf()
+        val inflatedArgs = { paramTypes: List<Type> ->
+            args.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i), parser.ctx) }
+        }
 
         Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser)?.let {
             return it
@@ -92,7 +95,7 @@ class FunctionResolver(
                 }
 
                 if (concreteStruct != null) {
-                    return CallExpression(concreteStruct.allocFunc, args)
+                    return CallExpression(concreteStruct.allocFunc, inflatedArgs(concreteStruct.parameters.map { par -> par.type }))
                 }
             }
         }
@@ -124,7 +127,7 @@ class FunctionResolver(
             }
             return CallExpression(
                 func = it,
-                arguments = args
+                arguments = inflatedArgs(it.parameters.map { par -> par.type })
             )
         }
 
@@ -139,7 +142,7 @@ class FunctionResolver(
                     return DynamicCallExpression(
                         type = it.type,
                         function = LocalVariableExpression(it),
-                        arguments = args
+                        arguments = inflatedArgs((it.type as FunctionType).parameterTypes)
                     )
                 }
             }
@@ -152,7 +155,7 @@ class FunctionResolver(
                     return DynamicCallExpression(
                         type = it.type,
                         function = ParameterExpression(it),
-                        arguments = args
+                        arguments = inflatedArgs((it.type as FunctionType).parameterTypes)
                     )
                 }
             }
@@ -167,7 +170,7 @@ class FunctionResolver(
                 foundArgListTypes
             )
         }?.let {
-            return CallExpression(it.allocFunc, args)
+            return CallExpression(it.allocFunc, inflatedArgs(it.parameters.map { par -> par.type }))
         }
 
         val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.toString() }})"

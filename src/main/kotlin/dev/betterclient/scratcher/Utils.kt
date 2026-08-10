@@ -1,14 +1,6 @@
 package dev.betterclient.scratcher
 
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.MemberExpression
-import dev.betterclient.scratcher.ast.NullableType
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.ast.parser.ExpressionTypes
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.*
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
@@ -66,3 +58,27 @@ inline fun getUniqueName(): String {
 fun nextBlockPosition(): Int {
     return Random.nextInt(10000)
 }
+
+internal val Expression.simple: Boolean
+    get() = when(this) {
+        is BinaryExpression -> this.left.simple && this.right.simple
+        is ConcatExpression -> this.left.simple && this.right.simple
+        is UnaryExpression -> this.expression.simple
+        is MemberExpression -> this.expression.simple
+        is NonNullAssertExpression -> this.expression.simple
+        is NonNullOrElseExpression -> this.operand1.simple && this.operand2.simple
+
+        is LocalVariableExpression -> true
+        is ParameterExpression -> true
+        is TemporaryLocalVariableIndexExpression -> true
+        is TemporaryStackNameExpression -> true
+        is TemporaryStackSizeExpression -> true
+        is VariableExpression -> true
+        is Literal -> true
+
+        is TemporaryScratchExpr -> false
+        is WhenExpression -> false
+        is DynamicCallExpression -> false
+        is CallExpression -> false
+        is TemporaryHeapGetExpression -> false
+    }
