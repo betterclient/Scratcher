@@ -133,21 +133,54 @@ class CallExpressionLowering(
     }
 
     override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
-        val lhs = LocalVariable("nonNullOrElse@LHS@${getUniqueName()}", PrimitiveType.Integer)
-        addStatements(listOf(
-            VariableStatement(operand1, lhs),
-            IfStatement(BinaryExpression(
-                operator = BinaryOperator.EQUAL,
-                left = LocalVariableExpression(lhs),
-                right = NullExpression
-            ), thenBlock = CodeBlock().also { cb ->
+        val op1Type = ExpressionTypes.getExpressionType(context, operand1)
+        val op2Type = ExpressionTypes.getExpressionType(context, operand2)
+        val needsStrUnbox = op1Type is NullableType && op1Type.asNonNull().toString() == "str" && op2Type !is NullableType
+
+        val lhs = LocalVariable(
+            "nonNullOrElse@LHS@${getUniqueName()}",
+            if (op2Type is NullableType) op1Type else op2Type
+        )
+
+        val nullCheck = BinaryExpression(
+            operator = BinaryOperator.EQUAL,
+            left = LocalVariableExpression(lhs),
+            right = NullExpression
+        )
+
+        val thenBlock = CodeBlock().also { cb ->
+            val b = currentBlock.also { currentBlock = cb }
+            cb.code.add(
+                LocalVariableAssignmentStatement(lhs, visit(operand2))
+            )
+            currentBlock = b
+        }
+
+        if (needsStrUnbox) {
+            val elseBlock = CodeBlock().also { cb ->
                 val b = currentBlock.also { currentBlock = cb }
                 cb.code.add(
-                    LocalVariableAssignmentStatement(lhs, visit(operand2))
+                    LocalVariableAssignmentStatement(
+                        lhs,
+                        MemberExpression(
+                            LocalVariableExpression(lhs),
+                            StringBoxing.stringBoxStruct.parameters.first { it.name == "str" },
+                            StringBoxing.stringBoxStruct
+                        )
+                    )
                 )
                 currentBlock = b
-            })
-        ))
+            }
+            addStatements(listOf(
+                VariableStatement(operand1, lhs),
+                IfElseStatement(nullCheck, thenBlock, elseBlock)
+            ))
+        } else {
+            addStatements(listOf(
+                VariableStatement(operand1, lhs),
+                IfStatement(nullCheck, thenBlock)
+            ))
+        }
 
         return LocalVariableExpression(lhs)
     }
