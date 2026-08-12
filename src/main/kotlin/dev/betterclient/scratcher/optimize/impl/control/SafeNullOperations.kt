@@ -57,9 +57,22 @@ object SafeNullOperations : Optimization("Safe null operations") {
             override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
                 modified = true
 
+                if (operand1 == NullExpression) return operand2
+                if (operand2 == NullExpression) return operand1
+
                 val op1Type = ExpressionTypes.getExpressionType(context, operand1)
                 val op2Type = ExpressionTypes.getExpressionType(context, operand2)
-                val targetType = unifyTypes(op1Type.asNonNull(), op2Type.asNonNull()) ?: op2Type
+                val isLeftNullable = op1Type is NullableType || op1Type == PrimitiveType.Null
+                if (!isLeftNullable) {
+                    throw GeneralCompilerException("Left operand of the elvis operator must be nullable, but got: $op1Type")
+                }
+                val op1NonNull = op1Type.asNonNull()
+                val targetType = if (op1NonNull == PrimitiveType.Null) {
+                    op2Type
+                } else {
+                    unifyTypes(op1NonNull, op2Type)
+                        ?: throw GeneralCompilerException("Type mismatch: cannot unify types $op1NonNull and $op2Type for elvis operator")
+                }
 
                 val lhs = LocalVariable("elvis@lhs@${getUniqueName()}", targetType)
                 return StatementExpression(
