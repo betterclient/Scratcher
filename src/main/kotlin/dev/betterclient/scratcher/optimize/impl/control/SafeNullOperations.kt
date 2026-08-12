@@ -23,7 +23,7 @@ object SafeNullOperations : Optimization("Safe null operations") {
             override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
                 modified = true
 
-                val variable = LocalVariable("safedot@${getUniqueName()}", struct.type.asNullable())
+                val variable = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
                 return StatementExpression(
                     statements = listOf(
                         VariableStatement(target, variable),

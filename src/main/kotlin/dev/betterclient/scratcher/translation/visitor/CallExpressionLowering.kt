@@ -6,7 +6,6 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.code.StringBoxing
-import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
@@ -145,114 +144,6 @@ class CallExpressionLowering(
         return IntLiteral(ordinal.toBigInteger())
     }
 
-    override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
-        val prepend = mutableListOf<Statement>()
-
-        val tempWhenExpr = WhenExpression(subject, branches)
-        val returnType = ExpressionTypes.getExpressionType(context, tempWhenExpr)
-
-        val tempVar = if (returnType != PrimitiveType.Void) {
-            val tv = LocalVariable("whenResult@${getUniqueName()}", returnType)
-            func.code.localVariables.add(tv)
-            tv
-        } else null
-
-        isInsideWhenExpressionBranch = false
-
-        val loweredBranches = branches.map { branch ->
-            val branchBlock = CodeBlock()
-            branchBlock.localVariables.addAll(branch.block.localVariables)
-            branchBlock.code.addAll(branch.block.code)
-
-            if (tempVar != null && branchBlock.code.isNotEmpty()) {
-                val lastIndex = branchBlock.code.lastIndex
-                val lastStmt = branchBlock.code[lastIndex]
-                if (lastStmt is ExpressionStatement) {
-                    branchBlock.code[lastIndex] = LocalVariableAssignmentStatement(tempVar, lastStmt.expression)
-                }
-            }
-
-            visitCodeBlock(branchBlock)
-
-            WhenBranch(
-                branch.cond,
-                branchBlock,
-                branch.isElse
-            )
-        }
-
-        if (subject != null) {
-            when (subject) {
-                is VariableStatement -> {
-                    func.code.localVariables.add(subject.variable)
-                    val loweredSubject = visit(subject.defaultValue!!)
-                    if (loweredSubject != NullExpression) {
-                        prepend.add(VariableStatement(loweredSubject, subject.variable))
-                    }
-                }
-                is TLVariableAssignmentStatement -> {
-                    val loweredSubject = visit(subject.assignment)
-                    if (loweredSubject != NullExpression) {
-                        prepend.add(TLVariableAssignmentStatement(subject.variable, subject.sourceAST, loweredSubject))
-                    }
-                }
-                else -> throw UnreachableException()
-            }
-        }
-
-        if (tempVar != null) {
-            prepend.add(VariableStatement(null, tempVar))
-        }
-
-        val ifChain = buildIfChain(loweredBranches, 0, tempVar)
-        if (ifChain != null) {
-            prepend.add(ifChain)
-        }
-        addStatements(prepend)
-
-        if (isInWhileCondition) {
-            conditionPrepended.addAll(prepend)
-        }
-
-        return if (tempVar != null) LocalVariableExpression(tempVar) else NullExpression
-    }
-
-    private fun buildIfChain(
-        branches: List<WhenBranch>,
-        index: Int,
-        tempVar: LocalVariable?
-    ): Statement? {
-        if (index >= branches.size) return null
-
-        val branch = branches[index]
-        val condResult = branch.cond
-        val branchBlock = branch.block
-
-        val isLastBranch = index == branches.lastIndex
-        val isElseBranch = branch.isElse
-
-        val ifStmt: Statement = if (isLastBranch && isElseBranch) {
-            if (branchBlock.code.size == 1) {
-                branchBlock.code[0]
-            } else {
-                CompositeStatement(branchBlock.code)
-            }
-        } else if (!isLastBranch && branches[index + 1].isElse) {
-            val elseBranch = branches[index + 1]
-            val elseBlock = elseBranch.block
-            IfElseStatement(condResult, branchBlock, elseBlock)
-        } else if (!isLastBranch) {
-            val nextStmt = buildIfChain(branches, index + 1, tempVar)
-            val elseBlock = CodeBlock()
-            elseBlock.code.add(nextStmt!!)
-            IfElseStatement(condResult, branchBlock, elseBlock)
-        } else {
-            IfStatement(condResult, branchBlock)
-        }
-
-        return ifStmt
-    }
-
     //shit for ignoreReturn (in visitCallExpression)
     private var currentRootExpression: Expression? = null
     private val rootCallFlags = mutableListOf<Boolean>()
@@ -260,9 +151,6 @@ class CallExpressionLowering(
     //calling function inside while condition
     private var isInWhileCondition = false
     private val conditionPrepended = mutableListOf<Statement>()
-
-    //when expression...
-    private var isInsideWhenExpressionBranch = false
 
     override fun visitStatement(statement: Statement) {
         currentRootExpression = if (statement is ExpressionStatement) {
@@ -279,16 +167,10 @@ class CallExpressionLowering(
 
     override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
         isInWhileCondition = false
-        if (isInsideWhenExpressionBranch) {
-            return VisitMode.NONE
-        }
         return super.shouldVisitCodeBlock(block)
     }
 
     override fun visitExpr(expression: Expression) {
-        if (expression is WhenExpression) {
-            isInsideWhenExpressionBranch = true
-        }
         if (expression is CallExpression) {
             rootCallFlags.add(expression === currentRootExpression)
         }
