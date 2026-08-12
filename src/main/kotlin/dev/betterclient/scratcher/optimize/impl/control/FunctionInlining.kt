@@ -39,11 +39,11 @@ object FunctionInlining : Optimization("Function inlining") {
         args.forEachIndexed { index, arg ->
             prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }
-        val returnVar = LocalVariable("FunctionInlining@return${getUniqueName()}", func.returnType)
+        val returnVar = LocalVariable("FunctionInlining@${func.name}@return${getUniqueName()}", func.returnType)
         if (func.returnType != PrimitiveType.Void) {
             prepend.add(VariableStatement(null, returnVar))
         }
-        val hasReturned = LocalVariable("FunctionInlining@hasReturned${getUniqueName()}", PrimitiveType.Bool)
+        val hasReturned = LocalVariable("FunctionInlining@${func.name}@hasReturned${getUniqueName()}", PrimitiveType.Bool)
         prepend.add(VariableStatement(BooleanLiteral(false), hasReturned))
 
         //returns are something...
