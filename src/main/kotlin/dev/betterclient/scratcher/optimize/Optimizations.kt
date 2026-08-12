@@ -10,7 +10,7 @@ import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
 import dev.betterclient.scratcher.optimize.impl.control.RepeatToWhile
-import dev.betterclient.scratcher.optimize.impl.control.SafeDotInliner
+import dev.betterclient.scratcher.optimize.impl.control.SafeNullOperations
 import dev.betterclient.scratcher.optimize.impl.dynamic.DirectReferenceCallInlining
 import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyBooleanEquality
@@ -26,11 +26,11 @@ object Optimizations {
     private val requiredOptimizations = listOf(
         RepeatToWhile,
         DynamicDispatchHandler,
-        SafeDotInliner
+        SafeNullOperations
     )
 
     private val optimizations = listOf(
-        SafeDotInliner,
+        SafeNullOperations,
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
