@@ -62,26 +62,9 @@ object FunctionInlining : Optimization("Function inlining") {
         })
         prepend.addAll(out.code)
 
-        //evil hack part: 3
-        return WhenExpression(
-            subject = null,
-            branches = listOf(
-                WhenBranch(
-                    cond = BooleanLiteral(true),
-                    block = CodeBlock().also {
-                        it.code.addAll(prepend)
-                        it.code.add(ExpressionStatement(if (func.returnType == PrimitiveType.Void) NullExpression else LocalVariableExpression(returnVar)))
-                    },
-                    isElse = false
-                ),
-                WhenBranch(
-                    cond = BooleanLiteral(false),
-                    block = CodeBlock().also {
-                        it.code.add(ExpressionStatement(NullExpression)) //unreachable anyway
-                    },
-                    isElse = true
-                )
-            )
+        return StatementExpression(
+            statements = prepend,
+            expression = if (func.returnType == PrimitiveType.Void) NullExpression else LocalVariableExpression(returnVar)
         )
     }
 }

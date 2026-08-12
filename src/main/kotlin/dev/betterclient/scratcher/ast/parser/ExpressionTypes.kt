@@ -39,6 +39,7 @@ object ExpressionTypes {
             }
             is FunctionLiteral -> FunctionType.from(expr.function)
             is DynamicCallExpression -> expr.type.returnType
+            is StatementExpression -> getExpressionType(context, expr.expression)
             is TemporaryExpression -> throw UnreachableException()
         }
     }

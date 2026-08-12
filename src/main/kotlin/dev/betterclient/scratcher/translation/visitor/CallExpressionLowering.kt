@@ -110,6 +110,16 @@ class CallExpressionLowering(
         return expr?: NullExpression
     }
 
+    override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+        addStatements(statements)
+
+        if (isInWhileCondition) {
+            conditionPrepended.addAll(statements)
+        }
+
+        return expression
+    }
+
     override fun visitNonNullAssertExpression(expression: Expression): Expression {
         val type = ExpressionTypes.getExpressionType(context, expression)
         val checked = visit(CallExpression(

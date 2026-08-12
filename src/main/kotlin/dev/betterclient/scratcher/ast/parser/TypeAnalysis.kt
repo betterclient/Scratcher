@@ -8,7 +8,6 @@ import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.ast.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
-import kotlin.math.exp
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     fun run() {
@@ -96,7 +95,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun checkCodeBlock(function: Function, code: MutableList<Statement>, isWhenBranch: Boolean = false) {
+    private fun checkCodeBlock(function: Function, code: List<Statement>, isWhenBranch: Boolean = false) {
         for (statement in code) {
             when(statement) {
                 is ExpressionStatement -> {
@@ -253,6 +252,15 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     ?: throw TypeAnalysisException("Elvis expression's operand types do not match, found $op1 and $op2")
 
                 unified
+            }
+            is StatementExpression -> {
+                val out = getActualTypeOrThrow(expr.expression, function)
+
+                function?.let {
+                    checkCodeBlock(it, expr.statements, false)
+                }
+
+                out
             }
 
             //these already have their type determined

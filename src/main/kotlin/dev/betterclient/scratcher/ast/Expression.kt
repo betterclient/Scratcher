@@ -100,6 +100,11 @@ data class WhenBranch(
     val isElse: Boolean = false
 )
 
+data class StatementExpression(
+    val statements: List<Statement>,
+    val expression: Expression
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()

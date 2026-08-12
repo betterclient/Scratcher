@@ -78,6 +78,7 @@ internal val Expression.simple: Boolean
         is Literal -> true
 
         is TemporaryScratchExpr -> false
+        is StatementExpression -> false
         is WhenExpression -> false
         is DynamicCallExpression -> false
         is CallExpression -> false

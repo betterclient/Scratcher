@@ -154,6 +154,7 @@ class ScratchFunctionTranslator(
             is NonNullOrElseExpression,
             is SafeDotExpression,
             is TypeLiteral,
+            is StatementExpression,
             is NonNullAssertExpression -> throw UnreachableException("$expr")
         }
     }

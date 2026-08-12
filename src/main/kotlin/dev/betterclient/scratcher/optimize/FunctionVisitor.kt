@@ -19,7 +19,7 @@ abstract class ASTVisitor : BaseExpressionVisitor, BaseStatementVisitor {
 
     open fun afterVisit(expression: Expression, result: Expression) {}
 
-    private val statementBuffer = mutableListOf<MutableList<Statement>>()
+    val statementBuffer = mutableListOf<MutableList<Statement>>()
     fun addStatements(list: List<Statement>) {
         val buffer = statementBuffer.lastOrNull()
         if (buffer != null) {
@@ -132,6 +132,7 @@ interface BaseExpressionVisitor {
     fun visitFunctionLiteral(func: Function): Expression = FunctionLiteral(func)
     fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression = DynamicCallExpression(type, function, args)
     fun visitTypeLiteral(type: Type): Expression = TypeLiteral(type)
+    fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression = StatementExpression(statements, expression)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -197,6 +198,14 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is FunctionLiteral -> this.visitFunctionLiteral(expression.function)
         is DynamicCallExpression -> this.visitDynamicCallExpression(visit(expression.function), expression.arguments.map { visit(it) }, expression.type)
         is TypeLiteral -> this.visitTypeLiteral(expression.type)
+        is StatementExpression -> {
+            val visitedStatements = expression.statements.flatMap { visitStatementWithBuffer(it) }
+            val exprBuffer = mutableListOf<Statement>()
+            statementBuffer.add(exprBuffer)
+            val visitedExpr = visit(expression.expression)
+            statementBuffer.removeAt(statementBuffer.lastIndex)
+            this.visitStatementExpression(visitedStatements + exprBuffer, visitedExpr)
+        }
     }
     afterVisit(expression, result)
     return result

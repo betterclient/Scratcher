@@ -86,6 +86,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
             is CallExpression, is DynamicCallExpression -> true
             is NonNullAssertExpression -> hasSideEffects(expr.expression)
             is NonNullOrElseExpression -> hasSideEffects(expr.operand1) || hasSideEffects(expr.operand2)
+            is StatementExpression -> true
             is TemporaryExpression -> true
             is WhenExpression -> true
         }

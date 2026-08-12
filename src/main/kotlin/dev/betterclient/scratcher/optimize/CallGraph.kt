@@ -118,6 +118,12 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
             is SafeDotExpression -> {
                 generate(expr.target, out)
             }
+            is StatementExpression -> {
+                generate(CodeBlock().also {
+                    it.code.addAll(expr.statements)
+                }, out)
+                generate(expr.expression, out)
+            }
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}

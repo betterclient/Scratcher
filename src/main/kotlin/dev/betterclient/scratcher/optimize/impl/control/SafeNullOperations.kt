@@ -23,74 +23,64 @@ object SafeNullOperations : Optimization("Safe null operations") {
             override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
                 modified = true
 
-                //evil hack for storing variables inside expressions
-                val variable = LocalVariable("safedot@${getUniqueName()}", struct.type)
-                return WhenExpression(
-                    subject = VariableStatement(target, variable),
-                    branches = listOf(
-                        WhenBranch(
-                            cond = BinaryExpression(
+                val variable = LocalVariable("safedot@${getUniqueName()}", struct.type.asNullable())
+                return StatementExpression(
+                    statements = listOf(
+                        VariableStatement(target, variable),
+                        IfStatement(
+                            condition = BinaryExpression(
                                 left = NullExpression,
                                 right = LocalVariableExpression(variable),
-                                operator = BinaryOperator.EQUAL
-                            ), //safedot == null
-                            block = CodeBlock().also {
-                                it.code.add(ExpressionStatement(NullExpression))
-                            },
-                            isElse = false
-                        ),
-                        WhenBranch(
-                            cond = BooleanLiteral(true), //else
-                            block = CodeBlock().also {
-                                it.code.add(ExpressionStatement(StringBoxing.autoConvert(
-                                    expr = MemberExpression(
-                                        expression = LocalVariableExpression(variable),
-                                        member = member,
-                                        struct = struct
-                                    ),
-                                    expectedType = member.type.asNullable(),
-                                    context = context
-                                )))
-                            },
-                            isElse = true
+                                operator = BinaryOperator.NOT_EQUAL
+                            ),
+                            thenBlock = CodeBlock().also {
+                                //target != null
+                                it.code.add(LocalVariableAssignmentStatement(
+                                    variable = variable,
+                                    assignment = StringBoxing.autoConvert(
+                                        expr = MemberExpression(
+                                            expression = LocalVariableExpression(variable),
+                                            member = member,
+                                            struct = struct
+                                        ),
+                                        expectedType = member.type.asNullable(),
+                                        context = context
+                                    )
+                                ))
+                            }
                         )
-                    )
+                    ),
+                    expression = LocalVariableExpression(variable)
                 )
             }
 
             override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
-                //evil hack part: 2
                 modified = true
 
                 val op1Type = ExpressionTypes.getExpressionType(context, operand1)
                 val op2Type = ExpressionTypes.getExpressionType(context, operand2)
                 val targetType = unifyTypes(op1Type.asNonNull(), op2Type.asNonNull()) ?: op2Type
 
-                val lhs = LocalVariable("elvis@lhs@${getUniqueName()}", op1Type)
-                return WhenExpression(
-                    branches = listOf(
-                        WhenBranch(
-                            cond = BinaryExpression(
+                val lhs = LocalVariable("elvis@lhs@${getUniqueName()}", targetType)
+                return StatementExpression(
+                    statements = listOf(
+                        VariableStatement(operand1, lhs),
+                        IfStatement(
+                            condition = BinaryExpression(
                                 left = LocalVariableExpression(lhs),
                                 right = NullExpression,
                                 operator = BinaryOperator.EQUAL
                             ),
-                            block = CodeBlock().also {
-                                //evaluate operand2
-                                it.code.add(ExpressionStatement(StringBoxing.autoConvert(operand2, targetType, context)))
-                            },
-                            isElse = false
-                        ),
-                        WhenBranch(
-                            cond = BooleanLiteral(true),
-                            block = CodeBlock().also {
-                                //not null, just return lhs
-                                it.code.add(ExpressionStatement(StringBoxing.autoConvert(LocalVariableExpression(lhs), targetType, context)))
-                            },
-                            isElse = true
+                            thenBlock = CodeBlock().also {
+                                //operand1 == null
+                                it.code.add(LocalVariableAssignmentStatement(
+                                    variable = lhs,
+                                    assignment = StringBoxing.autoConvert(operand2, targetType, context)
+                                ))
+                            }
                         )
                     ),
-                    subject = VariableStatement(operand1, lhs)
+                    expression = LocalVariableExpression(lhs)
                 )
             }
         })
