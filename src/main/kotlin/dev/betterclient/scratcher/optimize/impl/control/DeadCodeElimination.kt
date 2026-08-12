@@ -4,17 +4,20 @@ import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.IfElseStatement
 import dev.betterclient.scratcher.ast.IfStatement
 import dev.betterclient.scratcher.ast.RepeatStatement
 import dev.betterclient.scratcher.ast.ReturnStatement
 import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.StatementExpression
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
+import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination.hasSideEffects
 import dev.betterclient.scratcher.optimize.visit
 
 object DeadCodeElimination : Optimization("Dead code elimination") {
@@ -66,6 +69,18 @@ object DeadCodeElimination : Optimization("Dead code elimination") {
                 }
 
                 return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+            }
+
+            override fun visitExpressionStatement(expression: Expression): Statement? {
+                if (expression is StatementExpression) {
+                    modified = true
+                    val stmts = expression.statements.toMutableList()
+                    if (hasSideEffects(expression.expression)) {
+                        stmts.add(ExpressionStatement(expression.expression))
+                    }
+                    return CompositeStatement(stmts)
+                }
+                return super.visitExpressionStatement(expression)
             }
         })
 

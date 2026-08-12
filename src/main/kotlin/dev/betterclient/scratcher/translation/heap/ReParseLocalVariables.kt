@@ -14,12 +14,12 @@ class ReParseLocalVariables(val func: Function) : ASTVisitor() {
         visit(func, this)
     }
 
-    private var currentCollector: MutableList<LocalVariable>? = null
+    private var currentCollector: MutableSet<LocalVariable>? = null
     override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
     override fun visitCodeBlock(block: CodeBlock): CodeBlock {
         val previousCollector = currentCollector
-        val myCollector = mutableListOf<LocalVariable>()
+        val myCollector = mutableSetOf<LocalVariable>()
         currentCollector = myCollector
 
         super.visitCodeBlock(block)
@@ -34,5 +34,10 @@ class ReParseLocalVariables(val func: Function) : ASTVisitor() {
     override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
         currentCollector?.add(variable)
         return super.visitVariableStatement(defaultValue, variable)
+    }
+
+    override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement? {
+        currentCollector?.add(variable)
+        return super.visitLocalVariableAssignmentStatement(variable, assignment)
     }
 }

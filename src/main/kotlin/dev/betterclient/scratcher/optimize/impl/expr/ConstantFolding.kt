@@ -1,18 +1,8 @@
 package dev.betterclient.scratcher.optimize.impl.expr
 
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.FloatLiteral
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.Literal
-import dev.betterclient.scratcher.ast.NullableType
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.ast.UnreachableException
-import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
@@ -86,18 +76,16 @@ object ConstantFolding : Optimization("Constant Folding") {
                 return super.visitConcatExpression(left, right)
             }
 
-            override fun visitNonNullAssertExpression(expression: Expression): Expression {
-                if (ExpressionTypes.getExpressionType(context, expression) !is NullableType)
+            override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+                if (statements.isEmpty()) {
+                    modified = true
                     return expression
-
-                return super.visitNonNullAssertExpression(expression)
-            }
-
-            override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
-                if (ExpressionTypes.getExpressionType(context, operand1) !is NullableType)
-                    return operand1
-
-                return super.visitNonNullOrElseExpression(operand1, operand2)
+                }
+                if (expression is StatementExpression) {
+                    modified = true
+                    return StatementExpression(statements + expression.statements, expression.expression)
+                }
+                return super.visitStatementExpression(statements, expression)
             }
         })
         return modified

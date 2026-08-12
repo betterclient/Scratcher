@@ -24,6 +24,9 @@ object SafeNullOperations : Optimization("Safe null operations") {
                 modified = true
 
                 val variable = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
+                if (ExpressionTypes.getExpressionType(context, target) !is NullableType)
+                    return MemberExpression(target, member, struct)
+
                 return StatementExpression(
                     statements = listOf(
                         VariableStatement(target, variable),
@@ -64,7 +67,7 @@ object SafeNullOperations : Optimization("Safe null operations") {
                 val op2Type = ExpressionTypes.getExpressionType(context, operand2)
                 val isLeftNullable = op1Type is NullableType || op1Type == PrimitiveType.Null
                 if (!isLeftNullable) {
-                    throw GeneralCompilerException("Left operand of the elvis operator must be nullable, but got: $op1Type")
+                    return operand1
                 }
                 val op1NonNull = op1Type.asNonNull()
                 val targetType = if (op1NonNull == PrimitiveType.Null) {

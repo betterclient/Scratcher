@@ -263,6 +263,9 @@ class InlineSingleUseAnalysis {
                     branch.cond.dependsOn(variables) || blockDependsOn(branch.block, variables)
                 }
             }
+            is StatementExpression -> {
+                statements.any { stmtDependsOn(it, variables) } || expression.dependsOn(variables)
+            }
             else -> false
         }
     }
