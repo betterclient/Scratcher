@@ -9,8 +9,6 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.math.BigInteger
 
 object FunctionInlining : Optimization("Function inlining") {
-    val voidMarkerExpr = TemporaryHeapGetExpression(IntLiteral(0.toBigInteger()))
-
     override fun apply(
         func: Function,
         graph: TCallGraph,
@@ -19,36 +17,21 @@ object FunctionInlining : Optimization("Function inlining") {
         val eligible = InlineEligibility.findEligible(func, graph)
 
         var modified = false
-        val inlinedExprs = mutableListOf<Expression>()
         visit(func, object : ASTVisitor() {
             override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
                 if (eligible.contains(func)) {
                     modified = true
                     val out = inline(func, args)
-                    addStatements(out.prepend)
-                    return (out.expression?.also {
-                        inlinedExprs.add(it)
-                    })?: voidMarkerExpr
+                    return out
                 }
 
                 return super.visitCallExpression(func, args)
-            }
-
-            override fun visitExpressionStatement(expression: Expression): Statement? {
-                if (expression == voidMarkerExpr) {
-                    return null
-                }
-                if (inlinedExprs.contains(expression)) {
-                    return null //ignoring returns, huh? I see how it is
-                }
-
-                return super.visitExpressionStatement(expression)
             }
         })
         return modified
     }
 
-    private fun inline(func: Function, args: List<Expression>): ExpressionLowerResult {
+    private fun inline(func: Function, args: List<Expression>): Expression {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
@@ -77,11 +60,27 @@ object FunctionInlining : Optimization("Function inlining") {
                 return null
             }
         })
-        prepend.addAll(out.code)
 
-        return ExpressionLowerResult(
-            if (func.returnType == PrimitiveType.Void) null else LocalVariableExpression(returnVar),
-            prepend
+        //evil hack part: 3
+        return WhenExpression(
+            subject = null,
+            branches = listOf(
+                WhenBranch(
+                    cond = BooleanLiteral(true),
+                    block = CodeBlock().also {
+                        it.code.addAll(prepend)
+                        it.code.add(ExpressionStatement(if (func.returnType == PrimitiveType.Void) NullExpression else LocalVariableExpression(returnVar)))
+                    },
+                    isElse = false
+                ),
+                WhenBranch(
+                    cond = BooleanLiteral(false),
+                    block = CodeBlock().also {
+                        it.code.add(ExpressionStatement(NullExpression)) //unreachable anyway
+                    },
+                    isElse = true
+                )
+            )
         )
     }
 }
