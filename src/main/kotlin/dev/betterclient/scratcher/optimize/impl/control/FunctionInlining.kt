@@ -60,6 +60,7 @@ object FunctionInlining : Optimization("Function inlining") {
                 return null
             }
         })
+        prepend.addAll(out.code)
 
         //evil hack part: 3
         return WhenExpression(

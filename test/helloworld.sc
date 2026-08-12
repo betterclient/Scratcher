@@ -49,12 +49,6 @@ on GreenFlag {
             triangles[14]?.y3 ?: 0
         }
     );
-    auto s = hello();
-    if(s != null) {
-        looks::say(s!!);
-
-        return;
-    }
 
     while(true) {
         pen::eraseAll();
