@@ -115,6 +115,7 @@ interface BaseExpressionVisitor {
     fun visitUnaryExpression(operator: UnaryOperator, expression: Expression): Expression = UnaryExpression(operator, expression)
     fun visitNonNullAssertExpression(expression: Expression): Expression = NonNullAssertExpression(expression)
     fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression = NonNullOrElseExpression(operand1, (this as ASTVisitor).visit(operand2))
+    fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression = SafeDotExpression(struct, target, member)
     fun visitParameterExpression(parameter: Parameter): Expression = ParameterExpression(parameter)
     fun visitVariableExpression(variable: TLVariable, sourceAST: ASTFile): Expression = VariableExpression(variable, sourceAST)
     fun visitFloatLiteral(value: BigDecimal): Expression = FloatLiteral(value)
@@ -130,6 +131,7 @@ interface BaseExpressionVisitor {
     fun visitTemporaryStackNameExpression(func: Function): Expression = TemporaryStackNameExpression(func)
     fun visitFunctionLiteral(func: Function): Expression = FunctionLiteral(func)
     fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression = DynamicCallExpression(type, function, args)
+    fun visitTypeLiteral(type: Type): Expression = TypeLiteral(type)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -174,6 +176,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is LocalVariableExpression -> this.visitLocalVariableExpression(expression.variable)
         is MemberExpression -> this.visitMemberExpression(visit(expression.expression), expression.member, expression.struct)
         is NonNullAssertExpression -> this.visitNonNullAssertExpression(visit(expression.expression))
+        is SafeDotExpression -> this.visitSafeDotExpression(visit(expression.target), expression.member, expression.struct)
         is ParameterExpression -> this.visitParameterExpression(expression.parameter)
         is TemporaryHeapGetExpression -> this.visitTemporaryHeapGetExpression(visit(expression.index))
         is TemporaryLocalVariableIndexExpression -> this.visitTemporaryLocalVariableIndexExpression(expression.variable)
@@ -193,6 +196,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is TemporaryStackSizeExpression -> this.visitTemporaryStackSizeExpression(expression.function)
         is FunctionLiteral -> this.visitFunctionLiteral(expression.function)
         is DynamicCallExpression -> this.visitDynamicCallExpression(visit(expression.function), expression.arguments.map { visit(it) }, expression.type)
+        is TypeLiteral -> this.visitTypeLiteral(expression.type)
     }
     afterVisit(expression, result)
     return result

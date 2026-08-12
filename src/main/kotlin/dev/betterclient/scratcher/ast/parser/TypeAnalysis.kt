@@ -199,6 +199,14 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
                 PrimitiveType.Str
             }
+            is SafeDotExpression -> {
+                val structType = getActualTypeOrThrow(expr.target, function)
+                if (structType !is NullableType) throw TypeAnalysisException("Safe dot expression(?.) called with non nullable receiver")
+                checkType(expr.struct.type, structType.asNonNull(), "Safe dot expression struct type does not match expected type!")
+
+                expr.member.type.asNullable()
+            }
+            is TypeLiteral -> expr.type
             is CallExpression -> {
                 if (ListLib.listFuncs.contains(expr.func)) {
                     ListLib.getActualReturnType(this.ctx, expr) { getActualTypeOrThrow(it, function) }
@@ -241,11 +249,10 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     println("WARN: First operand of elvis expression is non null, the right hand side will never run.")
                 }
 
-                if (op1.asNonNull() != op2.asNonNull()) {
-                    throw TypeAnalysisException("Elvis expression's operand types do not match, found $op1 and $op2")
-                }
+                val unified = unifyTypes(op1.asNonNull(), op2.asNonNull())
+                    ?: throw TypeAnalysisException("Elvis expression's operand types do not match, found $op1 and $op2")
 
-                op2
+                unified
             }
 
             //these already have their type determined

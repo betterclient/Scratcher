@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.TypeLiteral
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions

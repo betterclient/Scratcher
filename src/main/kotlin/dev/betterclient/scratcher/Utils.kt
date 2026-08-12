@@ -67,6 +67,7 @@ internal val Expression.simple: Boolean
         is MemberExpression -> this.expression.simple
         is NonNullAssertExpression -> this.expression.simple
         is NonNullOrElseExpression -> this.operand1.simple && this.operand2.simple
+        is SafeDotExpression -> this.target.simple
 
         is LocalVariableExpression -> true
         is ParameterExpression -> true

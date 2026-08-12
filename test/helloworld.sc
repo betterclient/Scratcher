@@ -25,7 +25,7 @@ on GreenFlag {
         }
     };
 
-    auto triangles = List(Triangle<float>);
+    auto triangles = List(Triangle<float>?);
     repeat(150) {
         list::add(triangles, Triangle(
             utils::random(-240, 240),
@@ -46,7 +46,7 @@ on GreenFlag {
         if(mode == TriangleRenderMode.OFF) {
             5
         } else {
-            triangles[14].y3
+            triangles[14]?.y3 ?: 0
         }
     );
     auto s = hello();
@@ -64,7 +64,7 @@ on GreenFlag {
     }
 }
 
-warp void render(TriangleRenderMode mode, Triangle<float>[] triangles) {
+warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
     a.x1++;
 
     forEach(triangles, when(mode) {
@@ -78,13 +78,16 @@ warp str? hello() {
     return "yo!";
 }
 
-warp void triRender(Triangle<float> t) {
+warp void triRender(Triangle<float>? t) {
+    return if(t?.x1 == null);
+    auto rt = t!!;
+
     triangle::fill(
-        t.x1, t.y1, t.x2, t.y2, t.x3, t.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
+        rt.x1, rt.y1, rt.x2, rt.y2, rt.x3, rt.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
     );
 }
 
-warp void noRender(Triangle<float> t) {}
+warp void noRender(Triangle<float>? t) {}
 
 warp <T> void forEach(T[] a, (T) -> void action) {
     for(T t in a) {

@@ -86,15 +86,28 @@ class ExpressionParser(
                     parseExpression(ctx.expression(1)!!)
                 )
             }
+            is ScratcherLangParser.SafeDotExprContext -> {
+                val structExpr = parseExpression(ctx.expression())
+                val struct = ExpressionTypes.getExpressionType(parser.ctx, structExpr).let { type ->
+                    val baseType = type.asNonNull() as? SimpleType
+                    baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type or enum at ${ctx.position}, expected a struct, found $baseType")
+                }
+                val memberName = ctx.IDENTIFIER().text
+
+                val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
+
+                return SafeDotExpression(struct, structExpr, member)
+            }
             is ScratcherLangParser.ListCreationExprContext -> {
-                val list = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
+                val elementType = figureOutType(
+                    parser.ctx,
+                    ast,
+                    ctx.type(),
+                    localTypeBindings = parser.currentTypeBindings
+                )
                 CallExpression(
-                    ListLib.newList,
-                    mutableListOf(
-                        StringLiteral( //so sorry for this but im not bothering adding more expressions just for this one fricking function
-                            list.toString()
-                        )
-                    ).also {
+                    func = ListLib.newList,
+                    arguments = mutableListOf<Expression>(TypeLiteral(elementType)).also {
                         if (CompilationConstants.MARK_AND_SWEEP_GC) {
                             it.add(StringLiteral(
                                 "l"

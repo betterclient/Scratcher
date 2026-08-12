@@ -39,6 +39,7 @@ RBRACK : ']';
 COMMA  : ',';
 SEMI   : ';';
 COLONCOLON : '::';
+SAFE_DOT : '?.';
 ELVIS : '?:';
 DOT    : '.';
 ARROW  : '->';

@@ -134,6 +134,7 @@ expression
     | IDENTIFIER COLONCOLON IDENTIFIER                  # scopeExpr
     | expression DOUBLE_BANG                            # assertNonNull
     | expression DOT IDENTIFIER                         # memberExpr
+    | expression SAFE_DOT IDENTIFIER                    # safeDotExpr
     | expression LBRACK expression RBRACK               # indexExpr
     | LIST LPAREN type RPAREN                           # listCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr

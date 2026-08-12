@@ -31,17 +31,15 @@ class ScratchFunctionTranslator(
         val single = when (stmt) {
             is TemporaryCallStatement -> {
                 if (stmt.func == ListLib.newList) {
-                    val typeName = (stmt.args[0] as StringLiteral).value
-                    val lCount = typeName.count { char -> char == '[' } + 1
-                    val type = compilationContext.types.find { it.toString() == typeName.replace("[]", "") }
-                        ?: throw NotFoundException("Not able to find $typeName in types list?")
+                    val elementType = (stmt.args[0] as TypeLiteral).type
+                    val gcString = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        val lCount = elementType.toString().count { it == '[' } + 1
+                        "${"l".repeat(lCount)}${findGC(elementType)}"
+                    } else null
+
                     return listOf(CallFunction(
                         func = lookup(stmt.func),
-                        args = mutableListOf(translateExpr(stmt.args.last())).also { //its fake!!! the argument is fake!!
-                            if(CompilationConstants.MARK_AND_SWEEP_GC) {
-                                it.add("${"l".repeat(lCount)}${findGC(type)}".scratch)
-                            }
-                        }
+                        args = listOfNotNull(translateExpr(stmt.args.last()), gcString?.scratch)
                     ))
                 }
 
@@ -154,6 +152,8 @@ class ScratchFunctionTranslator(
             is WhenExpression,
             is FunctionLiteral,
             is NonNullOrElseExpression,
+            is SafeDotExpression,
+            is TypeLiteral,
             is NonNullAssertExpression -> throw UnreachableException("$expr")
         }
     }

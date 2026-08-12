@@ -14,6 +14,7 @@ object ExpressionTypes {
                     ListLib.getActualReturnType(context, expr) { getExpressionType(context, it) }
                 } else expr.func.returnType
             }
+            is TypeLiteral -> expr.type
             is BooleanLiteral -> PrimitiveType.Bool
             is FloatLiteral -> PrimitiveType.Float
             is IntLiteral -> PrimitiveType.Integer
@@ -30,8 +31,9 @@ object ExpressionTypes {
             is NonNullOrElseExpression -> {
                 val op1 = getExpressionType(context, expr.operand1)
                 val op2 = getExpressionType(context, expr.operand2)
-                if (op2 is NullableType) op1 else op2
+                unifyTypes(op1.asNonNull(), op2.asNonNull()) ?: op2
             }
+            is SafeDotExpression -> expr.member.type.asNullable()
             is WhenExpression -> {
                 parseWhenExpressionType(expr, context)
             }

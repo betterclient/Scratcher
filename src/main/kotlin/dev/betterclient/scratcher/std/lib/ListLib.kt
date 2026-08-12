@@ -21,6 +21,7 @@ import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.TypeException
+import dev.betterclient.scratcher.ast.TypeLiteral
 import dev.betterclient.scratcher.std.dsl.CodeBuilder
 import dev.betterclient.scratcher.std.dsl.DSLExpression
 import dev.betterclient.scratcher.std.dsl.compile
@@ -368,15 +369,9 @@ object ListLib {
     fun getActualReturnType(context: CompilationContext, expr: CallExpression, check: (Expression) -> Type): Type {
         return when(expr.func) {
             newList -> {
-                if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                    if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::newList")
-                    val type = parseTypeFromString((expr.arguments[0] as StringLiteral).value, context)
-                    ListType(type)
-                } else {
-                    if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on list::newList")
-                    val type = parseTypeFromString((expr.arguments[0] as StringLiteral).value, context)
-                    ListType(type)
-                }
+                val typeLiteral = expr.arguments.firstOrNull() as? TypeLiteral
+                    ?: throw GeneralCompilerException("Expected TypeLiteral for list::newList")
+                ListType(typeLiteral.type)
             }
             itemAt -> {
                 if (expr.arguments.size != 2) throw GeneralCompilerException("Too many/little arguments on list::itemAt, requires 2 parameters")
@@ -393,7 +388,7 @@ object ListLib {
                 val list = check(expr.arguments[0])
                 val added = check(expr.arguments[1])
 
-                if(list !is ListType || list.elementType != added) {
+                if(list !is ListType || !added.isAssignable(list.elementType)) {
                     throw GeneralCompilerException("Not adding to a list when calling list::add")
                 }
 
@@ -424,7 +419,7 @@ object ListLib {
                 val added = check(expr.arguments[1])
                 val index = check(expr.arguments[2])
 
-                if(list !is ListType || list.elementType != added) {
+                if(list !is ListType || !added.isAssignable(list.elementType)) {
                     throw GeneralCompilerException("Not adding to a list when calling list::replace")
                 }
                 if (index != PrimitiveType.Integer) {
@@ -438,7 +433,7 @@ object ListLib {
                 val list = check(expr.arguments[0])
                 val item = check(expr.arguments[1])
 
-                if(list !is ListType || list.elementType != item) {
+                if(list !is ListType || !item.isAssignable(list.elementType)) {
                     throw GeneralCompilerException("Comparing wrong type to list elements when calling list::contains")
                 }
 
