@@ -19,7 +19,7 @@ class FunctionStructureTranslator {
             args = function.parameters.map {
                 ScratchFuncArgument(
                     name = obfuscate(it.name),
-                    type = if (it.type == PrimitiveType.Bool) ScratchType.BOOL else ScratchType.ANY
+                    type = ScratchType.ANY
                 )
             },
             runWithoutScreenRefresh = function.warp
