@@ -81,8 +81,10 @@ class HeapConversion(
         return StringLiteral(getFunctionLocals(func).gcInfo.name.toString())
     }
 
-    override fun visitTemporaryStackSizeExpression(func: Function): Expression {
-        return IntLiteral(getFunctionLocals(func).size.toBigInteger())
+    override fun visitTemporaryStackSizeExpression(func: Function, includeGCHeader: Boolean): Expression {
+        val baseSize = getFunctionLocals(func).size
+        val totalSize = if (includeGCHeader) baseSize + 1 else baseSize
+        return IntLiteral(totalSize.toBigInteger())
     }
 
     override fun visitLocalVariableExpression(variable: LocalVariable): Expression {

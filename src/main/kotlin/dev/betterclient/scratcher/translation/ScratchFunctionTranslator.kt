@@ -126,12 +126,7 @@ class ScratchFunctionTranslator(
             is VariableExpression -> ListExpressions.Variable(lookupVar(expr.variable))
 
             is BooleanLiteral -> {
-                val target = if (CompilationConstants.OBFUSCATION) getUniqueName() else "1"
-                BoolOperatorExpressions.BinaryExpression(
-                    operand1 = target.scratch,
-                    operand2 = (if (expr.value) target else {if (CompilationConstants.OBFUSCATION) getUniqueName() else "2"}).scratch,
-                    binaryOperator = SBinaryOperator.EQUALS
-                )
+                expr.value.toString().scratch
             }
             is FloatLiteral -> expr.value.toString().scratch
             is IntLiteral -> expr.value.toString().scratch

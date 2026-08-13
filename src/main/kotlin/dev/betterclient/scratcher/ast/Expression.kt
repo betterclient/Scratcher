@@ -131,7 +131,8 @@ data class TemporaryScratchExpr(
 ) : TemporaryExpression()
 
 data class TemporaryStackSizeExpression(
-    val function: Function
+    val function: Function,
+    val includeGcHeader: Boolean = false
 ) : TemporaryExpression()
 
 data class TemporaryStackNameExpression(

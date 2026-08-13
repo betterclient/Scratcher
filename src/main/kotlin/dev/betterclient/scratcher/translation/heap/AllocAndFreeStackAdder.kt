@@ -34,15 +34,10 @@ class AllocAndFreeStackAdder(
             ParameterExpression(stackParameter)
         }
 
-        val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-            BinaryExpression(
-                left = TemporaryStackSizeExpression(func),
-                right = IntLiteral(java.math.BigInteger.ONE),
-                operator = BinaryOperator.ADD
-            )
-        } else {
-            TemporaryStackSizeExpression(func)
-        }
+        val freeSize: Expression = TemporaryStackSizeExpression(
+            func,
+            includeGcHeader = CompilationConstants.MARK_AND_SWEEP_GC
+        )
 
         val freeStmt = TemporaryCallStatement(
             MemoryLib.free,
