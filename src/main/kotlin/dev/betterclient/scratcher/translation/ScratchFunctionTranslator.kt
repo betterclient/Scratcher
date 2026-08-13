@@ -3,19 +3,14 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
-import dev.betterclient.scratcher.ast.NotFoundException
-import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.gc.findGC
-import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.lib.ListLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
-    val compilationContext: CompilationContext,
     val original: Function,
     val scratch: ScratchASTFunction,
     val lookup: (Function) -> ScratchASTFunction,

@@ -98,7 +98,6 @@ fun main() {
     println("Translate code")
     scratchStubs.forEach { (normalAST, scratchAST) ->
         ScratchFunctionTranslator(
-            compilationContext = context,
             original = normalAST,
             scratch = scratchAST,
             lookup = {
