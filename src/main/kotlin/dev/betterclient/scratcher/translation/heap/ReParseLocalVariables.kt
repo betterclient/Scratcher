@@ -35,9 +35,4 @@ class ReParseLocalVariables(val func: Function) : ASTVisitor() {
         currentCollector?.add(variable)
         return super.visitVariableStatement(defaultValue, variable)
     }
-
-    override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement? {
-        currentCollector?.add(variable)
-        return super.visitLocalVariableAssignmentStatement(variable, assignment)
-    }
 }

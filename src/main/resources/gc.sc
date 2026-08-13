@@ -4,10 +4,11 @@ import utils;
 import string;
 import cast;
 
+int gc_LastCollected = 0;
 on GreenFlag {
     while(true) {
         utils::wait(1); //collect every second
-        collect();
+        gc_LastCollected = collect();
     }
 }
 
@@ -61,9 +62,7 @@ warp int sweep() {
 }
 
 warp void markRoot(int addr) {
-    return if(addr == -1);
-    return if(cast::toStr(addr) == "");
-    return if(cast::toStr(addr) == "reserved");
+    return if !isValid(addr);
 
     str name = findName(addr);
     return if(name == "0");
@@ -89,7 +88,7 @@ warp void markType(int addr, str type) {
     return if(string::contains(type, "n"));
     return if(type == "p");
 
-    return if(self::getHeap(addr) == -1);
+    return if(cast::toStr(self::getHeap(addr)) == "null");
 
     if(string::contains(type, "l")) {
         markList(self::getHeap(addr), type);
@@ -122,7 +121,7 @@ warp void markList(int addr, str type) {
     //^ actual list type
     //now we gotta go to the dataPtr in the heap
     int data = self::getListDataPtr(addr);
-    if(data != -1) {
+    if(cast::toStr(data) != "null") {
         self::addMarked(data - 1);
     }
     index = 0;
@@ -164,6 +163,7 @@ warp str findName(int addr) {
 
 warp bool isValid(int addr) {
     return false if(addr == -1);
+    return false if(addr == 0);
     return false if(cast::toStr(addr) == "null");
     return false if(cast::toStr(addr) == "");
     return false if(self::isMarked(addr));
