@@ -105,6 +105,11 @@ data class StatementExpression(
     val expression: Expression
 ) : Expression()
 
+data class LambdaExpression(
+    val parameters: List<LocalVariable>,
+    val block: CodeBlock
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()

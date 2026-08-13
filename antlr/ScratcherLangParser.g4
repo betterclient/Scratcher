@@ -153,6 +153,12 @@ expression
     | whenExpression                                    # whenExpr
     | ifExpression                                      # ifExpr
     | AMPERSAND functionIdentifier                      # funcRefExpr
+    | lambdaDecl ARROW lambdaBlock                   # lambdaExpr
+    ;
+
+lambdaDecl
+    : type IDENTIFIER
+    | LPAREN (type IDENTIFIER (COMMA type IDENTIFIER)*)? RPAREN
     ;
 
 functionIdentifier
@@ -169,7 +175,7 @@ type
     | primitiveType                                 # primType
     | type LBRACK RBRACK                            # arrayType
     | type NULLABLE                                 # nullableType
-    | LPAREN type? (COMMA type)* RPAREN ARROW type  # funcRefType
+    | LPAREN (type (COMMA type)*)? RPAREN ARROW type# funcRefType
     ;
 
 typePath
@@ -237,6 +243,11 @@ ifExpression
 exprBlock
     : expression
     | LBRACE statement* expression RBRACE
+    ;
+
+lambdaBlock
+    : exprBlock                            # exprLambda
+    | block                                 # blockLambda
     ;
 
 codeBlock

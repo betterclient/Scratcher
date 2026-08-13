@@ -62,7 +62,14 @@ warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
     a.x1++;
 
     forEach(triangles, when(mode) {
-        TriangleRenderMode.RENDER -> &triRender;
+        TriangleRenderMode.RENDER -> (Triangle<float>? tri) -> {
+            return if(tri?.x1 == null);
+            auto rt = tri!!;
+
+            triangle::fill(
+                rt.x1, rt.y1, rt.x2, rt.y2, rt.x3, rt.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
+            );
+        };
         else -> &noRender;
     });
 }
@@ -70,15 +77,6 @@ warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
 warp str? hello() {
     return null if(utils::random(0, 5) == 4);
     return "yo!";
-}
-
-warp void triRender(Triangle<float>? t) {
-    return if(t?.x1 == null);
-    auto rt = t!!;
-
-    triangle::fill(
-        rt.x1, rt.y1, rt.x2, rt.y2, rt.x3, rt.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
-    );
 }
 
 warp void noRender(Triangle<float>? t) {}

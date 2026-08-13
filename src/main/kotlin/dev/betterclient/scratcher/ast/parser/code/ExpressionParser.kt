@@ -139,8 +139,7 @@ class ExpressionParser(
                 )
             }
             is ScratcherLangParser.DynamicCallExprContext -> {
-                val innerExpr = ctx.expression()
-                when (innerExpr) {
+                when (val innerExpr = ctx.expression()) {
                     is ScratcherLangParser.IdExprContext -> {
                         parser.functionResolver.figureOutFunctionInternal(null, innerExpr.text, innerExpr.text, ctx.argList(), expectedType)
                     }
@@ -161,10 +160,65 @@ class ExpressionParser(
                     }
                 }
             }
+            is ScratcherLangParser.LambdaExprContext -> {
+                parseLambda(ctx)
+            }
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
 
         return StringBoxing.autoConvert(expr, expectedType, parser.ctx)
+    }
+
+    private fun parseLambda(ctx: ScratcherLangParser.LambdaExprContext): LambdaExpression {
+        val args0 = ctx.lambdaDecl()
+        val args = if (args0.LPAREN() != null) {
+            //arg list
+            args0.IDENTIFIER().map { it.text }.zip(
+                args0.type().map { figureOutType(this.parser.ctx, this.ast, it) }
+            ).map {
+                LocalVariable(it.first, it.second)
+            }
+        } else {
+            listOf(
+                LocalVariable(
+                    args0.IDENTIFIER(0)!!.text,
+                    figureOutType(this.parser.ctx, this.ast, args0.type(0)!!)
+                )
+            )
+        }
+
+        val block = when (val b = ctx.lambdaBlock()) {
+            is ScratcherLangParser.BlockLambdaContext -> {
+                CodeBlock().also {
+                    this.parser.statementParser.parseBlock(it, b.block(), args)
+                }
+            }
+            is ScratcherLangParser.ExprLambdaContext -> {
+                CodeBlock().also { code ->
+                    val block = b.exprBlock()
+                    if (block.LBRACE() == null) {
+                        code.code.add(ReturnStatement(parseExpression(block.expression())))
+                    } else {
+                        val prevLocalVariables = parser.localVariables.map { it }
+                        parser.localVariables.addAll(args)
+                        block.statement().map { parser.statementParser.parseStatement(it) }.forEach(code.code::add)
+                        val result = parseExpression(block.expression())
+                        code.code.add(ReturnStatement(result))
+
+                        code.localVariables.addAll(parser.localVariables)
+                        parser.localVariables.clear()
+                        parser.localVariables.addAll(prevLocalVariables)
+                    }
+                }
+            }
+
+            else -> throw NotImplementedException("Unsupported lambda type $b")
+        }
+
+        return LambdaExpression(
+            parameters = args,
+            block = block
+        )
     }
 
     private fun parseEqExpr(ctx: ScratcherLangParser.EqExprContext): Expression {

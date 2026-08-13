@@ -38,6 +38,8 @@ fun main() {
     val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
     val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run()
 
+    //TODO: compiler sugar handled here before refcount
+
     if (CompilationConstants.REFCOUNT_GC) {
         RefCountGC.run(context, reachableFunctions)
     }
