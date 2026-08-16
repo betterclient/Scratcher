@@ -61,12 +61,12 @@ object ExpressionTypes {
             }
         }
 
-        val allBranchesReturnExpression = expr.branches.all {
-            it.block.code.lastOrNull() is ExpressionStatement
+        val branchValues = expr.branches.map {
+            getWhenBranchValue(context, it)
         }
-        return if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-            val branchTypes = expr.branches.map {
-                getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
+        return if (branchValues.isNotEmpty() && branchValues.all { it != null }) {
+            val branchTypes = branchValues.map {
+                getExpressionType(context, it!!)
             }
             val unifiedType = branchTypes.reduce { left, right ->
                 unifyTypes(left, right) ?: throw GeneralCompilerException("When branches return different types, $left and $right")
@@ -75,6 +75,28 @@ object ExpressionTypes {
         } else {
             PrimitiveType.Void
         }
+    }
+
+    fun getWhenBranchValue(context: CompilationContext, branch: WhenBranch): Expression? {
+        val code = branch.block.code
+        if (code.isEmpty()) return null
+
+        val last = code.last()
+        if (last is ExpressionStatement) {
+            val type = getExpressionType(context, last.expression)
+            if (type != PrimitiveType.Void) return last.expression
+        }
+
+        for (stmt in code.asReversed()) {
+            if (stmt is VariableStatement && stmt.defaultValue != null &&
+                stmt.variable.name.startsWith("compiler@gc_ignored_ret_")
+            ) {
+                val type = getExpressionType(context, stmt.defaultValue)
+                if (type != PrimitiveType.Void) return LocalVariableExpression(stmt.variable)
+            }
+        }
+
+        return null
     }
 
     private fun figureOutBinaryExprReturn(context: CompilationContext, expr: BinaryExpression): Type {

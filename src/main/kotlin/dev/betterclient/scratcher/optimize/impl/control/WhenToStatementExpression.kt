@@ -35,10 +35,9 @@ object WhenToStatementExpression : Optimization("When to Statement expression") 
                     branchStatements.addAll(branch.block.code)
 
                     if (tempVar != null && branchStatements.isNotEmpty()) {
-                        val lastIndex = branchStatements.lastIndex
-                        val lastStmt = branchStatements[lastIndex]
-                        if (lastStmt is ExpressionStatement) {
-                            branchStatements[lastIndex] = LocalVariableAssignmentStatement(tempVar, lastStmt.expression)
+                        val value = ExpressionTypes.getWhenBranchValue(context, branch)
+                        if (value != null) {
+                            branchStatements.add(LocalVariableAssignmentStatement(tempVar, value))
                         }
                     }
 
