@@ -53,13 +53,14 @@ on GreenFlag {
     while(true) {
         pen::eraseAll();
         render(mode?: TriangleRenderMode.OFF, triangles);
-        counter::update();
-        looks::say("FPS: ${counter::get()}");
+        //counter::update();
+        //looks::say("FPS: ${counter::get()}");
     }
 }
 
 warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
     a.x1++;
+    auto amountRendered = 0;
 
     forEach(triangles, when(mode) {
         TriangleRenderMode.RENDER -> (Triangle<float>? tri) -> {
@@ -69,9 +70,12 @@ warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
             triangle::fill(
                 rt.x1, rt.y1, rt.x2, rt.y2, rt.x3, rt.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
             );
+            amountRendered += 1;
         };
         else -> &noRender;
     });
+
+    looks::say("Amount rendered ${amountRendered}");
 }
 
 warp str? hello() {

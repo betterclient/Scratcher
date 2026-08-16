@@ -107,7 +107,8 @@ data class StatementExpression(
 
 data class LambdaExpression(
     val parameters: List<LocalVariable>,
-    val block: CodeBlock
+    val block: CodeBlock,
+    val capturedVariables: MutableSet<LocalVariable> = mutableSetOf()
 ) : Expression()
 
 sealed class Literal : Expression()

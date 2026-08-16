@@ -46,10 +46,13 @@ object RefCountGC {
         if (setupDone) return
         setupDone = true
 
-        val reachableStructs = context.asts.flatMap { (_, ast) -> ast.structs } + StandardLibASTGenerator.compilerLib.structs
+        val reachableStructs = context.asts.flatMap { (_, ast) -> ast.structs } +
+                StandardLibASTGenerator.compilerLib.structs +
+                StandardLibASTGenerator.lambdaLib.structs
         reachableStructs.forEach { struct ->
             val refParam = Parameter("compiler@refcount", PrimitiveType.Integer)
             struct.parameters.add(0, refParam)
+
 
             val allocFunc = struct.allocFunc
             val ptrVar = allocFunc.code.localVariables.find { it.name == "compiler@ptr" }

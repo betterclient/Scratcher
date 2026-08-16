@@ -133,6 +133,7 @@ interface BaseExpressionVisitor {
     fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression = DynamicCallExpression(type, function, args)
     fun visitTypeLiteral(type: Type): Expression = TypeLiteral(type)
     fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression = StatementExpression(statements, expression)
+    fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>): Expression = LambdaExpression(arguments, (this as ASTVisitor).visitCodeBlock(block), captured)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -206,6 +207,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
             statementBuffer.removeAt(statementBuffer.lastIndex)
             this.visitStatementExpression(visitedStatements + exprBuffer, visitedExpr)
         }
+        is LambdaExpression -> this.visitLambdaExpression(expression.block, expression.parameters, expression.capturedVariables)
     }
     afterVisit(expression, result)
     return result

@@ -88,7 +88,7 @@ class HeapConversion(
     }
 
     override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
-        val index = indexMap[variable]!!
+        val index = indexMap[variable]?: throw UnreachableException(variable.name)
         return TemporaryHeapGetExpression(
             index = if (index == 0) {
                 ParameterExpression(stackPar)

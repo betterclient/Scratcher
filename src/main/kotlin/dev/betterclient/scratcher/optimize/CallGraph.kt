@@ -124,6 +124,9 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
                 }, out)
                 generate(expr.expression, out)
             }
+            is LambdaExpression -> {
+                generate(expr.block, out)
+            }
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}

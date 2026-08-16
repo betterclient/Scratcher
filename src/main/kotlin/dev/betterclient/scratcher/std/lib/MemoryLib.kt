@@ -122,8 +122,12 @@ object MemoryLib {
             val name = "new${struct.sourceAST.simplePath}::${struct.name}"
             val existingFunc = lib.functions.find { it.name == name }
             if (existingFunc != null) {
-                struct.allocFunc = existingFunc
-                continue
+                if (existingFunc.parameters.size == struct.parameters.size) {
+                    struct.allocFunc = existingFunc
+                    continue
+                } else {
+                    lib.functions.remove(existingFunc)
+                }
             }
 
             struct.allocFunc = if (CompilationConstants.REFCOUNT_GC || !CompilationConstants.INLINE_STRUCT_INIT) {

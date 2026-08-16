@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
+import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
@@ -17,11 +18,14 @@ class CompilationContext {
     fun generateGCNames() {
         if (!CompilationConstants.MARK_AND_SWEEP_GC) return
 
-        asts.values.flatMap { it.structs }.forEach {
-            addGC(StructGCInfo(it.type, it))
-        }
-        StandardLibASTGenerator.compilerLib.structs.forEach {
-            addGC(StructGCInfo(it.type, it))
+        val allStructs = asts.values.flatMap { it.structs } +
+                StandardLibASTGenerator.compilerLib.structs +
+                StandardLibASTGenerator.lambdaLib.structs
+
+        allStructs.distinct().forEach { struct ->
+            if (gcNames.none { it is StructGCInfo && it.struct == struct }) {
+                addGC(StructGCInfo(struct.type, struct))
+            }
         }
     }
 

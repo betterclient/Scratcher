@@ -95,7 +95,12 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         }
     }
 
-    private fun checkCodeBlock(function: Function, code: List<Statement>, isWhenBranch: Boolean = false) {
+    private fun checkCodeBlock(
+        function: Function?,
+        code: List<Statement>,
+        expectedReturnType: Type? = function?.returnType,
+        isWhenBranch: Boolean = false
+    ) {
         for (statement in code) {
             when(statement) {
                 is ExpressionStatement -> {
@@ -106,19 +111,19 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
                 is IfElseStatement -> {
                     checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if statement condition")
-                    checkCodeBlock(function, statement.thenBlock.code, isWhenBranch)
-                    checkCodeBlock(function, statement.elseBlock.code, isWhenBranch)
+                    checkCodeBlock(function, statement.thenBlock.code, expectedReturnType, isWhenBranch)
+                    checkCodeBlock(function, statement.elseBlock.code, expectedReturnType, isWhenBranch)
                 }
                 is IfStatement -> {
                     checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if condition")
-                    checkCodeBlock(function, statement.thenBlock.code, isWhenBranch)
+                    checkCodeBlock(function, statement.thenBlock.code, expectedReturnType, isWhenBranch)
                 }
                 is LocalVariableAssignmentStatement -> {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Local variable assignment type is not correct")
                 }
                 is RepeatStatement -> {
                     checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")
-                    checkCodeBlock(function, statement.block.code, isWhenBranch)
+                    checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
                 }
                 is TLVariableAssignmentStatement -> {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Top level variable assignment type is not correct")
@@ -134,18 +139,21 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
                 is WhileStatement -> {
                     checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition")
-                    checkCodeBlock(function, statement.block.code, isWhenBranch)
+                    checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
                 }
                 is ReturnStatement -> {
+                    val retType = expectedReturnType ?: function?.returnType
                     if (statement.expression == null) {
-                        if (function.returnType != PrimitiveType.Void) {
-                            throw TypeAnalysisException("Must return a value from a non-void function.")
+                        if (retType != null && retType != PrimitiveType.Void) {
+                            throw TypeAnalysisException("Must return a value from a non-void function/lambda.")
                         }
                     } else {
-                        if (function.returnType == PrimitiveType.Void) {
-                            throw TypeAnalysisException("Cannot return a value from a void function.")
+                        if (retType == PrimitiveType.Void) {
+                            throw TypeAnalysisException("Cannot return a value from a void function/lambda.")
                         }
-                        checkType(function.returnType, getActualTypeOrThrow(statement.expression, function), "Return statement type")
+                        if (retType != null) {
+                            checkType(retType, getActualTypeOrThrow(statement.expression, function), "Return statement type")
+                        }
                     }
                 }
                 is TemporaryStatement -> {}
@@ -163,6 +171,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         return when(expr) {
             is WhenExpression -> {
                 figureOutWhenExpressionType(function, expr)
+            }
+            is LambdaExpression -> {
+                figureOutLambdaExpressionType(function, expr)
             }
             is BinaryExpression -> figureOutBinaryExprReturn(expr, function)
             is UnaryExpression -> {
@@ -254,13 +265,14 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 unified
             }
             is StatementExpression -> {
-                val out = getActualTypeOrThrow(expr.expression, function)
+                checkCodeBlock(
+                    function = function,
+                    code = expr.statements,
+                    expectedReturnType = function?.returnType,
+                    isWhenBranch = false
+                )
 
-                function?.let {
-                    checkCodeBlock(it, expr.statements, false)
-                }
-
-                out
+                getActualTypeOrThrow(expr.expression, function)
             }
 
             //these already have their type determined
@@ -389,5 +401,53 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
     private fun isNumeric(type: Type): Boolean {
         return type == PrimitiveType.Integer || type == PrimitiveType.Float
+    }
+
+    private fun figureOutLambdaExpressionType(
+        function: Function?,
+        expr: LambdaExpression
+    ): Type {
+        val returnStatements = collectReturnStatements(expr.block.code)
+        val returnTypes = returnStatements.map { stmt ->
+            if (stmt.expression != null) {
+                getActualTypeOrThrow(stmt.expression, function)
+            } else {
+                PrimitiveType.Void
+            }
+        }
+
+        val returnType = returnTypes.reduceOrNull { left, right ->
+            unifyTypes(left, right) ?: throw TypeAnalysisException("Cannot unify $left and $right, lambda return type unknown")
+        } ?: PrimitiveType.Void
+
+        checkCodeBlock(function, expr.block.code, expectedReturnType = returnType)
+
+        if (returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(expr.block.code)) {
+            throw TypeAnalysisException("Lambda with return type $returnType does not have a guaranteed return")
+        }
+        pruneUnreachableCode(expr.block.code)
+
+        return FunctionType(
+            expr.parameters.map { it.type },
+            returnType
+        )
+    }
+
+    private fun collectReturnStatements(code: List<Statement>): List<ReturnStatement> {
+        val returns = mutableListOf<ReturnStatement>()
+        for (statement in code) {
+            when (statement) {
+                is ReturnStatement -> returns.add(statement)
+                is IfStatement -> returns.addAll(collectReturnStatements(statement.thenBlock.code))
+                is IfElseStatement -> {
+                    returns.addAll(collectReturnStatements(statement.thenBlock.code))
+                    returns.addAll(collectReturnStatements(statement.elseBlock.code))
+                }
+                is WhileStatement -> returns.addAll(collectReturnStatements(statement.block.code))
+                is RepeatStatement -> returns.addAll(collectReturnStatements(statement.block.code))
+                else -> {}
+            }
+        }
+        return returns
     }
 }

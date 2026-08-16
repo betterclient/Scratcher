@@ -111,7 +111,7 @@ class CodeBlock(
 
 class LocalVariable(
     val name: String,
-    val type: Type
+    var type: Type
 )
 
 class Parameter(

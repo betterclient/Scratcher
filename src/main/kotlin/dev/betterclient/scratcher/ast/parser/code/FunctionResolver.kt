@@ -140,7 +140,7 @@ class FunctionResolver(
                         expected = expectedArgListTypes
                     )) {
                     return DynamicCallExpression(
-                        type = it.type,
+                        type = it.type as FunctionType,
                         function = LocalVariableExpression(it),
                         arguments = inflatedArgs((it.type as FunctionType).parameterTypes)
                     )
@@ -155,7 +155,7 @@ class FunctionResolver(
                     return DynamicCallExpression(
                         type = it.type,
                         function = ParameterExpression(it),
-                        arguments = inflatedArgs((it.type as FunctionType).parameterTypes)
+                        arguments = inflatedArgs(it.type.parameterTypes)
                     )
                 }
             }

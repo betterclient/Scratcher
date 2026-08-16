@@ -264,13 +264,13 @@ class RefCountVisitor(
         activeScopes.add(mutableSetOf())
 
         if (isMainBlock) {
-            val paramInits = currentFunction?.parameters?.mapNotNull { param ->
+            val paramInits = currentFunction.parameters.mapNotNull { param ->
                 if (param.type.isRefCounted()) {
                     val paramLocal = LocalVariable(param.name, param.type)
                     VariableStatement(ParameterExpression(param), paramLocal)
                 } else null
             }
-            if (!paramInits.isNullOrEmpty()) {
+            if (paramInits.isNotEmpty()) {
                 block.code.addAll(0, paramInits)
             }
         }
@@ -382,7 +382,9 @@ class RefCountVisitor(
         val nonNull = this.asNonNull()
         if (nonNull is ListType) return true
         if (nonNull is SimpleType) {
-            return (compilationContext.asts.values.flatMap { it.structs } + StandardLibASTGenerator.compilerLib.structs).any { it.type.asNonNull() == nonNull }
+            return (compilationContext.asts.values.flatMap { it.structs } +
+                    StandardLibASTGenerator.compilerLib.structs +
+                    StandardLibASTGenerator.lambdaLib.structs).any { it.type.asNonNull() == nonNull }
         }
         return false
     }

@@ -14,6 +14,7 @@ import dev.betterclient.scratcher.gc.RefCountGC
 import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.sugar.Desugaring
 import dev.betterclient.scratcher.translation.*
 import dev.betterclient.scratcher.translation.heap.ConvertToHeapAccess
 import dev.betterclient.scratcher.translation.heap.ReParseLocalVariables
@@ -38,14 +39,16 @@ fun main() {
     val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
     val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run()
 
-    //TODO: compiler sugar handled here before refcount
+    println("Desugaring")
+    Desugaring.apply(reachableFunctions, context)
+    reachableFunctions.addAll(StandardLibASTGenerator.lambdaLib.functions)
 
     if (CompilationConstants.REFCOUNT_GC) {
         RefCountGC.run(context, reachableFunctions)
     }
 
     println("Optimizations")
-    Optimizations.apply(ast, context)
+    Optimizations.apply(reachableFunctions, context)
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Top level variables")

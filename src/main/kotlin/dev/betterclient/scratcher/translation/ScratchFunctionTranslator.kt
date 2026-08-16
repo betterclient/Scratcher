@@ -132,6 +132,7 @@ class ScratchFunctionTranslator(
             }
 
             is CallExpression,
+            is LambdaExpression,
             is DynamicCallExpression,
             is MemberExpression,
             is TemporaryLocalVariableIndexExpression,

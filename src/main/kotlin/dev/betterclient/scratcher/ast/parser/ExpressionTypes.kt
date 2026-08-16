@@ -3,6 +3,9 @@ package dev.betterclient.scratcher.ast.parser
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.UnreachableException
+import dev.betterclient.scratcher.optimize.ASTVisitor
+import dev.betterclient.scratcher.optimize.VisitMode
+import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ListLib
 
 object ExpressionTypes {
@@ -40,6 +43,7 @@ object ExpressionTypes {
             is FunctionLiteral -> FunctionType.from(expr.function)
             is DynamicCallExpression -> expr.type.returnType
             is StatementExpression -> getExpressionType(context, expr.expression)
+            is LambdaExpression -> parseLambdaType(context, expr)
             is TemporaryExpression -> throw UnreachableException()
         }
     }
@@ -65,7 +69,7 @@ object ExpressionTypes {
                 getExpressionType(context, (it.block.code.last() as ExpressionStatement).expression)
             }
             val unifiedType = branchTypes.reduce { left, right ->
-                unifyTypes(left, right) ?: throw GeneralCompilerException("When branches return different types.")
+                unifyTypes(left, right) ?: throw GeneralCompilerException("When branches return different types, $left and $right")
             }
             unifiedType
         } else {
@@ -137,6 +141,46 @@ object ExpressionTypes {
             is VariableStatement -> subject.variable.type
             is TLVariableAssignmentStatement -> subject.variable.type
             else -> null
+        }
+    }
+
+    private fun parseLambdaType(
+        context: CompilationContext,
+        expr: LambdaExpression
+    ): Type {
+        val returnTypes = mutableListOf<Type>()
+        val block = expr.block
+        visit(block, ParseLambdaTypes(context, returnTypes))
+        val returnType = returnTypes.reduceOrNull { left, right ->
+            unifyTypes(left, right)?: throw GeneralCompilerException("Cannot unify $left and $right, lambda result unknown")
+        }?: PrimitiveType.Void
+
+        return FunctionType(
+            expr.parameters.map { it.type },
+            returnType
+        )
+    }
+
+    private class ParseLambdaTypes(
+        val context: CompilationContext,
+        val returnTypes: MutableList<Type>
+    ) : ASTVisitor() {
+        override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
+        override fun visitReturnStatement(expression: Expression?): Statement? {
+            if (expression != null) {
+                returnTypes.add(getExpressionType(context, expression))
+            } else {
+                returnTypes.add(PrimitiveType.Void)
+            }
+            return super.visitReturnStatement(expression)
+        }
+
+        override fun visitLambdaExpression(
+            block: CodeBlock,
+            arguments: List<LocalVariable>,
+            captured: MutableSet<LocalVariable>
+        ): Expression {
+            return LambdaExpression(arguments, block, captured) //don't visit block
         }
     }
 }

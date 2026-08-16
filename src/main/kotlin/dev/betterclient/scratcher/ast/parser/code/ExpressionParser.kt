@@ -199,13 +199,16 @@ class ExpressionParser(
                     if (block.LBRACE() == null) {
                         code.code.add(ReturnStatement(parseExpression(block.expression())))
                     } else {
-                        val prevLocalVariables = parser.localVariables.map { it }
+                        val prevLocalVariables = parser.localVariables.toList()
                         parser.localVariables.addAll(args)
+                        val startIndex = parser.localVariables.size
+
                         block.statement().map { parser.statementParser.parseStatement(it) }.forEach(code.code::add)
                         val result = parseExpression(block.expression())
                         code.code.add(ReturnStatement(result))
 
-                        code.localVariables.addAll(parser.localVariables)
+                        code.localVariables.addAll(args)
+                        code.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
                         parser.localVariables.clear()
                         parser.localVariables.addAll(prevLocalVariables)
                     }
@@ -357,11 +360,13 @@ class ExpressionParser(
         }
 
         val prevLocalVariables = parser.localVariables.toList()
+        val startIndex = parser.localVariables.size
+
         block.statement().map { parser.statementParser.parseStatement(it) }.forEach(out.code::add)
         val result = parseExpression(block.expression())
         out.code.add(ExpressionStatement(result))
 
-        out.localVariables.addAll(parser.localVariables)
+        out.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
         parser.localVariables.clear()
         parser.localVariables.addAll(prevLocalVariables)
 

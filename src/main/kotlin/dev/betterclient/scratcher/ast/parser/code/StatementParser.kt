@@ -306,16 +306,22 @@ class StatementParser(
     }
 
     fun parseBlock(block: CodeBlock, blockCtx: ScratcherLangParser.BlockContext, injectVariables: List<LocalVariable> = listOf()) {
-        val prevLocalVariables = parser.localVariables.map { it }
+        val prevLocalVariables = parser.localVariables.toList()
         parser.localVariables.addAll(injectVariables)
-        blockCtx.statement().map { parseStatement(it); }.forEach {
+        val startIndex = parser.localVariables.size
+
+        blockCtx.statement().map { parseStatement(it) }.forEach {
             block.code.add(it)
         }
         blockCtx.returnStmt()?.let {
-            block.code.add(ReturnStatement(it.expression()?.let { expr -> StringBoxing.autoConvert(exprParser.parseExpression(expr), parser.currentFunction?.returnType, parser.ctx) }))
+            block.code.add(ReturnStatement(it.expression()?.let { expr ->
+                StringBoxing.autoConvert(exprParser.parseExpression(expr), parser.currentFunction?.returnType, parser.ctx)
+            }))
         }
 
-        block.localVariables.addAll(parser.localVariables)
+        block.localVariables.addAll(injectVariables)
+        block.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
+
         parser.localVariables.clear()
         parser.localVariables.addAll(prevLocalVariables)
     }

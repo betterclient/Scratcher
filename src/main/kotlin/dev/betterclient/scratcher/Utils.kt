@@ -83,4 +83,5 @@ internal val Expression.simple: Boolean
         is DynamicCallExpression -> false
         is CallExpression -> false
         is TemporaryHeapGetExpression -> false
+        is LambdaExpression -> false
     }

@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher.gc
 
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.ListType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
@@ -18,7 +19,7 @@ data class StructGCInfo(val type: Type, val struct: Struct) : GCInfo() {
     override fun toGCList(): String {
         return struct.parameters.map { itt ->
             val type = itt.type
-            if (type.isPrimitive) {
+            if (type.isPrimitive || type is FunctionType) {
                 "p"
             } else if (type is ListType) {
                 "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
@@ -29,7 +30,7 @@ data class StructGCInfo(val type: Type, val struct: Struct) : GCInfo() {
 data class StackGCInfo(val stack: List<Type>, val func: Function) : GCInfo() {
     override fun toGCList(): String {
         return stack.map { type ->
-            if (type.isPrimitive) {
+            if (type.isPrimitive || type is FunctionType) {
                 "p"
             } else if (type is ListType) {
                 "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
@@ -46,7 +47,7 @@ fun findGC(struct: Struct): Int {
 }
 
 fun findGC(type: Type): Int {
-    if (type.isPrimitive) return 0 //list of primitives would be l0
+    if (type.isPrimitive || type is FunctionType) return 0
 
     val nonNullType = type.asNonNull()
     return gcNames.find { it is StructGCInfo && it.type.asNonNull() == nonNullType }?.name ?: -999
