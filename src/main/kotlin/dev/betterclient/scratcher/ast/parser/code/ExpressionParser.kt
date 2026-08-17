@@ -197,7 +197,11 @@ class ExpressionParser(
                 CodeBlock().also { code ->
                     val block = b.exprBlock()
                     if (block.LBRACE() == null) {
+                        val prevLocalVariables = parser.localVariables.toList()
+                        parser.localVariables.addAll(args)
                         code.code.add(ReturnStatement(parseExpression(block.expression())))
+                        parser.localVariables.clear()
+                        parser.localVariables.addAll(prevLocalVariables)
                     } else {
                         val prevLocalVariables = parser.localVariables.toList()
                         parser.localVariables.addAll(args)

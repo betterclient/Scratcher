@@ -337,9 +337,10 @@ class RefCountVisitor(
     }
 
     override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+        val isConstructor = func.sourceAST == StandardLibASTGenerator.memLib && func.name.startsWith("new")
         val processedArgs = args.map { arg ->
             val type = arg.getType()
-            if (type.isRefCounted() && arg.isReturningPlusOne() && arg !is LocalVariableExpression) {
+            if (type.isRefCounted() && arg.isReturningPlusOne() && arg !is LocalVariableExpression && !isConstructor) {
                 val temp = LocalVariable("compiler@gc_arg_${getUniqueName()}", type)
                 addStatements(listOf(VariableStatement(arg, temp)))
                 if (isInWhileCondition && whileCondTempsStack.isNotEmpty()) {
@@ -348,6 +349,14 @@ class RefCountVisitor(
                     activeScopes.lastOrNull()?.add(temp)
                 }
                 LocalVariableExpression(temp)
+            } else if (isConstructor && type.isRefCounted() && !arg.isReturningPlusOne() && arg !is LocalVariableExpression) {
+                val temp = LocalVariable("compiler@gc_ctor_arg_${getUniqueName()}", type)
+                addStatements(listOf(VariableStatement(arg, temp)))
+                addStatements(listOf(LocalVariableExpression(temp).asIncCall))
+                LocalVariableExpression(temp)
+            } else if (isConstructor && type.isRefCounted() && !arg.isReturningPlusOne() && arg is LocalVariableExpression) {
+                addStatements(listOf(arg.asIncCall))
+                arg
             } else {
                 arg
             }

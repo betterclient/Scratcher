@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.sugar.`when`
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.IfElseStatement
 import dev.betterclient.scratcher.ast.IfStatement
@@ -47,6 +48,10 @@ object WhenDesugaring : CompilerSugar() {
                     if (tempVar != null && branchStatements.isNotEmpty()) {
                         val value = ExpressionTypes.getWhenBranchValue(context, branch)
                         if (value != null) {
+                            val last = branchStatements.lastOrNull()
+                            if (last is ExpressionStatement && last.expression === value) {
+                                branchStatements.removeAt(branchStatements.lastIndex)
+                            }
                             branchStatements.add(LocalVariableAssignmentStatement(tempVar, value))
                         }
                     }
