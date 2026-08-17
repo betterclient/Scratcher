@@ -1,27 +1,37 @@
-package dev.betterclient.scratcher.optimize.impl.control
+package dev.betterclient.scratcher.sugar.`when`
 
-import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.CodeBlock
+import dev.betterclient.scratcher.ast.CompositeStatement
+import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.IfElseStatement
+import dev.betterclient.scratcher.ast.IfStatement
+import dev.betterclient.scratcher.ast.LocalVariable
+import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.LocalVariableExpression
+import dev.betterclient.scratcher.ast.NullExpression
+import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.StatementExpression
+import dev.betterclient.scratcher.ast.VariableStatement
+import dev.betterclient.scratcher.ast.WhenBranch
+import dev.betterclient.scratcher.ast.WhenExpression
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.sugar.CompilerSugar
 
-object WhenToStatementExpression : Optimization("When to Statement expression") {
+object WhenDesugaring : CompilerSugar() {
     override fun apply(
         func: Function,
         graph: TCallGraph,
         context: CompilationContext
-    ): Boolean {
-        var modified = false
-
+    ) {
         visit(func, object : ASTVisitor() {
             override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
-                modified = true
-
                 val prepend = mutableListOf<Statement>()
 
                 val tempWhenExpr = WhenExpression(subject, branches)
@@ -66,8 +76,6 @@ object WhenToStatementExpression : Optimization("When to Statement expression") 
                 )
             }
         })
-
-        return modified
     }
 
     private fun buildIfChain(branches: List<WhenBranch>): Statement? {

@@ -5,10 +5,12 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.generateCallGraph
 import dev.betterclient.scratcher.sugar.lambda.LambdaDesugaring
+import dev.betterclient.scratcher.sugar.`when`.WhenDesugaring
 
 object Desugaring {
-    private val sugar = listOf<CompilerSugar>(
-        LambdaDesugaring
+    private val sugar = listOf(
+        LambdaDesugaring,
+        WhenDesugaring
     )
 
     fun apply(functions: MutableList<Function>, context: CompilationContext) {
