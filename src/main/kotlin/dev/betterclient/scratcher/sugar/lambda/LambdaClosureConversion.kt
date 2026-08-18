@@ -40,6 +40,7 @@ class LambdaClosureConversion(
 
     val boxTypes = mutableMapOf<Type, Struct>()
     val variableBoxes = mutableMapOf<LocalVariable, Struct>()
+    val variableOriginalTypes = mutableMapOf<LocalVariable, Type>()
     var index = 0
 
     var activeCapture: Struct? = null
@@ -62,7 +63,7 @@ class LambdaClosureConversion(
         }
         visit(func, captureCollector)
 
-        allCapturedLocals.forEach { createBox(it.type) }
+        allCapturedLocals.forEach { boxFor(it) }
         MemoryLib.initMem(StandardLibASTGenerator.memLib, StandardLibASTGenerator.lambdaLib)
 
         visit(func, this)
@@ -89,9 +90,9 @@ class LambdaClosureConversion(
         val oldMappings = captureMappings.toMap()
 
         myCapture.parameters.addAll(captured.mapIndexed { index, variable ->
-            val type = createBox(variable.type)
+            val box = boxFor(variable)
 
-            Parameter("capture$index@${variable.name}", type.type).also {
+            Parameter("capture$index@${variable.name}", box.type).also {
                 captureMappings[variable] = it
             }
         })
@@ -134,9 +135,16 @@ class LambdaClosureConversion(
         }
     }
 
+    private fun boxFor(variable: LocalVariable): Struct {
+        variableBoxes[variable]?.let { return it }
+        val original = variableOriginalTypes[variable] ?: variable.type
+        return variableBoxes.computeIfAbsent(variable) { createBox(original) }
+    }
+
     override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
         if (allCapturedLocals.contains(variable)) {
-            val boxStruct = variableBoxes.computeIfAbsent(variable) { createBox(it.type) }
+            variableOriginalTypes[variable] = variable.type
+            val boxStruct = boxFor(variable)
             val visitedDefault = defaultValue?.let { visit(it) } ?: NullExpression
             val allocBoxCall = CallExpression(boxStruct.allocFunc, listOf(visitedDefault))
             variable.type = boxStruct.type
@@ -152,12 +160,12 @@ class LambdaClosureConversion(
                 val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
                 val captureExpr = MemberExpression(captureParamExpr, lambdaCapturesStruct.parameters.find { it.type.asNonNull() == activeCapture!!.type }!!, lambdaCapturesStruct)
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
-                val boxStruct = variableBoxes[variable] ?: createBox(variable.type)
+                val boxStruct = boxFor(variable)
                 return MemberExpression(boxExpr, boxStruct.parameters.first(), boxStruct)
             }
         }
         if (allCapturedLocals.contains(variable)) {
-            val boxStruct = variableBoxes[variable] ?: createBox(variable.type)
+            val boxStruct = boxFor(variable)
             return MemberExpression(
                 expression = LocalVariableExpression(variable),
                 member = boxStruct.parameters.first(),
@@ -174,7 +182,7 @@ class LambdaClosureConversion(
                 val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
                 val captureExpr = MemberExpression(captureParamExpr, lambdaCapturesStruct.parameters.find { it.type.asNonNull() == activeCapture!!.type }!!, lambdaCapturesStruct)
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
-                val boxStruct = variableBoxes[variable] ?: boxTypes[variable.type] ?: createBox(variable.type)
+                val boxStruct = boxFor(variable)
                 return VariableAssignmentStatement(
                     target = boxExpr,
                     struct = boxStruct,
@@ -184,7 +192,7 @@ class LambdaClosureConversion(
             }
         }
         if (allCapturedLocals.contains(variable)) {
-            val boxStruct = variableBoxes[variable] ?: boxTypes[variable.type] ?: createBox(variable.type)
+            val boxStruct = boxFor(variable)
             return VariableAssignmentStatement(
                 target = LocalVariableExpression(variable),
                 struct = boxStruct,

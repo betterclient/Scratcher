@@ -151,6 +151,12 @@ object MemoryLib {
 
                     func.code.code.add(VariableStatement(null, ptrVar))
                     func.code.code.add(TemporaryCallStatement(alloc, allocArgs))
+                    if (CompilationConstants.REFCOUNT_GC) {
+                        func.code.code.add(TemporaryHeapSetStatement(
+                            index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar)),
+                            data = IntLiteral(java.math.BigInteger.ONE)
+                        ))
+                    }
 
                     struct.parameters.forEach { param ->
                         val argExpr = ParameterExpression(func.parameters.find { it.name == param.name }!!)

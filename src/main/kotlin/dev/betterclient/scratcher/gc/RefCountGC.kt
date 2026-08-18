@@ -52,18 +52,6 @@ object RefCountGC {
         reachableStructs.forEach { struct ->
             val refParam = Parameter("compiler@refcount", PrimitiveType.Integer)
             struct.parameters.add(0, refParam)
-
-
-            val allocFunc = struct.allocFunc
-            val ptrVar = allocFunc.code.localVariables.find { it.name == "compiler@ptr" }
-            if (ptrVar != null) {
-                allocFunc.code.code.add(2, VariableAssignmentStatement(
-                    target = LocalVariableExpression(ptrVar),
-                    variable = refParam,
-                    struct = struct,
-                    assignment = IntLiteral(BigInteger.ONE)
-                ))
-            }
         }
 
         lib = StandardLibASTGenerator.refCountGC
