@@ -1,34 +1,18 @@
-package dev.betterclient.scratcher.optimize.impl.dynamic
+package dev.betterclient.scratcher.sugar.dispatch
 
-import dev.betterclient.scratcher.ast.BinaryExpression
-import dev.betterclient.scratcher.ast.BinaryOperator
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.ExpressionStatement
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.FunctionType
-import dev.betterclient.scratcher.ast.GeneralCompilerException
-import dev.betterclient.scratcher.ast.IfElseStatement
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.ParameterExpression
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.ReturnStatement
-import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.sugar.CompilerSugar
 import java.math.BigInteger
 
-object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
-    var modified = false
-    override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
-        modified = false
+object DynamicDispatchHandler : CompilerSugar() {
+    override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {
         val literalTypes = mutableMapOf<FunctionType, MutableSet<Function>>()
         graph.keys.forEach { countLiterals(it, literalTypes) }
         val dispatchers = literalTypes.keys.zip(
@@ -40,8 +24,6 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
         graph.keys.forEach {
             rewriteToUseDispatcher(it, dispatchers)
         }
-
-        return modified
     }
 
     private fun rewriteToUseDispatcher(func: Function, dispatchers: Map<FunctionType, DispatcherConfig>) {
@@ -55,7 +37,6 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
                     literalType.isAssignable(type)
                 }?.value ?: throw GeneralCompilerException("No compatible dynamic dispatch target found for signature: $type")
 
-                modified = true
                 return CallExpression(
                     func = dispatcher.dispatcher,
                     arguments = listOf(function) + args
@@ -63,7 +44,6 @@ object DynamicDispatchHandler : Optimization("Dynamic dispatch rewriting") {
             }
 
             override fun visitFunctionLiteral(func: Function): Expression {
-                modified = true
                 return IntLiteral(dispatchers[FunctionType.from(func)]!!.targets.indexOf(func).toBigInteger())
             }
         })

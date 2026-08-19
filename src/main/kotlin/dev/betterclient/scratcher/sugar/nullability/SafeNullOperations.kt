@@ -1,28 +1,42 @@
-package dev.betterclient.scratcher.optimize.impl.control
+package dev.betterclient.scratcher.sugar.nullability
 
-import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.BinaryExpression
+import dev.betterclient.scratcher.ast.BinaryOperator
+import dev.betterclient.scratcher.ast.CodeBlock
+import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.GeneralCompilerException
+import dev.betterclient.scratcher.ast.IfStatement
+import dev.betterclient.scratcher.ast.LocalVariable
+import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
+import dev.betterclient.scratcher.ast.LocalVariableExpression
+import dev.betterclient.scratcher.ast.MemberExpression
+import dev.betterclient.scratcher.ast.NullExpression
+import dev.betterclient.scratcher.ast.NullableType
+import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.StatementExpression
+import dev.betterclient.scratcher.ast.Struct
+import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.code.StringBoxing
+import dev.betterclient.scratcher.ast.unifyTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.sugar.CompilerSugar
 
-//this is not an optimization, this just rewrites safe null operations
-object SafeNullOperations : Optimization("Safe null operations") {
+object SafeNullOperations : CompilerSugar() {
     override fun apply(
         func: Function,
         graph: TCallGraph,
         context: CompilationContext
-    ): Boolean {
-        var modified = false
+    ) {
         visit(func, object : ASTVisitor() {
             override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
-                modified = true
-
                 val variable = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
                 if (ExpressionTypes.getExpressionType(context, target) !is NullableType)
                     return MemberExpression(target, member, struct)
@@ -38,18 +52,20 @@ object SafeNullOperations : Optimization("Safe null operations") {
                             ),
                             thenBlock = CodeBlock().also {
                                 //target != null
-                                it.code.add(LocalVariableAssignmentStatement(
-                                    variable = variable,
-                                    assignment = StringBoxing.autoConvert(
-                                        expr = MemberExpression(
-                                            expression = LocalVariableExpression(variable),
-                                            member = member,
-                                            struct = struct
-                                        ),
-                                        expectedType = member.type.asNullable(),
-                                        context = context
+                                it.code.add(
+                                    LocalVariableAssignmentStatement(
+                                        variable = variable,
+                                        assignment = StringBoxing.autoConvert(
+                                            expr = MemberExpression(
+                                                expression = LocalVariableExpression(variable),
+                                                member = member,
+                                                struct = struct
+                                            ),
+                                            expectedType = member.type.asNullable(),
+                                            context = context
+                                        )
                                     )
-                                ))
+                                )
                             }
                         )
                     ),
@@ -58,13 +74,12 @@ object SafeNullOperations : Optimization("Safe null operations") {
             }
 
             override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
-                modified = true
-
-                if (operand1 == NullExpression) return operand2
-                if (operand2 == NullExpression) return operand1
+                if (operand1 == NullExpression) return visit(operand2)
+                val op2Visited = visit(operand2)
+                if (op2Visited == NullExpression) return operand1
 
                 val op1Type = ExpressionTypes.getExpressionType(context, operand1)
-                val op2Type = ExpressionTypes.getExpressionType(context, operand2)
+                val op2Type = ExpressionTypes.getExpressionType(context, op2Visited)
                 val isLeftNullable = op1Type is NullableType || op1Type == PrimitiveType.Null
                 if (!isLeftNullable) {
                     return operand1
@@ -89,10 +104,12 @@ object SafeNullOperations : Optimization("Safe null operations") {
                             ),
                             thenBlock = CodeBlock().also {
                                 //operand1 == null
-                                it.code.add(LocalVariableAssignmentStatement(
-                                    variable = lhs,
-                                    assignment = StringBoxing.autoConvert(operand2, targetType, context)
-                                ))
+                                it.code.add(
+                                    LocalVariableAssignmentStatement(
+                                        variable = lhs,
+                                        assignment = StringBoxing.autoConvert(op2Visited, targetType, context)
+                                    )
+                                )
                             }
                         )
                     ),
@@ -100,7 +117,5 @@ object SafeNullOperations : Optimization("Safe null operations") {
                 )
             }
         })
-
-        return modified
     }
 }

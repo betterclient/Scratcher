@@ -5,13 +5,10 @@ import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.impl.*
-import dev.betterclient.scratcher.optimize.impl.dynamic.DynamicDispatchHandler
 import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
 import dev.betterclient.scratcher.optimize.impl.control.RepeatToWhile
-import dev.betterclient.scratcher.optimize.impl.control.SafeNullOperations
-import dev.betterclient.scratcher.optimize.impl.dynamic.DirectReferenceCallInlining
 import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyBooleanEquality
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyDoubleNegation
@@ -23,13 +20,7 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
-    private val requiredOptimizations = listOf(
-        DynamicDispatchHandler,
-        SafeNullOperations
-    )
-
     private val optimizations = listOf(
-        SafeNullOperations,
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
@@ -39,9 +30,7 @@ object Optimizations {
         SequentialConstantPropagation,
         DeadStoreElimination,
         FunctionInlining,
-        TailCallOptimization,
-        DirectReferenceCallInlining,
-        DynamicDispatchHandler
+        TailCallOptimization
     )
 
     val applyLast = listOf<Optimization>(
@@ -49,6 +38,8 @@ object Optimizations {
     )
 
     fun apply(functions: MutableList<Function>, context: CompilationContext, print: Boolean = true) {
+        if (CompilationConstants.DISABLE_OPTIMIZATIONS) return
+
         var changed: Boolean
         var iterations = 0
         val maxIterations = 20
@@ -95,7 +86,7 @@ object Optimizations {
     private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {
         if (StandardLibASTGenerator.isStandardLib(func)) return false
         var funcModified = false
-        val opts = if (CompilationConstants.DISABLE_OPTIMIZATIONS) requiredOptimizations else optimizations
+        val opts = optimizations
         opts.forEach { optimization ->
             if (optimization.shouldApply(func, graph)) {
                 val applied = optimization.apply(func, graph, context)
