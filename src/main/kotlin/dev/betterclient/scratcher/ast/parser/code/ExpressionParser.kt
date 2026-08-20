@@ -33,6 +33,14 @@ class ExpressionParser(
             )
             is ScratcherLangParser.LiteralExprContext -> literalParser.parseLiteral(ctx.literal())
             is ScratcherLangParser.IdExprContext -> parseIdentifier(ctx.text)
+            is ScratcherLangParser.ThisExprContext -> {
+                if (parser.currentFunction?.parameters?.any { it.name == "this" } == true) {
+                    return ParameterExpression(
+                        parser.currentFunction?.parameters?.find { it.name == "this" }!!
+                    )
+                }
+                throw NotFoundException("Not a receiver function!")
+            }
             is ScratcherLangParser.MultExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = when {
@@ -139,26 +147,7 @@ class ExpressionParser(
                 )
             }
             is ScratcherLangParser.DynamicCallExprContext -> {
-                when (val innerExpr = ctx.expression()) {
-                    is ScratcherLangParser.IdExprContext -> {
-                        parser.functionResolver.figureOutFunctionInternal(null, innerExpr.text, innerExpr.text, ctx.argList(), expectedType)
-                    }
-                    is ScratcherLangParser.ScopeExprContext -> {
-                        val importName = innerExpr.IDENTIFIER(0)!!.text
-                        val funcName = innerExpr.IDENTIFIER(1)!!.text
-                        parser.functionResolver.figureOutFunctionInternal(importName, funcName, innerExpr.text, ctx.argList(), expectedType)
-                    }
-                    else -> {
-                        val func = parseExpression(innerExpr)
-                        DynamicCallExpression(
-                            function = func,
-                            type = ExpressionTypes.getExpressionType(parser.ctx, func) as? FunctionType ?: throw GeneralCompilerException(
-                                "Dynamic call without a function?"
-                            ),
-                            arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
-                        )
-                    }
-                }
+                parseDynamicCall(ctx, expectedType)
             }
             is ScratcherLangParser.LambdaExprContext -> {
                 parseLambda(ctx)
@@ -169,12 +158,160 @@ class ExpressionParser(
         return StringBoxing.autoConvert(expr, expectedType, parser.ctx)
     }
 
+    private fun parseDynamicCall(
+        ctx: ScratcherLangParser.DynamicCallExprContext,
+        expectedType: Type?
+    ): Expression = when (val innerExpr = ctx.expression()) {
+        is ScratcherLangParser.IdExprContext -> {
+            parser.functionResolver.figureOutFunctionInternal(
+                null,
+                innerExpr.text,
+                innerExpr.text,
+                ctx.argList(),
+                expectedType
+            )
+        }
+
+        is ScratcherLangParser.ScopeExprContext -> {
+            val importName = innerExpr.IDENTIFIER(0)!!.text
+            val funcName = innerExpr.IDENTIFIER(1)!!.text
+            parser.functionResolver.figureOutFunctionInternal(
+                importName,
+                funcName,
+                ctx.text,
+                ctx.argList(),
+                expectedType
+            )
+        }
+
+        is ScratcherLangParser.MemberExprContext -> {
+            val receiverExpr = parseExpression(innerExpr.expression())
+            val methodName = innerExpr.IDENTIFIER().text
+            val userArgs = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
+
+            val callExpr = parser.functionResolver.resolveReceiverFunction(
+                receiverExpr = receiverExpr,
+                methodName = methodName,
+                arguments = userArgs
+            )
+
+            try {
+                val memberExpr = parseMemberExpr(innerExpr)
+                val funcType = ExpressionTypes.getExpressionType(parser.ctx, memberExpr) as? FunctionType
+
+                if (funcType != null && callExpr != null) {
+                    throw NotFoundException("Ambiguous reference, found extension function ${callExpr.func} and $funcType from struct parameters")
+                }
+            } catch (_: Exception) { } //will throw if its primitive!!
+
+            callExpr ?: run {
+                val memberExpr = parseMemberExpr(innerExpr)
+                val funcType = ExpressionTypes.getExpressionType(parser.ctx, memberExpr) as? FunctionType
+
+                DynamicCallExpression(
+                    function = memberExpr,
+                    type = funcType!!,
+                    arguments = userArgs
+                )
+            }
+        }
+
+        is ScratcherLangParser.SafeDotExprContext -> {
+            parseSafeDotDynamicCall(innerExpr, expectedType, ctx)
+        }
+
+        else -> {
+            val func = parseExpression(innerExpr)
+            DynamicCallExpression(
+                function = func,
+                type = ExpressionTypes.getExpressionType(parser.ctx, func) as? FunctionType
+                    ?: throw GeneralCompilerException(
+                        "Dynamic call without a function?"
+                    ),
+                arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+            )
+        }
+    }
+
+    private fun parseSafeDotDynamicCall(
+        innerExpr: ScratcherLangParser.SafeDotExprContext,
+        expectedType: Type?,
+        ctx: ScratcherLangParser.DynamicCallExprContext
+    ): Expression {
+        val original = runCatching { parseExpression(innerExpr, expectedType) }
+        if (original.isSuccess) {
+            val fnExpr = original.getOrNull()!!
+            val fnType = ExpressionTypes.getExpressionType(parser.ctx, fnExpr) as? FunctionType
+            if (fnType != null) {
+                return DynamicCallExpression(
+                    function = fnExpr,
+                    type = fnType,
+                    arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+                )
+            }
+        }
+
+        val receiver = parseExpression(innerExpr.expression(), null)
+        val userArgs = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+
+        val resolved = this.parser.functionResolver.resolveReceiverFunction(
+            NonNullAssertExpression(receiver),
+            innerExpr.IDENTIFIER().text,
+            userArgs
+        ) ?: throw (original.exceptionOrNull() ?: NotFoundException("Receiver function ${innerExpr.IDENTIFIER().text} not found"))
+
+        val receiverVar = LocalVariable(
+            "safeDotCall@receiver@${getUniqueName()}",
+            ExpressionTypes.getExpressionType(parser.ctx, receiver)
+        )
+        val actualResolved = resolved.copy(
+            arguments = resolved.arguments.mapIndexed { index, expression ->
+                if (index == 0) NonNullAssertExpression(LocalVariableExpression(receiverVar))
+                else expression
+            }
+        )
+
+        if (actualResolved.func.returnType == PrimitiveType.Void) {
+            return StatementExpression(
+                statements = listOf(
+                    VariableStatement(receiver, receiverVar),
+                    IfStatement(
+                        condition = neq(LocalVariableExpression(receiverVar), NullExpression),
+                        thenBlock = CodeBlock().also {
+                            it.code.add(ExpressionStatement(actualResolved))
+                        }
+                    )
+                ),
+                expression = NullExpression
+            )
+        }
+
+        val outType = resolved.func.returnType.asNullable()
+        val out = LocalVariable("safeDotCall@out@${getUniqueName()}", outType)
+        return StatementExpression(
+            statements = listOf(
+                VariableStatement(NullExpression, out),
+                VariableStatement(receiver, receiverVar),
+                IfStatement(
+                    condition = neq(LocalVariableExpression(receiverVar), NullExpression),
+                    thenBlock = CodeBlock().also {
+                        it.code.add(LocalVariableAssignmentStatement(
+                            out,
+                            StringBoxing.autoConvert(actualResolved, outType, parser.ctx)
+                        ))
+                    }
+                )
+            ),
+            expression = LocalVariableExpression(out)
+        )
+    }
+
     private fun parseLambda(ctx: ScratcherLangParser.LambdaExprContext): LambdaExpression {
         val args0 = ctx.lambdaDecl()
         val args = if (args0.LPAREN() != null) {
             //arg list
             args0.IDENTIFIER().map { it.text }.zip(
-                args0.type().map { figureOutType(this.parser.ctx, this.ast, it) }
+                args0.type().map { figureOutType(this.parser.ctx, this.ast, it, localTypeBindings = parser.currentTypeBindings) }
             ).map {
                 LocalVariable(it.first, it.second)
             }
@@ -182,7 +319,7 @@ class ExpressionParser(
             listOf(
                 LocalVariable(
                     args0.IDENTIFIER(0)!!.text,
-                    figureOutType(this.parser.ctx, this.ast, args0.type(0)!!)
+                    figureOutType(this.parser.ctx, this.ast, args0.type(0)!!, localTypeBindings = parser.currentTypeBindings)
                 )
             )
         }
@@ -292,35 +429,28 @@ class ExpressionParser(
         if (boxExpr.simple) return use(boxExpr)
 
         val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, boxExpr))
-        return wrapInWhen(VariableStatement(boxExpr, temp), use(LocalVariableExpression(temp)))
+        return StatementExpression(listOf(VariableStatement(boxExpr, temp)), use(LocalVariableExpression(temp)))
     }
 
     private fun bindBoxTwice(left: Expression, right: Expression, use: (Expression, Expression) -> Expression): Expression {
-        val (leftSubject, leftRef) = if (left.simple) null to left else bindBox(left)
-        val (rightSubject, rightRef) = if (right.simple) null to right else bindBox(right)
+        val stmts = mutableListOf<Statement>()
+        val leftRef = if (left.simple) {
+            left
+        } else {
+            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, left))
+            stmts.add(VariableStatement(left, temp))
+            LocalVariableExpression(temp)
+        }
+        val rightRef = if (right.simple) {
+            right
+        } else {
+            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, right))
+            stmts.add(VariableStatement(right, temp))
+            LocalVariableExpression(temp)
+        }
         val body = use(leftRef, rightRef)
 
-        return listOfNotNull(rightSubject, leftSubject).fold(body) { acc, subject ->
-            wrapInWhen(subject, acc)
-        }
-    }
-
-    private fun bindBox(expr: Expression): Pair<VariableStatement, Expression> {
-        val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, expr))
-        return VariableStatement(expr, temp) to LocalVariableExpression(temp)
-    }
-
-    private fun wrapInWhen(subject: Statement, value: Expression): WhenExpression {
-        return WhenExpression(
-            subject = subject,
-            branches = listOf(WhenBranch(
-                cond = BooleanLiteral(true),
-                block = CodeBlock().also {
-                    it.code.add(ExpressionStatement(value))
-                },
-                isElse = true
-            ))
-        )
+        return if (stmts.isEmpty()) body else StatementExpression(stmts, body)
     }
 
     private fun unboxStringBox(expr: Expression, stringBoxStruct: Struct): Expression {

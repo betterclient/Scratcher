@@ -40,7 +40,7 @@ varDecl
     ;
 
 funcDecl
-    : modifier* typeParameters? type IDENTIFIER LPAREN paramList? RPAREN block
+    : modifier* typeParameters? type (type DOT)? IDENTIFIER LPAREN paramList? RPAREN block
     ;
 
 typeParameters
@@ -153,7 +153,8 @@ expression
     | whenExpression                                    # whenExpr
     | ifExpression                                      # ifExpr
     | AMPERSAND functionIdentifier                      # funcRefExpr
-    | lambdaDecl ARROW lambdaBlock                   # lambdaExpr
+    | lambdaDecl ARROW lambdaBlock                      # lambdaExpr
+    | THIS                                              # thisExpr
     ;
 
 lambdaDecl
@@ -188,6 +189,7 @@ primitiveType
     | STR_TYPE
     | VOID_TYPE
     | BOOL_TYPE
+    | CHAR_TYPE
     ;
 
 literal
@@ -196,6 +198,7 @@ literal
     | stringLiteral
     | TRUE
     | FALSE
+    | TICK IDENTIFIER TICK
     ;
 
 stringLiteral

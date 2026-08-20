@@ -27,7 +27,7 @@ class FunctionResolver(
     ): Expression {
         val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.typePath()!!.IDENTIFIER(0)!!.text
         val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.typePath()!!.IDENTIFIER(1)!!.text
-        return figureOutFunctionInternal(importName, funcName, funcCall.text, argList, expectedType)
+        return figureOutFunctionInternal(importName, funcName, funcCall.getParent()?.text?: funcCall.position!!.toString(), argList, expectedType)
     }
 
     fun figureOutFunctionInternal(
@@ -182,6 +182,16 @@ class FunctionResolver(
             candidates.add("Struct \"${struct.name}\"")
         }
 
+        if(parser.currentFunction?.isReceiver == true && importName == null) {
+            //might be trying to call this.xxx() without the this.
+            val a = resolveReceiverFunction(
+                receiverExpr = ParameterExpression(parser.currentFunction?.parameters?.find { it.name == "this" }!!),
+                methodName = funcName,
+                arguments = args
+            )
+            if (a != null) return a
+        }
+
         throw NotFoundException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
     }
 
@@ -240,5 +250,43 @@ class FunctionResolver(
         return provided.zip(expected).all { (from, to) ->
             from.isAssignable(to)
         }
+    }
+
+    fun resolveReceiverFunction(
+        receiverExpr: Expression,
+        methodName: String,
+        arguments: List<Expression>
+    ): CallExpression? {
+        val allArgs = listOf(receiverExpr) + arguments
+        val receiverType = ExpressionTypes.getExpressionType(parser.ctx, receiverExpr)
+        val argTypes = listOf(receiverType) + arguments.map { ExpressionTypes.getExpressionType(parser.ctx, it) }
+
+        val inflatedArgs = { paramTypes: List<Type> ->
+            allArgs.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i), parser.ctx) }
+        }
+
+        val searchASTs = listOf(ast) + ast.imports.values
+
+        for (sourceAST in searchASTs) {
+            Generics.tryResolve(parser.ctx, sourceAST, methodName, argTypes, allArgs, parser)?.let {
+                return it
+            }
+
+            val resolvedFunc = sourceAST.functions.find { func ->
+                if (!func.isReceiver) return@find false
+                if (func.name != methodName) return@find false
+                if (func.parameters.size != argTypes.size) return@find false
+                matchesArguments(argTypes, func.parameters.map { it.type })
+            }
+
+            if (resolvedFunc != null) {
+                return CallExpression(
+                    func = resolvedFunc,
+                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type })
+                )
+            }
+        }
+
+        return null
     }
 }

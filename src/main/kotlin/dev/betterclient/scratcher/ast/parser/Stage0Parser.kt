@@ -36,7 +36,8 @@ class CompilationContext {
         PrimitiveType.Integer,
         PrimitiveType.Float,
         PrimitiveType.Bool,
-        PrimitiveType.Void,
+        PrimitiveType.Char,
+        PrimitiveType.Void
     )
 }
 
@@ -152,15 +153,25 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             if (context.funcDecl() != null) {
                 val func = context.funcDecl()!!
                 val typeParams = func.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
+                val hasReceiver = func.type().size > 1
+                val returnTypeCtx = func.type(0)!!
+                val receiverTypeCtx = if (hasReceiver) func.type(1) else null
+
+                val returnType = figureOutType(ctx, ast, returnTypeCtx, typeParams)
+                val receiverType = receiverTypeCtx?.let { figureOutType(ctx, ast, it, typeParams) }
+
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
                     val type = figureOutType(ctx, ast, it.type(), typeParams)
                     if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
                     Parameter(it.IDENTIFIER().text, type)
                 }.toMutableList()
 
+                if (receiverType != null) {
+                    parameterList.add(0, Parameter("this", receiverType))
+                }
+
                 checkDuplicates(parameterList, "function ${ast.simplePath}::${func.IDENTIFIER().text}")
 
-                val returnType = figureOutType(ctx, ast, func.type(), typeParams)
                 val funcName = func.IDENTIFIER().text
 
                 val duplicate = ast.functions.find { existing ->
@@ -202,6 +213,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     export = isExport,
                     sourceAST = ast,
                     typeParameters = typeParams,
+                    isReceiver = receiverType != null
                 )
                 funcAST.ctx = func.block()
 

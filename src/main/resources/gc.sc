@@ -1,7 +1,6 @@
 import gc_internal as self;
-import list;
 import utils;
-import string;
+import extensions;
 import cast;
 
 int gc_LastCollected = 0;
@@ -85,12 +84,12 @@ warp void markType(int addr, str type) {
 
     self::addMarked(addr);
 
-    return if(string::contains(type, "n"));
+    return if(type.contains("n"));
     return if(type == "p");
 
     return if(cast::toStr(self::getHeap(addr)) == "null");
 
-    if(string::contains(type, "l")) {
+    if(type.contains("l")) {
         markList(self::getHeap(addr), type);
     } else {
         markStruct(self::getHeap(addr), type);
@@ -112,9 +111,8 @@ warp void markList(int addr, str type) {
     //^^^ remove first letter
     int index = 2;
     str out = "";
-    repeat(string::length(type) - 1) {
-        str char = string::charAt(type, index);
-        out = string::concat(out, char);
+    repeat(type.length() - 1) {
+        out = out.concat(type.charAt(index));
         index++;
     }
 
@@ -127,7 +125,7 @@ warp void markList(int addr, str type) {
     index = 0;
     repeat(capacity) {
         //now recurse!!
-        if(out != "p" && out != "0" && string::length(out) > 0) {
+        if(out != "p" && out != "0" && out.length() > 0) {
             markType(data + index, out);
         } else {
             self::addMarked(data + index);
@@ -180,7 +178,7 @@ warp void markTopLevels() {
         str obj = self::getReflect(index);
         if(index % 2 == 0) {
             int addr = self::reflect(obj);
-            if(string::contains(currentType, "l")) {
+            if(currentType.contains("l")) {
                 markList(addr, currentType);
             } else {
                 markStruct(addr, currentType);

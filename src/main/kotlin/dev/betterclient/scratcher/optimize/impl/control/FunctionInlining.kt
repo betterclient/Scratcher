@@ -35,7 +35,7 @@ object FunctionInlining : Optimization("Function inlining") {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
-        val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", PrimitiveType.Integer) }
+        val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", it.type) }
         args.forEachIndexed { index, arg ->
             prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
         }

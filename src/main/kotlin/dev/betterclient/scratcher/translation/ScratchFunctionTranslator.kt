@@ -126,6 +126,7 @@ class ScratchFunctionTranslator(
             is FloatLiteral -> expr.value.toString().scratch
             is IntLiteral -> expr.value.toString().scratch
             is StringLiteral -> expr.value.scratch
+            is CharLiteral -> expr.value.toString().scratch
             is TemporaryScratchExpr -> {
                 val args = expr.inputExprs.map { translateExpr(it) }
                 expr.expression(args)

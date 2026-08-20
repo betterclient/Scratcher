@@ -124,7 +124,8 @@ object Generics {
                 export = template.export,
                 warp = template.warp,
                 sourceAST = sourceAST,
-                typeBindings = bindings
+                typeBindings = bindings,
+                isReceiver = template.isReceiver
             ).also {
                 sourceAST.functions.add(it)
                 compileTemplate(parser, it, template, bindings)
@@ -135,21 +136,13 @@ object Generics {
     }
 
     fun compileTemplate(parser: Stage1Parser, resolvedFunc: Function, template: Function, bindings: Map<String, Type>) {
-        val oldFunction = parser.currentFunction
-        val oldBindings = parser.currentTypeBindings
-        val oldLocals = parser.localVariables.toList()
+        val newParser = Stage1Parser(parser.ctx, template.sourceAST)
 
-        parser.currentFunction = resolvedFunc
-        parser.currentTypeBindings = bindings
-        parser.localVariables.clear()
+        newParser.currentFunction = resolvedFunc
+        newParser.currentTypeBindings = bindings
         TypeCheckParameters.addParameterChecks(resolvedFunc.code, resolvedFunc.parameters, template.sourceAST, template)
-        parser.statementParser.parseBlock(resolvedFunc.code, template.ctx!!)
+        newParser.statementParser.parseBlock(resolvedFunc.code, template.ctx!!)
         resolvedFunc.ctx = null
-
-        parser.currentFunction = oldFunction
-        parser.currentTypeBindings = oldBindings
-        parser.localVariables.clear()
-        parser.localVariables.addAll(oldLocals)
     }
 
     fun resolveGenericStruct(

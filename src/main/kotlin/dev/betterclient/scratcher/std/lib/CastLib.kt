@@ -102,6 +102,38 @@ object CastLib {
             )
         }
 
+        editor.compile(lib, "toChar") {
+            val str = arg("str", PrimitiveType.Str)
+            val returnArg = returnArg(PrimitiveType.Char)
+
+            control.ifElse(
+                condition = str.length equals 1.sc,
+                thenBlock = {
+                    MemoryLib.heap[returnArg] = str
+                },
+                elseBlock = {
+                    call(ExceptionLib.panic, "Not a char!".sc)
+                }
+            )
+        }
+
+
+        editor.compile(lib, "toCharOrDefault") {
+            val str = arg("str", PrimitiveType.Str)
+            val fallback = arg("fallback", PrimitiveType.Char)
+            val returnArg = returnArg(PrimitiveType.Char)
+
+            control.ifElse(
+                condition = str.length equals 1.sc,
+                thenBlock = {
+                    MemoryLib.heap[returnArg] = str
+                },
+                elseBlock = {
+                    MemoryLib.heap[returnArg] = fallback
+                }
+            )
+        }
+
         compileInline(
             lib,
             "toStr",
@@ -115,6 +147,15 @@ object CastLib {
             lib,
             "toStr",
             parameters = mutableListOf(Parameter("value", PrimitiveType.Bool)),
+            returnType = PrimitiveType.Str,
+        ) { args ->
+            args[0]
+        }
+
+        compileInline(
+            lib,
+            "toStr",
+            parameters = mutableListOf(Parameter("value", PrimitiveType.Char)),
             returnType = PrimitiveType.Str,
         ) { args ->
             args[0]

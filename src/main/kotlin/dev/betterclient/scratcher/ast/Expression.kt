@@ -116,6 +116,7 @@ data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()
 data class BooleanLiteral(val value: Boolean) : Literal()
 data class StringLiteral(val value: String) : Literal()
+data class CharLiteral(val value: Char) : Literal()
 data class EnumLiteral(val enum: ASTEnum, val value: String, val ordinal: Int) : Literal() //I would use just a normal IntLiteral, but we need to know the enum for type checking
 data class FunctionLiteral(val function: Function) : Literal()
 data class TypeLiteral(val type: Type) : Literal() //do not let the user use this ever ever ever ever ever

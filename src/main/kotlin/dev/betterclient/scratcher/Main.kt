@@ -39,16 +39,22 @@ fun main() {
     val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
     val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run()
 
+    println("Pre-Optimize")
+    Optimizations.apply(reachableFunctions, context)
+
     println("Desugaring")
     Desugaring.apply(reachableFunctions, context)
-    reachableFunctions.addAll(StandardLibASTGenerator.lambdaLib.functions)
+
+    val uniqueFunctions0 = reachableFunctions.distinct().toMutableList()
+    reachableFunctions.clear()
+    reachableFunctions.addAll(uniqueFunctions0)
 
     if (CompilationConstants.REFCOUNT_GC) {
         RefCountGC.run(context, reachableFunctions)
     }
 
-    println("Optimizations")
-    Optimizations.apply(reachableFunctions, context)
+    println("Post-optimize")
+    Optimizations.apply(reachableFunctions, context, print = false)
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Top level variables")

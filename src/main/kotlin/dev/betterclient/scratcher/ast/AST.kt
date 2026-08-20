@@ -75,7 +75,8 @@ open class Function(
     val sourceAST: ASTFile,
     val isEventListener: Boolean = false,
     val typeParameters: List<String> = emptyList(),
-    val typeBindings: Map<String, Type> = emptyMap()
+    val typeBindings: Map<String, Type> = emptyMap(),
+    val isReceiver: Boolean = false
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }

@@ -105,7 +105,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             when(statement) {
                 is ExpressionStatement -> {
                     getActualTypeOrThrow(statement.expression, function)
-                    if (!isWhenBranch && statement.expression !is CallExpression && statement.expression !is WhenExpression && statement.expression !is DynamicCallExpression) {
+                    if (!isWhenBranch && statement.expression !is CallExpression && statement.expression !is WhenExpression && statement.expression !is DynamicCallExpression && statement.expression !is StatementExpression) {
                         throw TypeAnalysisException("Unsupported expression as top level. ${statement.expression}")
                     }
                 }
@@ -281,6 +281,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is IntLiteral -> PrimitiveType.Integer
             is StringLiteral -> PrimitiveType.Str
             is NullExpression -> PrimitiveType.Null
+            is CharLiteral -> PrimitiveType.Char
             is LocalVariableExpression -> expr.variable.type
             is VariableExpression -> expr.variable.type
             is EnumLiteral -> expr.enum.type
@@ -416,9 +417,12 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
 
-        val returnType = returnTypes.reduceOrNull { left, right ->
+        var returnType = returnTypes.reduceOrNull { left, right ->
             unifyTypes(left, right) ?: throw TypeAnalysisException("Cannot unify $left and $right, lambda return type unknown")
         } ?: PrimitiveType.Void
+        if (returnType == PrimitiveType.Null) {
+            returnType = PrimitiveType.Void
+        }
 
         checkCodeBlock(function, expr.block.code, expectedReturnType = returnType)
 

@@ -2,9 +2,11 @@ package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.ast.BooleanLiteral
+import dev.betterclient.scratcher.ast.CharLiteral
 import dev.betterclient.scratcher.ast.ConcatExpression
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.FloatLiteral
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.NotImplementedException
 import dev.betterclient.scratcher.ast.PrimitiveType
@@ -23,6 +25,9 @@ class LiteralParser(
             ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(PrimitiveType.Float, PrimitiveType.Null, "${ctx.FLOAT()?.text} is not a float!"))
             ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(PrimitiveType.Integer, PrimitiveType.Null, "${ctx.INT()?.text} is not an int!"))
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
+            ctx.TICK(0) != null -> CharLiteral(ctx.IDENTIFIER()!!.text.also {
+                if (it.length != 1) throw GeneralCompilerException("Char too long or too short at ${ctx.position}!")
+            }.toCharArray()[0])
             else -> throw NotImplementedException("$ctx is not one of the expected types.")
         }
     }

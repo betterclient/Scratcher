@@ -423,7 +423,6 @@ class RefCountVisitor(
     private fun Expression.isReturningPlusOne(): Boolean {
         if (this is CallExpression) {
             if (this.func == ListLib.newList) return true
-            if (this.func.sourceAST.path == "string" && this.func.name == "split") return true
 
             return this.func !is StandardLibASTFunction && this.func !is InlineStandardLibFunction
         }

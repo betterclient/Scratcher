@@ -7,8 +7,6 @@ import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Struct
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
@@ -51,7 +49,6 @@ object StandardLibASTGenerator {
     val motionLib = ASTFile("motion")
     val utilsLib = ASTFile("utils")
     val listLib = ASTFile("list")
-    val strLib = ASTFile("string")
 
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
@@ -59,6 +56,8 @@ object StandardLibASTGenerator {
     val refCountGC = ASTFile("ref_count_gc")
     val compilerLib = ASTFile("compiler")
     val lambdaLib = ASTFile("lambda")
+    val extensionsInternalLib = ASTFile("extensions_internal")
+    val extensionsFakeLib = ASTFile("extensions_fake")
     val gcInternalsLib = ASTFile("gc_internal")
     val gcLib = ASTFile("gc")
     val exceptLib = ASTFile("except")
@@ -75,9 +74,12 @@ object StandardLibASTGenerator {
         "motion" to motionLib,
         "utils" to utilsLib,
         "list" to listLib,
-        "string" to strLib,
+        "extensions" to extensionsFakeLib, //this will get removed after first pass
+
+        //not allowed
         "global_promotions" to globalPromotionLib,
         "dynamic_dispatch" to dynamicDispatchLib,
+        "extensions_internal" to extensionsInternalLib,
         "compiler" to compilerLib,
         "gc_internal" to gcInternalsLib,
         "ref_count_gc" to refCountGC,
@@ -99,6 +101,16 @@ object StandardLibASTGenerator {
         compile("/triangle.sc", "triangle").also {
             lib["triangle"] = it
         }
+    }
+
+    val extensionsLib by lazy {
+        bypassRestrictions = true //needs extensions_internal
+        val out = compile("/extensions.sc", "extensions").also {
+            extensionsFakeLib.templates.addAll(it.templates)
+            extensionsFakeLib.functions.addAll(it.functions)
+        }
+        bypassRestrictions = false
+        out
     }
 
     var bypassRestrictions = false
@@ -126,7 +138,8 @@ object StandardLibASTGenerator {
                 library == gcInternalsLib ||
                 library == dynamicDispatchLib ||
                 library == refCountGC ||
-                library == lambdaLib
+                library == lambdaLib ||
+                library == extensionsInternalLib
     }
 
     fun isStandardLib(function: Function): Boolean {
@@ -163,8 +176,10 @@ object StandardLibASTGenerator {
     fun generateFrom(startAST: ASTFile) {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
         ListLib.init(listLib, editor!!)
+        ExtensionsInternalLib.init(extensionsInternalLib)
+        extensionsLib
+
         GCLib.init(gcInternalsLib)
-        StringLib.init(strLib, editor!!)
         gc
         GCLib.initCaller(gc, gcLib)
     }

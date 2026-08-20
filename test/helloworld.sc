@@ -1,12 +1,10 @@
 import triangle;
 import utils;
 import looks;
-import list;
 import pen;
 import sensing;
-import except;
+import extensions;
 import "fps.sc" as counter;
-import cast;
 
 struct Triangle<Num>(Num x1, Num y1, Num x2, Num y2, Num x3, Num y3);
 enum TriangleRenderMode(OFF, RENDER, ITHINK);
@@ -19,15 +17,13 @@ on GreenFlag {
         "render" -> TriangleRenderMode.RENDER
         else -> {
             looks::say("If thinking is your power, what are you without it?");
-            //except::panic("If thinking is your power, what are you without it?");
-
             null;
         }
     };
 
     auto triangles = List(Triangle<float>?);
     repeat(150) {
-        list::add(triangles, Triangle(
+        triangles.add(Triangle(
             utils::random(-240, 240),
             utils::random(-180, 180),
             utils::random(-240, 240),
@@ -53,8 +49,8 @@ on GreenFlag {
     while(true) {
         pen::eraseAll();
         render(mode?: TriangleRenderMode.OFF, triangles);
-        //counter::update();
-        //looks::say("FPS: ${counter::get()}");
+        counter::update();
+        looks::say("FPS: ${counter::get()}");
     }
 }
 
@@ -62,31 +58,33 @@ warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
     a.x1++;
     auto amountRendered = 0;
 
-    forEach(triangles, when(mode) {
-        TriangleRenderMode.RENDER -> (Triangle<float>? tri) -> {
-            return if(tri?.x1 == null);
-            auto rt = tri!!;
+    if(triangles.contains(a)) {
+        looks::say("hiiiiiii");
+    }
 
-            triangle::fill(
-                rt.x1, rt.y1, rt.x2, rt.y2, rt.x3, rt.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
-            );
-            amountRendered += 1;
-        };
-        else -> &noRender;
+    triangles.forEach((Triangle<float>? t) -> {
+        t?.x1?.let((float x1) -> {
+            looks::say("boo! ${x1}");
+        });
     });
+
+    triangles
+        .filterNotNull()
+        .filter((Triangle<float> t) -> t.x1 > 150)
+        .filter((Triangle<float> t) -> t.y1 > 150)
+        .forEach(
+            when(mode) {
+                TriangleRenderMode.RENDER -> (Triangle<float> tri) -> {
+                    triangle::fill(
+                        tri.x1, tri.y1, tri.x2, tri.y2, tri.x3, tri.y3, triangle::rgb(utils::random(0, 255), utils::random(0, 255), utils::random(0, 255)), 1
+                    );
+                    amountRendered += 1;
+                };
+                else -> &noRender;
+            }
+        );
 
     looks::say("Amount rendered ${amountRendered}");
 }
 
-warp str? hello() {
-    return null if(utils::random(0, 5) == 4);
-    return "yo!";
-}
-
-warp void noRender(Triangle<float>? t) {}
-
-warp <T> void forEach(T[] a, (T) -> void action) {
-    for(T t in a) {
-        action(t);
-    }
-}
+warp void noRender(Triangle<float> t) {}

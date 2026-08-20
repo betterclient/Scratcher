@@ -121,6 +121,7 @@ interface BaseExpressionVisitor {
     fun visitFloatLiteral(value: BigDecimal): Expression = FloatLiteral(value)
     fun visitBooleanLiteral(value: Boolean): Expression = BooleanLiteral(value)
     fun visitStringLiteral(value: String): Expression = StringLiteral(value)
+    fun visitCharLiteral(value: Char): Expression = CharLiteral(value)
     fun visitNullExpression(): Expression = NullExpression
     fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression = TemporaryLocalVariableIndexExpression(variable)
     fun visitTemporaryHeapGetExpression(index: Expression): Expression = TemporaryHeapGetExpression(index)
@@ -173,6 +174,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is BooleanLiteral -> this.visitBooleanLiteral(expression.value)
         is FloatLiteral -> this.visitFloatLiteral(expression.value)
         is IntLiteral -> this.visitIntLiteral(expression.value)
+        is CharLiteral -> this.visitCharLiteral(expression.value)
         NullExpression -> this.visitNullExpression()
         is StringLiteral -> this.visitStringLiteral(expression.value)
         is LocalVariableExpression -> this.visitLocalVariableExpression(expression.variable)

@@ -22,35 +22,60 @@ object TypeCheckParameters {
         if (CompilationConstants.DISABLE_TYPE_CHECKER || ast.simplePath == "gc_impl") return
 
         for (parameter in parameters) {
-            if (parameter.type == PrimitiveType.Float) {
-                val func = if (CompilationConstants.OBFUSCATION) {
-                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloatObf" }
-                } else {
-                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkFloat" }
-                }!!
-
-                code.code.add(ExpressionStatement(
-                    CallExpression(func, listOfNotNull(
-                        ParameterExpression(parameter),
-                        if (CompilationConstants.OBFUSCATION) null else
-                            StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not a float!")
-                    ).toMutableList())
-                ))
-            } else if (parameter.type == PrimitiveType.Integer) {
-                val func = if (CompilationConstants.OBFUSCATION) {
-                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkIntObf" }
-                } else {
-                    StandardLibASTGenerator.typeChecker.functions.find { it.name == "checkInt" }
-                }!!
-
-                code.code.add(ExpressionStatement(
-                    CallExpression(func, listOfNotNull(
-                        ParameterExpression(parameter),
-                        if (CompilationConstants.OBFUSCATION) null else
-                            StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not an integer!")
-                    ).toMutableList())
-                ))
+            when (parameter.type) {
+                PrimitiveType.Float -> {
+                    code.code.add(
+                        this.forDataType(
+                            parameter = parameter,
+                            ast = ast,
+                            currentFunction = currentFunction,
+                            type = "Float",
+                            typeInError = "a float!"
+                        )
+                    )
+                }
+                PrimitiveType.Integer -> {
+                    code.code.add(
+                        this.forDataType(
+                            parameter = parameter,
+                            ast = ast,
+                            currentFunction = currentFunction,
+                            type = "Int",
+                            typeInError = "an integer!"
+                        )
+                    )
+                }
+                PrimitiveType.Char -> {
+                    code.code.add(
+                        this.forDataType(
+                            parameter = parameter,
+                            ast = ast,
+                            currentFunction = currentFunction,
+                            type = "Char",
+                            typeInError = "a char"
+                        )
+                    )
+                }
+                else -> {}
             }
         }
+    }
+
+    fun forDataType(parameter: Parameter, ast: ASTFile, currentFunction: Function?, type: String, typeInError: String): ExpressionStatement {
+        val func = if (CompilationConstants.OBFUSCATION) {
+            StandardLibASTGenerator.typeChecker.functions.find { it.name == "check${type}Obf" }
+        } else {
+            StandardLibASTGenerator.typeChecker.functions.find { it.name == "check$type" }
+        }!!
+
+        return ExpressionStatement(
+            CallExpression(
+                func, listOfNotNull(
+                    ParameterExpression(parameter),
+                    if (CompilationConstants.OBFUSCATION) null else
+                        StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not $typeInError!")
+                ).toMutableList()
+            )
+        )
     }
 }

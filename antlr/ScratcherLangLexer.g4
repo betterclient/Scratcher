@@ -22,12 +22,15 @@ FLOAT_TYPE : 'float';
 STR_TYPE   : 'str';
 VOID_TYPE  : 'void';
 BOOL_TYPE  : 'bool';
+CHAR_TYPE  : 'char';
 LIST       : 'List';
 AUTO       : 'auto';
 
+TICK : '\'';
 TRUE  : 'true';
 FALSE : 'false';
 NULL  : 'null';
+THIS  : 'this';
 NULLABLE : '?';
 
 LPAREN : '(';

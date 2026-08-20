@@ -22,6 +22,7 @@ object ExpressionTypes {
             is FloatLiteral -> PrimitiveType.Float
             is IntLiteral -> PrimitiveType.Integer
             is StringLiteral -> PrimitiveType.Str
+            is CharLiteral -> PrimitiveType.Char
             is LocalVariableExpression -> expr.variable.type
             is MemberExpression -> expr.member.type
             is UnaryExpression -> getExpressionType(context, expr.expression)
@@ -179,7 +180,7 @@ object ExpressionTypes {
 
         return FunctionType(
             expr.parameters.map { it.type },
-            returnType
+            if (returnType == PrimitiveType.Null) PrimitiveType.Void else returnType
         )
     }
 

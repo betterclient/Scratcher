@@ -59,9 +59,21 @@ sealed interface PrimitiveType : Type {
         override fun isAssignable(other: Type): Boolean {
             if (other == Null) return false
             val target = other.asNonNull()
+            if (target == Char) return true
             return target == Str || target.toString() == "str"
         }
         override fun toString() = "str"
+    }
+
+    object Char : PrimitiveType {
+        override fun toString() = "char"
+        override fun isAssignable(other: Type): Boolean {
+            if (other == Null) return false
+            val target = other.asNonNull()
+
+            if (Str.isAssignable(other)) return true
+            return target == Char
+        }
     }
 
     object Integer : PrimitiveType { override fun toString() = "int" }
