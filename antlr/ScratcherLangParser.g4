@@ -15,6 +15,7 @@ topLevelElement
     | funcDecl
     | structDecl
     | eventDecl
+    | sealedEnumDecl
     | enumDecl
     ;
 
@@ -62,6 +63,14 @@ param
 
 enumDecl
     : ENUM IDENTIFIER LPAREN IDENTIFIER (COMMA IDENTIFIER)* RPAREN SEMI
+    ;
+
+sealedEnumDecl
+    : SEALED ENUM IDENTIFIER LBRACE (sealedEnumArg (COMMA sealedEnumArg)*)? RBRACE
+    ;
+
+sealedEnumArg
+    : IDENTIFIER (LPAREN (type IDENTIFIER (COMMA type IDENTIFIER)*) RPAREN)?
     ;
 
 structDecl
