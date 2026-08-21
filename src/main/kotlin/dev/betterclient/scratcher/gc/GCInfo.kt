@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.gc
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.ListType
+import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
 
@@ -50,5 +51,8 @@ fun findGC(type: Type): Int {
     if (type.isPrimitive || type is FunctionType) return 0
 
     val nonNullType = type.asNonNull()
+    if (nonNullType is SealedEnumType) {
+        return 0
+    }
     return gcNames.find { it is StructGCInfo && it.type.asNonNull() == nonNullType }?.name ?: -999
 }

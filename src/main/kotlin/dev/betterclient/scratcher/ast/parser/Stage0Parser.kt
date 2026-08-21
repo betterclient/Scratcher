@@ -83,6 +83,34 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             ast.enums.add(enumAST)
         }
 
+        val sealedEnumArgMap = mutableMapOf<Struct, ScratcherLangParser.SealedEnumArgContext>()
+
+        for (context in initialRead.topLevelElement().filter { it.sealedEnumDecl() != null }) {
+            val sealedDecl = context.sealedEnumDecl()!!
+            val enumName = sealedDecl.IDENTIFIER().text
+
+            val sealedEnumAST = SealedEnum(
+                name = enumName,
+                types = mutableListOf(),
+                sourceAST = ast
+            )
+            ctx.types.add(sealedEnumAST.type)
+            ast.sealedEnums.add(sealedEnumAST)
+
+            for (arg in sealedDecl.sealedEnumArg()) {
+                val variantName = arg.IDENTIFIER().text
+                val structAST = Struct(
+                    name = "$enumName.$variantName",
+                    sourceAST = ast
+                )
+                sealedEnumArgMap[structAST] = arg
+
+                ctx.types.add(structAST.type)
+                ast.structs.add(structAST)
+                sealedEnumAST.types.add(structAST)
+            }
+        }
+
         for (context in initialRead.importDecl()) {
             val plainStringLiteralCtx = context.plainStringLiteral()
 
@@ -130,10 +158,6 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         (ast.structs + ast.structTemplates).forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type(), struct.typeParameters)
-                val isNullable = type is NullableType
-                if (isNullable && type.isPrimitive) {
-                    throw NotNullableException("Primitive fields cannot be nullable in ${ast.simplePath}::${struct.name}")
-                }
 
                 if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
@@ -147,6 +171,23 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             if (struct !in ast.structTemplates) {
                 struct.parseInfo = null
             }
+        }
+
+        for ((struct, argCtx) in sealedEnumArgMap) {
+            val paramList = argCtx.paramList()?.param() ?: emptyList()
+            for (param in paramList) {
+                val type = figureOutType(ctx, ast, param.type())
+                if (type == PrimitiveType.Void) {
+                    throw VoidVariableException("${ast.simplePath}::${struct.name} has a field with type void.")
+                }
+                struct.parameters.add(
+                    Parameter(
+                        param.IDENTIFIER().text,
+                        type
+                    )
+                )
+            }
+            checkDuplicates(struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
         }
 
         for (context in initialRead.topLevelElement()) {
@@ -332,18 +373,19 @@ fun figureOutType(
             when (id.size) {
                 2 -> {
                     //from other file
-                    val otherFile = currentAST.imports[id[0].text]?: throw NotFoundException("Type ${type.text} not found in any imports")
+                    val otherFile = currentAST.imports[id[0].text]
+                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
                     context.types.find {
-                        if (it !is SimpleType) return@find false
-                        id[1].text == it.name && it.sourceAST == otherFile
-                    }?: throw NotFoundException("Type ${type.text} not found in any imports")
+                        ((it is SimpleType && it.name == id[1].text && it.sourceAST == otherFile) ||
+                                (it is SealedEnumType && it.name == id[1].text && it.sourceAST == otherFile))
+                    } ?: throw NotFoundException("Type ${type.text} not found in import ${id[0].text}")
                 }
                 1 -> {
                     //current file
                     context.types.find {
-                        if (it !is SimpleType) return@find false
-                        id[0].text == it.name && it.sourceAST == currentAST
-                    }?: throw NotFoundException("Type ${type.text} not found in current file")
+                        ((it is SimpleType && it.name == id[0].text && it.sourceAST == currentAST) ||
+                                (it is SealedEnumType && it.name == id[0].text && it.sourceAST == currentAST))
+                    } ?: throw NotFoundException("Type ${type.text} not found in current file")
                 }
                 else -> {
                     throw GeneralCompilerException("Too many :: in type ${type.text}")

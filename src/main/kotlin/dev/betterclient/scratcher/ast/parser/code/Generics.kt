@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PlaceholderType
+import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.SimpleType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
@@ -32,6 +33,7 @@ object Generics {
                 type.parameterTypes.map { substituteType(context, it, bindings) },
                 substituteType(context, type.returnType, bindings)
             )
+            is SealedEnumType -> type
             is SimpleType -> {
                 val struct = type.sourceAST.structs.find { it.type == type }
                 if (struct != null && struct.typeBindings.isNotEmpty()) {

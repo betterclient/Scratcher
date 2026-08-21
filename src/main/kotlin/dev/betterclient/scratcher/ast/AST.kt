@@ -17,6 +17,7 @@ class ASTFile(
     val enums: MutableList<ASTEnum> = mutableListOf(),
     val templates: MutableList<Function> = mutableListOf(),
     val structTemplates: MutableList<Struct> = mutableListOf(),
+    val sealedEnums: MutableList<SealedEnum> = mutableListOf(),
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
@@ -126,6 +127,15 @@ data class ASTEnum(
     val sourceAST: ASTFile
 ) {
     val type = SimpleType(name, sourceAST)
+}
+
+class SealedEnum(
+    val name: String,
+    val types: MutableList<Struct>,
+    val sourceAST: ASTFile
+) {
+    val type = SealedEnumType(name, sourceAST)
+    lateinit var allocFuncs: Map<Struct, Function>
 }
 
 data class ExpressionLowerResult(

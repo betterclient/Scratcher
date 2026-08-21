@@ -6,11 +6,11 @@ on GreenFlag {
     auto out = runSomething();
 
     when(out) {
-        Success -> {
-            looks::say("success! ${out.message}");
+        Result.Success -> {
+            looks::say("success!");
         }
-        Failure -> {
-            looks::say("failure :( ${out.errorCode}");
+        Result.Failure -> {
+            looks::say("failure :(");
         }
     }
 }

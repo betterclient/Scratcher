@@ -70,7 +70,7 @@ sealedEnumDecl
     ;
 
 sealedEnumArg
-    : IDENTIFIER (LPAREN (type IDENTIFIER (COMMA type IDENTIFIER)*) RPAREN)?
+    : IDENTIFIER (LPAREN paramList RPAREN)?
     ;
 
 structDecl

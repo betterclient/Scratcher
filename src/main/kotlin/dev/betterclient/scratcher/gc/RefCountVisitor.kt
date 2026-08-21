@@ -390,6 +390,7 @@ class RefCountVisitor(
     private fun Type.isRefCounted(): Boolean {
         val nonNull = this.asNonNull()
         if (nonNull is ListType) return true
+        if (nonNull is SealedEnumType) return true
         if (nonNull is SimpleType) {
             return (compilationContext.asts.values.flatMap { it.structs } +
                     StandardLibASTGenerator.compilerLib.structs +

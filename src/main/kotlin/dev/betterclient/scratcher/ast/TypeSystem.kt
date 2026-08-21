@@ -179,6 +179,30 @@ data class PlaceholderType(val name: String) : Type {
     override fun toSafeString() = toString()
 }
 
+data class SealedEnumType(
+    val name: String,
+    val sourceAST: ASTFile
+) : Type {
+    override val isPrimitive = false
+
+    override fun isAssignable(other: Type): Boolean {
+        val nonNullOther = other.asNonNull()
+        if (this == nonNullOther) return true
+
+        val sealedEnum = sourceAST.sealedEnums.find { it.name == this.name }
+            ?: sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == this.name }
+            ?: return false
+
+        return sealedEnum.types.any { it.type == nonNullOther }
+    }
+
+    override fun toString(): String {
+        return "${sourceAST.simplePath}::$name"
+    }
+
+    override fun toSafeString(): String = "${sourceAST.simplePath}_$name"
+}
+
 fun unifyTypes(left: Type, right: Type): Type? {
     if (left == right) return left
     if (left == PrimitiveType.Null) return right.asNullable()
