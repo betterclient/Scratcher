@@ -40,6 +40,7 @@ class CompilationContext {
         }
     }
 
+    var isPreOptimize = true
     var eventListenerIndex: Int = 0
     val asts = mutableMapOf<String, ASTFile>()
     val types = mutableListOf<Type>(

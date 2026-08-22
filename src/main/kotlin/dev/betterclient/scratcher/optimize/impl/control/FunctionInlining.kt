@@ -14,6 +14,10 @@ object FunctionInlining : Optimization("Function inlining") {
         graph: TCallGraph,
         context: CompilationContext
     ): Boolean {
+        if (context.isPreOptimize) {
+            return false
+        }
+
         val eligible = InlineEligibility.findEligible(func, graph)
 
         var modified = false

@@ -20,6 +20,7 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.ReturnStatement
+import dev.betterclient.scratcher.ast.SealedEnumConstructionExpression
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -43,7 +44,7 @@ class LambdaDefunctionalization(
 
     private fun getOrCreateClosureStruct(funcType: FunctionType): Struct {
         return closureStructs.computeIfAbsent(funcType) {
-            val captureType = closureConversion?.lambdaCapturesStruct?.type ?: StandardLibASTGenerator.lambdaLib.structs.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: StandardLibASTGenerator.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
             val targetFuncType = FunctionType(listOf(captureType) + funcType.parameterTypes, funcType.returnType)
             val struct = Struct(
                 name = "Closure@${index++}",
@@ -88,19 +89,23 @@ class LambdaDefunctionalization(
         }
 
         val closureStruct = getOrCreateClosureStruct(userFuncType)
-        val lambdaCapturesStruct = closureConversion!!.lambdaCapturesStruct
+        val lambdaCapturesEnum = closureConversion!!.lambdaCapturesEnum
         val myCaptureStruct = closureConversion.lambdaCaptureStructs[lambdaExpr]
 
         val captureAlloc = if (myCaptureStruct != null && captured.isNotEmpty()) {
             val myCaptureArgs = captured.map { LocalVariableExpression(it) }
-            val allocatedMyCapture = CallExpression(myCaptureStruct.allocFunc, myCaptureArgs)
 
-            val capturesArgs = lambdaCapturesStruct.parameters.map { param ->
-                if (param.type.asNonNull() == myCaptureStruct.type) allocatedMyCapture else NullExpression
-            }
-            CallExpression(lambdaCapturesStruct.allocFunc, capturesArgs)
+            SealedEnumConstructionExpression(
+                sealedEnum = lambdaCapturesEnum,
+                targetVariant = myCaptureStruct,
+                arguments = myCaptureArgs
+            )
         } else {
-            NullExpression
+            SealedEnumConstructionExpression(
+                sealedEnum = lambdaCapturesEnum,
+                targetVariant = myCaptureStruct!!,
+                arguments = listOf()
+            )
         }
 
         return CallExpression(
@@ -114,7 +119,7 @@ class LambdaDefunctionalization(
         val closureStruct = getOrCreateClosureStruct(userFuncType)
 
         val trampoline = trampolines.computeIfAbsent(func) {
-            val captureType = closureConversion?.lambdaCapturesStruct?.type ?: StandardLibASTGenerator.lambdaLib.structs.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: StandardLibASTGenerator.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
             val capturePar = Parameter("capture", captureType)
             val userPars = func.parameters.map { Parameter(it.name, it.type) }
 

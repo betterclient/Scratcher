@@ -33,6 +33,8 @@ object PromoteToGlobals : Optimization("Promote to globals") {
         graph: TCallGraph,
         context: CompilationContext
     ): Boolean {
+        if (context.isPreOptimize) return false
+
         val eligible = findEligibleLocals(func, graph)
         if (eligible.isEmpty()) return false
         val globals = eligible.associateWith {

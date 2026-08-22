@@ -30,7 +30,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("test/sealed_enum.sc"))
+    val (ast, context) = compile(File("test/helloworld.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }
@@ -44,6 +44,7 @@ fun main() {
 
     println("Desugaring")
     Desugaring.apply(reachableFunctions, context)
+    context.isPreOptimize = false
 
     val uniqueFunctions0 = reachableFunctions.distinct().toMutableList()
     reachableFunctions.clear()
@@ -54,7 +55,7 @@ fun main() {
     }
 
     println("Post-optimize")
-    Optimizations.apply(reachableFunctions, context, print = false)
+    Optimizations.apply(reachableFunctions, context)
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Top level variables")

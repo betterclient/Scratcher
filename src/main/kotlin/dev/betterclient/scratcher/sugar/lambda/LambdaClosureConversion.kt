@@ -11,6 +11,8 @@ import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.MemberExpression
 import dev.betterclient.scratcher.ast.NullExpression
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.SealedEnum
+import dev.betterclient.scratcher.ast.SealedEnumCastExpression
 import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
@@ -27,15 +29,13 @@ import dev.betterclient.scratcher.std.lib.MemoryLib
 class LambdaClosureConversion(
     val ctx: CompilationContext
 ) : ASTVisitor() {
-    val lambdaCapturesStruct = Struct(
+    val lambdaCapturesEnum = SealedEnum(
         name = "LambdaCaptures",
-        sourceAST = StandardLibASTGenerator.lambdaLib
+        sourceAST = StandardLibASTGenerator.lambdaLib,
+        types = mutableListOf()
     ).also {
-        StandardLibASTGenerator.lambdaLib.structs.add(it)
+        StandardLibASTGenerator.lambdaLib.sealedEnums.add(it)
         ctx.types.add(it.type)
-        if (CompilationConstants.MARK_AND_SWEEP_GC) {
-            addGC(StructGCInfo(it.type, it))
-        }
     }
 
     val boxTypes = mutableMapOf<Type, Struct>()
@@ -80,7 +80,7 @@ class LambdaClosureConversion(
             sourceAST = StandardLibASTGenerator.lambdaLib
         ).also {
             StandardLibASTGenerator.lambdaLib.structs.add(it)
-            lambdaCapturesStruct.parameters.add(Parameter("capture${index++}", it.type.asNullable()))
+            lambdaCapturesEnum.types.add(it)
             ctx.types.add(it.type)
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
                 addGC(StructGCInfo(it.type, it))
@@ -97,7 +97,7 @@ class LambdaClosureConversion(
             }
         })
 
-        val captureVar = LocalVariable("lambda@capture", lambdaCapturesStruct.type)
+        val captureVar = LocalVariable("lambda@capture", lambdaCapturesEnum.type)
 
         val newLambda = LambdaExpression(
             listOf(captureVar) + arguments,
@@ -158,7 +158,10 @@ class LambdaClosureConversion(
             val mappedParam = captureMappings[variable]
             if (mappedParam != null) {
                 val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
-                val captureExpr = MemberExpression(captureParamExpr, lambdaCapturesStruct.parameters.find { it.type.asNonNull() == activeCapture!!.type }!!, lambdaCapturesStruct)
+                val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
+                    val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
+                    if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
+                })
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
                 val boxStruct = boxFor(variable)
                 return MemberExpression(boxExpr, boxStruct.parameters.first(), boxStruct)
@@ -180,7 +183,10 @@ class LambdaClosureConversion(
             val mappedParam = captureMappings[variable]
             if (mappedParam != null) {
                 val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
-                val captureExpr = MemberExpression(captureParamExpr, lambdaCapturesStruct.parameters.find { it.type.asNonNull() == activeCapture!!.type }!!, lambdaCapturesStruct)
+                val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
+                    val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
+                    if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
+                })
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
                 val boxStruct = boxFor(variable)
                 return VariableAssignmentStatement(
