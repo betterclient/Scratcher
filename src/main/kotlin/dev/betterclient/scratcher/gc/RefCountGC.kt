@@ -15,6 +15,7 @@ object RefCountGC {
     private lateinit var lib: ASTFile
     private lateinit var inc: Function
     private lateinit var structDecs: Map<Struct, Function>
+    private lateinit var sealedDecs: Map<SealedEnum, Function>
 
     fun run(
         context: CompilationContext,
@@ -31,6 +32,7 @@ object RefCountGC {
         functions.forEach { func ->
             visit(func, RefCountVisitor(
                 structDecs = structDecs,
+                sealedDecs = sealedDecs,
                 inc = inc,
                 generateDecList = { list ->
                     getOrCreateDecList(list, lib, structDecs)
@@ -39,7 +41,7 @@ object RefCountGC {
                 currentFunction = func
             ))
         }
-        return listOf(inc) + structDecs.values + listDecMap.values
+        return listOf(inc) + structDecs.values + sealedDecs.values + listDecMap.values
     }
 
     private fun setup(context: CompilationContext) {
@@ -85,6 +87,23 @@ object RefCountGC {
         structDecs = reachableStructs.associateWith { struct ->
             Function(
                 name = "dec@${struct.sourceAST.simplePath}::${struct.name}",
+                parameters = mutableListOf(Parameter("ptr", PrimitiveType.Integer)),
+                returnType = PrimitiveType.Void,
+                export = false,
+                warp = true,
+                sourceAST = lib,
+                userAccessible = false,
+            ).also {
+                lib.functions.add(it)
+            }
+        }
+
+        val reachableSealedEnums = context.asts.values.flatMap { it.sealedEnums } +
+                StandardLibASTGenerator.compilerLib.sealedEnums +
+                StandardLibASTGenerator.lambdaLib.sealedEnums
+        sealedDecs = reachableSealedEnums.distinct().associateWith { sealed ->
+            Function(
+                name = "dec@${sealed.sourceAST.simplePath}::${sealed.name}",
                 parameters = mutableListOf(Parameter("ptr", PrimitiveType.Integer)),
                 returnType = PrimitiveType.Void,
                 export = false,
@@ -164,6 +183,60 @@ object RefCountGC {
                     ))
                 })
             )
+        }
+
+        sealedDecs.forEach { (enumDef, function) ->
+            val ptrArg = function.parameters[0]
+            val ptr = ParameterExpression(ptrArg)
+
+            fun heapGet(index: Expression) = TemporaryHeapGetExpression(index)
+            fun heapGetAt(offset: Long) = heapGet(BinaryExpression(ptr, BinaryOperator.ADD, IntLiteral(offset.toBigInteger())))
+
+            val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                BinaryExpression(ptr, BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+            } else {
+                ptr
+            }
+            val enumSize: Long = if (CompilationConstants.REFCOUNT_GC) 3 else 2
+            val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                IntLiteral((enumSize + 1).toBigInteger())
+            } else {
+                IntLiteral(enumSize.toBigInteger())
+            }
+
+            function.code.code.add(isNotNeg1(ptr, CodeBlock().also { body ->
+                body.code.add(TemporaryHeapSetStatement(
+                    index = ptr,
+                    data = BinaryExpression(heapGet(ptr), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+                ))
+                body.code.add(IfStatement(
+                    condition = BinaryExpression(heapGet(ptr), BinaryOperator.EQUAL, IntLiteral(BigInteger.ZERO)),
+                    thenBlock = CodeBlock().also { freeBlock ->
+                        val taggedVariants = enumDef.types.withIndex().filter { it.value.parameters.isNotEmpty() }
+                        if (taggedVariants.isNotEmpty()) {
+                            fun dispatch(lo: Int, hi: Int): Statement {
+                                val mid = (lo + hi) / 2
+                                val variant = taggedVariants[mid].value
+                                return IfElseStatement(
+                                    condition = BinaryExpression(heapGetAt(1), BinaryOperator.LESS_THAN, IntLiteral(mid.toBigInteger())),
+                                    thenBlock = if (lo <= mid - 1) CodeBlock().also { it.code.add(dispatch(lo, mid - 1)) } else CodeBlock(),
+                                    elseBlock = CodeBlock().also { eqOrGreater ->
+                                        eqOrGreater.code.add(IfElseStatement(
+                                            condition = BinaryExpression(heapGetAt(1), BinaryOperator.EQUAL, IntLiteral(mid.toBigInteger())),
+                                            thenBlock = CodeBlock().also { decBlock ->
+                                                buildDecCall(variant.type, heapGetAt(2), structDecs, lib)?.let { decBlock.code.add(it) }
+                                            },
+                                            elseBlock = if (mid + 1 <= hi) CodeBlock().also { it.code.add(dispatch(mid + 1, hi)) } else CodeBlock()
+                                        ))
+                                    }
+                                )
+                            }
+                            freeBlock.code.add(dispatch(0, taggedVariants.lastIndex))
+                        }
+                        freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize))))
+                    }
+                ))
+            }))
         }
     }
 
@@ -278,6 +351,10 @@ object RefCountGC {
             is ListType -> {
                 val decListFunc = getOrCreateDecList(targetType, lib, structDecs)
                 ExpressionStatement(CallExpression(decListFunc, listOf(expr)))
+            }
+            is SealedEnumType -> {
+                val decFunc = sealedDecs.entries.find { it.key.type == targetType }?.value ?: return null
+                ExpressionStatement(CallExpression(decFunc, listOf(expr)))
             }
             else -> null
         }

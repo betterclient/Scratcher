@@ -125,6 +125,12 @@ data class SealedEnumCastExpression(
     val tag: Int
 ) : Expression()
 
+data class SealedEnumConstructionExpression(
+    val sealedEnum: SealedEnum,
+    val targetVariant: Struct,
+    val arguments: List<Expression>
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()

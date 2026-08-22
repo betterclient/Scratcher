@@ -19,6 +19,7 @@ import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.figureOutType
+import dev.betterclient.scratcher.gc.SealedEnumGCInfo
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -287,6 +288,10 @@ object Generics {
         targetAST.sealedEnums.add(instantiatedSealed)
         val sealedType = instantiatedSealed.type
         context.types.add(sealedType)
+
+        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            addGC(SealedEnumGCInfo(sealedType, instantiatedSealed))
+        }
 
         for (placeholderVariant in template.types) {
             val short = placeholderVariant.name.substringAfter(".")

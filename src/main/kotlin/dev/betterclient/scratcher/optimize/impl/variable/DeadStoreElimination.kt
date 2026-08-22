@@ -79,6 +79,7 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
             is WhenExpression -> true
             is CheckSealedEnumTypeExpression -> hasSideEffects(expr.expr)
             is SealedEnumCastExpression -> hasSideEffects(expr.expr)
+            is SealedEnumConstructionExpression -> true
         }
     }
 }

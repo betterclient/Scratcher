@@ -47,6 +47,7 @@ object ExpressionTypes {
             is LambdaExpression -> parseLambdaType(context, expr)
             is CheckSealedEnumTypeExpression -> PrimitiveType.Bool
             is SealedEnumCastExpression -> expr.targetVariant.type
+            is SealedEnumConstructionExpression -> expr.sealedEnum.type
             is TemporaryExpression -> throw UnreachableException()
         }
     }

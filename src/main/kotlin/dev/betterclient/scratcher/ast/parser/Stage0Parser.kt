@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.code.Generics
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.Key
+import dev.betterclient.scratcher.gc.SealedEnumGCInfo
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.gc.gcNames
@@ -25,6 +26,16 @@ class CompilationContext {
         allStructs.distinct().forEach { struct ->
             if (gcNames.none { it is StructGCInfo && it.struct == struct }) {
                 addGC(StructGCInfo(struct.type, struct))
+            }
+        }
+
+        val allSealedEnums = asts.values.flatMap { it.sealedEnums } +
+                StandardLibASTGenerator.compilerLib.sealedEnums +
+                StandardLibASTGenerator.lambdaLib.sealedEnums
+
+        allSealedEnums.distinct().forEach { sealed ->
+            if (gcNames.none { it is SealedEnumGCInfo && it.sealedEnum == sealed }) {
+                addGC(SealedEnumGCInfo(sealed.type, sealed))
             }
         }
     }

@@ -87,6 +87,13 @@ warp void markType(int addr, str type) {
     return if(type.contains("n"));
     return if(type == "p");
 
+    if(type == "?") {
+        int val = cast::toIntOrDefault(cast::toStr(self::getHeap(addr)), -1);
+        return if(val <= 0);
+        markRoot(val);
+        return;
+    }
+
     return if(cast::toStr(self::getHeap(addr)) == "null");
 
     if(type.contains("l")) {

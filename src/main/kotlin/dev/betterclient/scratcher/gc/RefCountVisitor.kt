@@ -14,6 +14,7 @@ import java.math.BigInteger
 
 class RefCountVisitor(
     val structDecs: Map<Struct, Function>,
+    val sealedDecs: Map<SealedEnum, Function>,
     val inc: Function,
     val generateDecList: (ListType) -> Function,
     val compilationContext: CompilationContext,
@@ -408,6 +409,10 @@ class RefCountVisitor(
             }
             is ListType -> {
                 val decFunc = generateDecList(targetType)
+                ExpressionStatement(CallExpression(decFunc, listOf(expr)))
+            }
+            is SealedEnumType -> {
+                val decFunc = sealedDecs.entries.find { it.key.type == targetType }?.value ?: return null
                 ExpressionStatement(CallExpression(decFunc, listOf(expr)))
             }
             else -> null

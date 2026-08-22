@@ -3,7 +3,6 @@ package dev.betterclient.scratcher.ast.parser.code
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
-import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
@@ -188,25 +187,29 @@ class ExpressionParser(
         }
 
         is ScratcherLangParser.MemberExprContext -> {
-            val argTypesPreview = ctx.argList()?.expression()?.map { ExpressionTypes.getExpressionType(parser.ctx, parseExpression(it)) }
-            val sealedVariant = tryResolveSealedVariantConstruction(innerExpr, expectedType, argTypesPreview)
+            val argCtxs = ctx.argList()?.expression() ?: emptyList()
+            val args = argCtxs.map { parseExpression(it) }
+            val argTypes = args.map { ExpressionTypes.getExpressionType(parser.ctx, it) }
+
+            val sealedVariant = tryResolveSealedVariantConstruction(innerExpr, expectedType, argTypes)
             if (sealedVariant != null) {
-                val (_, variant, wrapper) = sealedVariant
-                val args = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
-                val inflated = args.mapIndexed { i, arg ->
-                    StringBoxing.autoConvert(arg, variant.parameters.getOrNull(i)?.type, parser.ctx)
+                val (sealed, variant) = sealedVariant
+                if (args.size != variant.parameters.size) {
+                    throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} expects ${variant.parameters.size} argument(s), got ${args.size} at ${ctx.position}")
                 }
-                return CallExpression(wrapper, inflated)
+                val inflated = args.mapIndexed { i, arg ->
+                    StringBoxing.autoConvert(arg, variant.parameters[i].type, parser.ctx)
+                }
+                return SealedEnumConstructionExpression(sealed, variant, inflated)
             }
 
             val receiverExpr = parseExpression(innerExpr.expression())
             val methodName = innerExpr.IDENTIFIER().text
-            val userArgs = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
 
             val callExpr = parser.functionResolver.resolveReceiverFunction(
                 receiverExpr = receiverExpr,
                 methodName = methodName,
-                arguments = userArgs
+                arguments = args
             )
 
             try {
@@ -225,7 +228,7 @@ class ExpressionParser(
                 DynamicCallExpression(
                     function = memberExpr,
                     type = funcType!!,
-                    arguments = userArgs
+                    arguments = args
                 )
             }
         }
@@ -583,12 +586,11 @@ class ExpressionParser(
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null): Expression {
         val sealedVariant = tryResolveSealedVariantConstruction(ctx, expectedType, null)
         if (sealedVariant != null) {
-            val (sealed, variant, wrapper) = sealedVariant
-            if (variant.parameters.isEmpty()) {
-                return CallExpression(wrapper, emptyList())
-            } else {
+            val (sealed, variant) = sealedVariant
+            if (variant.parameters.isNotEmpty()) {
                 throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} requires arguments, use ${sealed.name}.${variant.name.substringAfter(".")}(...)")
             }
+            return SealedEnumConstructionExpression(sealed, variant, emptyList())
         }
 
         val enum = when (val leftExpr = ctx.expression()) {
@@ -680,23 +682,23 @@ class ExpressionParser(
         return null
     }
 
-    private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null, argTypes: List<Type>? = null): Triple<SealedEnum, Struct, dev.betterclient.scratcher.ast.Function>? {
+    private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null, argTypes: List<Type>? = null): Pair<SealedEnum, Struct>? {
         val leftCtx = memberCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
+        if (resolvesAsVariable(leftCtx.text)) return null
+
         val sealedBaseName = leftCtx.text.substringBefore("@").substringBefore("<")
         val variantShort = memberCtx.IDENTIFIER().text
 
         val concreteSealed = findSealedEnumByName(sealedBaseName)
         if (concreteSealed != null && concreteSealed.typeParameters.isEmpty()) {
             val variant = concreteSealed.types.find { it.name.substringAfter(".") == variantShort } ?: return null
-            val wrapper = resolveWrapper(concreteSealed, variant, variantShort) ?: return null
-            return Triple(concreteSealed, variant, wrapper)
+            return Pair(concreteSealed, variant)
         }
 
         val template = findSealedTemplateByName(sealedBaseName) ?: run {
             val exact = findSealedEnumByName(sealedBaseName) ?: return null
             val variant = exact.types.find { it.name.substringAfter(".") == variantShort } ?: return null
-            val wrapper = resolveWrapper(exact, variant, variantShort) ?: return null
-            return Triple(exact, variant, wrapper)
+            return Pair(exact, variant)
         }
 
         val bindings = mutableMapOf<String, Type>()
@@ -755,19 +757,16 @@ class ExpressionParser(
                 ?: findSealedEnumByName((sealedType as SealedEnumType).name)
                 ?: template.sourceAST.sealedEnums.find { it.type == sealedType }) ?: return null
             val variant = concreteSealedEnum.types.find { it.name.substringAfter(".") == variantShort } ?: return null
-            val wrapper = resolveWrapper(concreteSealedEnum, variant, variantShort) ?: return null
-            return Triple(concreteSealedEnum, variant, wrapper)
+            return Pair(concreteSealedEnum, variant)
         }
 
         return null
     }
 
-    private fun resolveWrapper(sealed: SealedEnum, variant: Struct, variantShort: String): Function? {
-        sealed.allocFuncs[variant]?.let { return it }
-        val name = "new${sealed.sourceAST.simplePath}::${sealed.name}.${variantShort}"
-        return StandardLibASTGenerator.memoryLib.functions.find { it.name == name }
-            ?: StandardLibASTGenerator.memLib.functions.find { it.name == name }
-            ?: parser.ctx.asts.values.flatMap { it.functions }.find { it.name == name }
+    private fun resolvesAsVariable(name: String): Boolean {
+        if (parser.localVariables.any { it.name == name }) return true
+        if (parser.currentFunction?.parameters?.any { it.name == name } == true) return true
+        return ast.variables.any { it.name == name }
     }
 
     private fun tryResolveWhenBranchAsSealedCheck(subjectVar: LocalVariable, condCtx: ScratcherLangParser.ExpressionContext): CheckSealedEnumTypeExpression? {

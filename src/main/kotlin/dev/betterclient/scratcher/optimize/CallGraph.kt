@@ -133,6 +133,9 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
             is SealedEnumCastExpression -> {
                 generate(expr.expr, out)
             }
+            is SealedEnumConstructionExpression -> {
+                expr.arguments.forEach { generate(it, out) }
+            }
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}

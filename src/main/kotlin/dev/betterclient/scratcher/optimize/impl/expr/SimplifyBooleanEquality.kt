@@ -92,6 +92,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
             is WhenExpression -> true
             is CheckSealedEnumTypeExpression -> hasSideEffects(expr.expr)
             is SealedEnumCastExpression -> hasSideEffects(expr.expr)
+            is SealedEnumConstructionExpression -> true
         }
     }
 }

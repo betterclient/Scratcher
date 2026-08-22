@@ -7,7 +7,8 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
-import java.math.BigInteger
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.MemoryLib
 
 object SealedEnumDesugaring : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {
@@ -30,6 +31,12 @@ object SealedEnumDesugaring : CompilerSugar() {
                 return TemporaryHeapGetExpression(
                     BinaryExpression(visitedExpr, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger()))
                 )
+            }
+
+            override fun visitSealedEnumConstructionExpression(sealedEnum: SealedEnum, targetVariant: Struct, args: List<Expression>): Expression {
+                val visitedArgs = args.map { visit(it) }
+                val wrapper = MemoryLib.ensureVariantAllocFunc(StandardLibASTGenerator.memLib, sealedEnum, targetVariant)
+                return CallExpression(wrapper, visitedArgs)
             }
         })
     }

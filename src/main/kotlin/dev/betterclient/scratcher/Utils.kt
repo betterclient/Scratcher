@@ -86,4 +86,5 @@ internal val Expression.simple: Boolean
         is LambdaExpression -> false
         is CheckSealedEnumTypeExpression -> this.expr.simple
         is SealedEnumCastExpression -> this.expr.simple
+        is SealedEnumConstructionExpression -> false
     }

@@ -303,6 +303,15 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
                 expr.targetVariant.type
             }
+            is SealedEnumConstructionExpression -> {
+                expr.arguments.forEachIndexed { index, expression ->
+                    val paramType = expr.targetVariant.parameters.getOrNull(index)?.type
+                        ?: throw TypeAnalysisException("Sealed enum variant ${expr.sealedEnum.name}.${expr.targetVariant.name.substringAfter(".")} expects ${expr.targetVariant.parameters.size} argument(s), got ${expr.arguments.size}")
+                    checkType(paramType, getActualTypeOrThrow(expression, function), "Sealed enum variant parameter type is not correct")
+                }
+
+                expr.sealedEnum.type
+            }
 
             is TemporaryExpression -> throw UnreachableException()
         }
