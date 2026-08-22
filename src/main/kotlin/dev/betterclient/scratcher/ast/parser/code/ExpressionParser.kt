@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.ast.parser.code
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
@@ -736,12 +737,10 @@ class ExpressionParser(
             val retType = parser.currentFunction?.returnType as? SealedEnumType
             if (retType != null && retType.name.substringBefore("@") == template.name && retType.typeBindings.isNotEmpty()) {
                 bindings.putAll(retType.typeBindings)
-                if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
             } else if (retType != null) {
                 val retSealed = findSealedEnumByName(retType.name)
                 if (retSealed != null && retSealed.typeBindings.isNotEmpty() && retSealed.name.substringBefore("@") == template.name) {
                     bindings.putAll(retSealed.typeBindings)
-                    if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
                 }
             }
         }
