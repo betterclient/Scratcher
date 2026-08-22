@@ -255,7 +255,7 @@ object MemoryLib {
         val reachableSealedEnums = mutableMapOf<ASTFile, List<SealedEnum>>().also { figureOutReachableSealedEnums(it, compilationStartAST) }.flatMap { (_, enums) -> enums }
 
         for (sealedEnum in reachableSealedEnums) {
-            sealedEnum.types.forEachIndexed { tag, variantStruct ->
+            sealedEnum.types.forEachIndexed { _, variantStruct ->
                 ensureVariantAllocFunc(lib, sealedEnum, variantStruct)
             }
         }
@@ -297,7 +297,7 @@ object MemoryLib {
             allocArgs.add(TemporaryLocalVariableIndexExpression(enumPtrVar))
 
             fn.code.code.add(VariableStatement(null, enumPtrVar))
-            fn.code.code.add(TemporaryCallStatement(MemoryLib.alloc, allocArgs))
+            fn.code.code.add(TemporaryCallStatement(alloc, allocArgs))
 
             val enumAddr = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(enumPtrVar))
 
