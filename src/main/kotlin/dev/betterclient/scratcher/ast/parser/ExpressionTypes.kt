@@ -45,6 +45,8 @@ object ExpressionTypes {
             is DynamicCallExpression -> expr.type.returnType
             is StatementExpression -> getExpressionType(context, expr.expression)
             is LambdaExpression -> parseLambdaType(context, expr)
+            is CheckSealedEnumTypeExpression -> PrimitiveType.Bool
+            is SealedEnumCastExpression -> expr.targetVariant.type
             is TemporaryExpression -> throw UnreachableException()
         }
     }
@@ -131,6 +133,25 @@ object ExpressionTypes {
         val subjectType = getSubjectType(expr.subject) ?: return false
         val baseType = subjectType.asNonNull()
         val isNullable = subjectType is NullableType
+
+        if (baseType is SealedEnumType) {
+            val sealed = baseType.sourceAST.sealedEnums.find { it.name == baseType.name }
+                ?: baseType.sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == baseType.name }
+                ?: return false
+            val covered = mutableSetOf<Int>()
+            var coversNull = false
+            for (branch in expr.branches) {
+                val cond = branch.cond
+                when (cond) {
+                    is CheckSealedEnumTypeExpression -> covered.add(cond.tag)
+                    is NullExpression -> coversNull = true
+                    else -> return false
+                }
+            }
+            val allTags = sealed.types.mapIndexed { idx, struct -> if (struct.parameters.isEmpty()) -idx-1 else idx }.toSet()
+            val enumsCovered = covered.containsAll(allTags)
+            return if (isNullable) enumsCovered && coversNull else enumsCovered
+        }
 
         val enumDef = (baseType as? SimpleType)?.sourceAST?.enums?.find { it.type.asNonNull() == baseType } ?: return false
         val covered = mutableSetOf<Int>()

@@ -105,6 +105,9 @@ class StatementParser(
             is ScratcherLangParser.PostIncStmtContext -> {
                 parsePostIncStmt(child)
             }
+            is ScratcherLangParser.WhenStmtContext -> {
+                ExpressionStatement(exprParser.parseWhenExpr(child.whenExpression()))
+            }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
     }

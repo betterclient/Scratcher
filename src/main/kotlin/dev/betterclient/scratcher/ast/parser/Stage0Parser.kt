@@ -155,7 +155,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
 
         //second read for parameters
-        (ast.structs + ast.structTemplates).forEach { struct ->
+        (ast.structs.filter { it.parseInfo != null } + ast.structTemplates).forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type(), struct.typeParameters)
 
@@ -355,6 +355,7 @@ fun figureOutType(
             val id = type.typePath().IDENTIFIER()
             val typeName = id.last().text
             val typeArgsCtx = type.type()
+            val rawText = type.typePath().text
 
             if (typeArgsCtx.isNotEmpty()) {
                 val resolvedArgs = typeArgsCtx.map { figureOutType(context, currentAST, it, typeParameters, localTypeBindings) }
@@ -362,14 +363,33 @@ fun figureOutType(
             }
 
             if (id.size == 1) {
-                val typeName = id[0].text
-                if (localTypeBindings.containsKey(typeName)) {
-                    return localTypeBindings[typeName]!!
+                val typeNameSingle = id[0].text
+                if (localTypeBindings.containsKey(typeNameSingle)) {
+                    return localTypeBindings[typeNameSingle]!!
                 }
-                if (typeParameters.contains(typeName)) {
-                    return PlaceholderType(typeName)
+                if (typeParameters.contains(typeNameSingle)) {
+                    return PlaceholderType(typeNameSingle)
                 }
             }
+
+            if (rawText.contains(".")) {
+                if (rawText.contains("::")) {
+                    val parts = rawText.split("::", limit = 2)
+                    val importName = parts[0]
+                    val typeFullName = parts[1]
+                    val otherFile = currentAST.imports[importName]
+                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                    return context.types.find {
+                        (it is SimpleType && it.name == typeFullName && it.sourceAST == otherFile) ||
+                                (it is SealedEnumType && it.name == typeFullName && it.sourceAST == otherFile)
+                    } ?: throw NotFoundException("Type ${type.text} not found in import $importName")
+                } else {
+                    return context.types.find {
+                        it is SimpleType && it.name == rawText && it.sourceAST == currentAST
+                    } ?: throw NotFoundException("Type ${type.text} not found in current file")
+                }
+            }
+
             when (id.size) {
                 2 -> {
                     //from other file

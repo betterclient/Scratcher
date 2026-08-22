@@ -15,6 +15,7 @@ object Desugaring {
         SafeNullOperations,
         WhenDesugaring,
         LambdaDesugaring,
+        SealedEnumDesugaring,
         DynamicDispatchHandler,
     )
 

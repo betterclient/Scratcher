@@ -147,6 +147,8 @@ class ScratchFunctionTranslator(
             is SafeDotExpression,
             is TypeLiteral,
             is StatementExpression,
+            is CheckSealedEnumTypeExpression,
+            is SealedEnumCastExpression,
             is NonNullAssertExpression -> throw UnreachableException("$expr")
         }
     }

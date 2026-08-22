@@ -127,6 +127,12 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
             is LambdaExpression -> {
                 generate(expr.block, out)
             }
+            is CheckSealedEnumTypeExpression -> {
+                generate(expr.expr, out)
+            }
+            is SealedEnumCastExpression -> {
+                generate(expr.expr, out)
+            }
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}

@@ -16,6 +16,7 @@ WARP   : 'warp';
 EXPORT : 'export';
 ENUM   : 'enum';
 SEALED : 'sealed';
+IS : 'is';
 WHEN   : 'when';
 
 INT_TYPE   : 'int';

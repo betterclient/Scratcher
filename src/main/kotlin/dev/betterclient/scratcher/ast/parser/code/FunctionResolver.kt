@@ -25,8 +25,8 @@ class FunctionResolver(
         argList: ScratcherLangParser.ArgListContext?,
         expectedType: Type?
     ): Expression {
-        val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.typePath()!!.IDENTIFIER(0)!!.text
-        val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.typePath()!!.IDENTIFIER(1)!!.text
+        val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.simpleTypePath()!!.IDENTIFIER(0)!!.text
+        val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.simpleTypePath()!!.IDENTIFIER(1)!!.text
         return figureOutFunctionInternal(importName, funcName, funcCall.getParent()?.text?: funcCall.position!!.toString(), argList, expectedType)
     }
 
@@ -201,14 +201,14 @@ class FunctionResolver(
         val sourceAST = if (funcCall.IDENTIFIER() != null) {
             ast
         } else {
-            val import = funcCall.typePath()!!.IDENTIFIER(0)!!.text
+            val import = funcCall.simpleTypePath()!!.IDENTIFIER(0)!!.text
             ast.imports[import]?: throw NotFoundException("Import not found $import for ${funcCall.text}.")
         }
 
         val funcName = if (funcCall.IDENTIFIER() != null) {
             funcCall.IDENTIFIER()!!.text
         } else {
-            funcCall.typePath()!!.IDENTIFIER(1)!!.text
+            funcCall.simpleTypePath()!!.IDENTIFIER(1)!!.text
         }
 
         val resolvedFunc = sourceAST.functions.filter {

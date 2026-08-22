@@ -135,6 +135,8 @@ interface BaseExpressionVisitor {
     fun visitTypeLiteral(type: Type): Expression = TypeLiteral(type)
     fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression = StatementExpression(statements, expression)
     fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>): Expression = LambdaExpression(arguments, (this as ASTVisitor).visitCodeBlock(block), captured)
+    fun visitCheckSealedEnumTypeExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression = CheckSealedEnumTypeExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag)
+    fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression = SealedEnumCastExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -210,6 +212,8 @@ fun ASTVisitor.visit(expression: Expression): Expression {
             this.visitStatementExpression(visitedStatements + exprBuffer, visitedExpr)
         }
         is LambdaExpression -> this.visitLambdaExpression(expression.block, expression.parameters, expression.capturedVariables)
+        is CheckSealedEnumTypeExpression -> this.visitCheckSealedEnumTypeExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag)
+        is SealedEnumCastExpression -> this.visitSealedEnumCastExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag)
     }
     afterVisit(expression, result)
     return result

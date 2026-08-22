@@ -135,7 +135,7 @@ class SealedEnum(
     val sourceAST: ASTFile
 ) {
     val type = SealedEnumType(name, sourceAST)
-    lateinit var allocFuncs: Map<Struct, Function>
+    val allocFuncs: MutableMap<Struct, Function> = mutableMapOf()
 }
 
 data class ExpressionLowerResult(

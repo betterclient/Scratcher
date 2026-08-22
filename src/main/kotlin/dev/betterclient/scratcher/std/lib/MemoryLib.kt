@@ -251,7 +251,9 @@ object MemoryLib {
             }
         }
 
-        for (sealedEnum in lib.sealedEnums) {
+        val reachableSealedEnums = mutableMapOf<ASTFile, List<SealedEnum>>().also { figureOutReachableSealedEnums(it, compilationStartAST) }.flatMap { (_, enums) -> enums }
+
+        for (sealedEnum in reachableSealedEnums) {
             sealedEnum.types.forEachIndexed { tag, variantStruct ->
                 val name = "new${sealedEnum.sourceAST.simplePath}::${sealedEnum.name}.${variantStruct.name.substringAfter(".")}"
 
@@ -267,10 +269,11 @@ object MemoryLib {
                     val enumPtrVar = LocalVariable("compiler@enumPtr", sealedEnum.type)
                     fn.code.localVariables.add(enumPtrVar)
 
-                    val payloadExpr = if (variantStruct.parameters.isNotEmpty()) {
+                    val isEmpty = variantStruct.parameters.isEmpty()
+                    val payloadExpr = if (!isEmpty) {
                         CallExpression(variantStruct.allocFunc, fn.parameters.map { ParameterExpression(it) })
                     } else {
-                        NullExpression
+                        IntLiteral((-tag-1).toBigInteger())
                     }
                     val payloadVar = LocalVariable("compiler@payloadPtr", PrimitiveType.Integer)
                     fn.code.localVariables.add(payloadVar)
@@ -295,9 +298,11 @@ object MemoryLib {
                     val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
                     val ptrOffset = tagOffset + 1
 
+                    val effectiveTag = if (isEmpty) -tag-1 else tag
+
                     fn.code.code.add(TemporaryHeapSetStatement(
                         index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger())),
-                        data = IntLiteral(tag.toBigInteger())
+                        data = IntLiteral(effectiveTag.toBigInteger())
                     ))
                     fn.code.code.add(TemporaryHeapSetStatement(
                         index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
@@ -307,6 +312,7 @@ object MemoryLib {
                     fn.code.code.add(ReturnStatement(LocalVariableExpression(enumPtrVar)))
                     lib.functions.add(fn)
                 }
+                sealedEnum.allocFuncs[variantStruct] = func
             }
         }
     }
@@ -319,5 +325,11 @@ object MemoryLib {
         if (out.containsKey(ast)) return
         out[ast] = ast.structs.map { it }
         ast.imports.forEach { (_, ast) -> figureOutReachableStructs(out, ast) }
+    }
+
+    private fun figureOutReachableSealedEnums(out: MutableMap<ASTFile, List<SealedEnum>>, ast: ASTFile) {
+        if (out.containsKey(ast)) return
+        out[ast] = ast.sealedEnums.toList()
+        ast.imports.forEach { (_, imported) -> figureOutReachableSealedEnums(out, imported) }
     }
 }

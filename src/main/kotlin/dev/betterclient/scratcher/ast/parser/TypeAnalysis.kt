@@ -287,6 +287,22 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is EnumLiteral -> expr.enum.type
             is ParameterExpression -> expr.parameter.type
             is FunctionLiteral -> FunctionType.from(expr.function)
+            is CheckSealedEnumTypeExpression -> {
+                val leftType = getActualTypeOrThrow(expr.expr, function)
+                val expectedSealed = leftType.asNonNull()
+                if (expectedSealed != expr.sealedEnum.type) {
+                    throw TypeAnalysisException("IS check left type $leftType does not match sealed enum ${expr.sealedEnum.type}")
+                }
+                PrimitiveType.Bool
+            }
+            is SealedEnumCastExpression -> {
+                val leftType = getActualTypeOrThrow(expr.expr, function)
+                val expectedSealed = leftType.asNonNull()
+                if (expectedSealed != expr.sealedEnum.type) {
+                    throw TypeAnalysisException("AS cast left type $leftType does not match sealed enum ${expr.sealedEnum.type}")
+                }
+                expr.targetVariant.type
+            }
 
             is TemporaryExpression -> throw UnreachableException()
         }
@@ -303,8 +319,10 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             if (subjectType != null) {
                 val baseType = subjectType.asNonNull()
                 val isEnum = (baseType as? SimpleType)?.sourceAST?.enums?.any { it.type.asNonNull() == baseType } ?: false
-                if (isEnum && !ExpressionTypes.isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
-                    throw TypeAnalysisException("When statement/expression on enum must be exhaustive or have an else branch")
+                val isSealedEnum = baseType is SealedEnumType
+                if ((isEnum || isSealedEnum) && !ExpressionTypes.isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
+                    val kind = if (isSealedEnum) "sealed enum" else "enum"
+                    throw TypeAnalysisException("When statement/expression on $kind must be exhaustive or have an else branch")
                 }
             }
 
@@ -312,10 +330,21 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(PrimitiveType.Bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
                 subjectType?.let { expected ->
                     if (!branch.isElse) {
-                        val actualBranchExpr = (branch.cond as BinaryExpression).right
-                        val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
-                        if (!branchExprType.isAssignable(expected)) {
-                            throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
+                        when (val cond = branch.cond) {
+                            is CheckSealedEnumTypeExpression -> {
+                                val expectedSealed = expected.asNonNull()
+                                if (expectedSealed != cond.sealedEnum.type) {
+                                    throw TypeAnalysisException("Branch condition sealed enum type ${cond.sealedEnum.type} not compatible with subject type $expected")
+                                }
+                            }
+                            is BinaryExpression -> {
+                                val actualBranchExpr = cond.right
+                                val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
+                                if (!branchExprType.isAssignable(expected)) {
+                                    throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
+                                }
+                            }
+                            else -> {}
                         }
                     }
                 }

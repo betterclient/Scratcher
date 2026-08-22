@@ -111,6 +111,20 @@ data class LambdaExpression(
     val capturedVariables: MutableSet<LocalVariable> = mutableSetOf()
 ) : Expression()
 
+data class CheckSealedEnumTypeExpression(
+    val expr: Expression,
+    val targetVariant: Struct,
+    val sealedEnum: SealedEnum,
+    val tag: Int
+) : Expression()
+
+data class SealedEnumCastExpression(
+    val expr: Expression,
+    val targetVariant: Struct,
+    val sealedEnum: SealedEnum,
+    val tag: Int
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()

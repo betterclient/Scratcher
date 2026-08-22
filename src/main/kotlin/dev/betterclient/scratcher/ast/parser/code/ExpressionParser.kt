@@ -152,6 +152,8 @@ class ExpressionParser(
             is ScratcherLangParser.LambdaExprContext -> {
                 parseLambda(ctx)
             }
+            is ScratcherLangParser.CheckSealedEnumTypeExprContext -> parseIsExpr(ctx)
+            is ScratcherLangParser.CastSealedEnumExprContext -> parseCastExpr(ctx)
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
 
@@ -185,6 +187,16 @@ class ExpressionParser(
         }
 
         is ScratcherLangParser.MemberExprContext -> {
+            val sealedVariant = tryResolveSealedVariantConstruction(innerExpr)
+            if (sealedVariant != null) {
+                val (_, variant, wrapper) = sealedVariant
+                val args = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
+                val inflated = args.mapIndexed { i, arg ->
+                    StringBoxing.autoConvert(arg, variant.parameters.getOrNull(i)?.type, parser.ctx)
+                }
+                return CallExpression(wrapper, inflated)
+            }
+
             val receiverExpr = parseExpression(innerExpr.expression())
             val methodName = innerExpr.IDENTIFIER().text
             val userArgs = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
@@ -507,7 +519,7 @@ class ExpressionParser(
         return out
     }
 
-    private fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
+    fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
         val subject = ctx.expression()?.let { parseExpression(it) }
         val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, it)) }
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
@@ -529,6 +541,10 @@ class ExpressionParser(
             entries.map { entry ->
                 val isElse = entry.whenCondition().ELSE() != null
                 val cond = entry.whenCondition().expression()?.let {
+                    if (subjectVar != null) {
+                        val sealedCheck = tryResolveWhenBranchAsSealedCheck(subjectVar, it)
+                        if (sealedCheck != null) return@let sealedCheck
+                    }
                     val expr = parseExpression(it)
                     if (subjectVar != null) {
                         BinaryExpression(
@@ -563,6 +579,16 @@ class ExpressionParser(
     }
 
     private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {
+        val sealedVariant = tryResolveSealedVariantConstruction(ctx)
+        if (sealedVariant != null) {
+            val (sealed, variant, wrapper) = sealedVariant
+            if (variant.parameters.isEmpty()) {
+                return CallExpression(wrapper, emptyList())
+            } else {
+                throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} requires arguments, use ${sealed.name}.${variant.name.substringAfter(".")}(...)")
+            }
+        }
+
         val enum = when (val leftExpr = ctx.expression()) {
             is ScratcherLangParser.IdExprContext -> {
                 val name = leftExpr.text
@@ -621,5 +647,95 @@ class ExpressionParser(
 
         val variable = ast.variables.find { it.name == text }?: throw NotFoundException("Variable $text not found")
         return VariableExpression(variable, ast)
+    }
+
+    private fun findSealedEnumByName(name: String): SealedEnum? {
+        return ast.sealedEnums.find { it.name == name }
+            ?: ast.imports.values.flatMap { it.sealedEnums }.find { it.name == name }
+    }
+
+    private fun findVariantInfo(variantType: SimpleType): Triple<SealedEnum, Struct, Int>? {
+        val allSealed = ast.sealedEnums + ast.imports.values.flatMap { it.sealedEnums }
+        for (sealed in allSealed) {
+            for ((idx, variant) in sealed.types.withIndex()) {
+                if (variant.type == variantType) return Triple(sealed, variant, idx)
+            }
+        }
+        return null
+    }
+
+    private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext): Triple<SealedEnum, Struct, dev.betterclient.scratcher.ast.Function>? {
+        val leftCtx = memberCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
+        val sealedName = leftCtx.text
+        val variantShort = memberCtx.IDENTIFIER().text
+        val sealed = findSealedEnumByName(sealedName) ?: return null
+        val variant = sealed.types.find { it.name.substringAfter(".") == variantShort } ?: return null
+        val wrapper = sealed.allocFuncs[variant] ?: run {
+            val name = "new${sealed.sourceAST.simplePath}::${sealed.name}.${variantShort}"
+            StandardLibASTGenerator.memoryLib.functions.find { it.name == name }
+                ?: StandardLibASTGenerator.memLib.functions.find { it.name == name }
+                ?: parser.ctx.asts.values.flatMap { it.functions }.find { it.name == name }
+                ?: return null
+        }
+        return Triple(sealed, variant, wrapper)
+    }
+
+    private fun tryResolveWhenBranchAsSealedCheck(subjectVar: LocalVariable, condCtx: ScratcherLangParser.ExpressionContext): CheckSealedEnumTypeExpression? {
+        val subjectType = subjectVar.type.asNonNull() as? SealedEnumType ?: return null
+        val sealed = findSealedEnumByName(subjectType.name) ?: return null
+        val variant = when (condCtx) {
+            is ScratcherLangParser.MemberExprContext -> {
+                val left = condCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
+                if (left.text != sealed.name) return null
+                val variantShort = condCtx.IDENTIFIER().text
+                sealed.types.find { it.name.substringAfter(".") == variantShort }
+            }
+            is ScratcherLangParser.IdExprContext -> {
+                val short = condCtx.text
+                sealed.types.find { it.name.substringAfter(".") == short }
+            }
+            else -> null
+        } ?: return null
+        val tag = sealed.types.indexOf(variant)
+        val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
+        return CheckSealedEnumTypeExpression(LocalVariableExpression(subjectVar), variant, sealed, effectiveTag)
+    }
+
+    private fun parseIsExpr(ctx: ScratcherLangParser.CheckSealedEnumTypeExprContext): Expression {
+        val left = parseExpression(ctx.expression())
+        val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
+        val variantType = targetType.asNonNull() as? SimpleType
+            ?: throw TypeAnalysisException("IS check target must be a sealed enum variant, got $targetType at ${ctx.position}")
+        val info = findVariantInfo(variantType)
+            ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
+        val (sealed, variant, tag) = info
+        val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
+        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftNonNull = leftType.asNonNull()
+        if (leftNonNull != sealed.type) {
+            if (leftType !is NullableType || leftType.inner != sealed.type) {
+                throw TypeAnalysisException("IS check left type $leftType is not ${sealed.type} at ${ctx.position}")
+            }
+        }
+        return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag)
+    }
+
+    private fun parseCastExpr(ctx: ScratcherLangParser.CastSealedEnumExprContext): Expression {
+        val left = parseExpression(ctx.expression())
+        val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
+        val variantType = targetType.asNonNull() as? SimpleType
+            ?: throw TypeAnalysisException("AS cast target must be a sealed enum variant, got $targetType at ${ctx.position}")
+        val info = findVariantInfo(variantType)
+            ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
+        val (sealed, variant, tag) = info
+        val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
+        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftNonNull = leftType.asNonNull()
+        if (leftNonNull != sealed.type) {
+            if (leftType !is NullableType || leftType.inner != sealed.type) {
+                throw TypeAnalysisException("AS cast left type $leftType is not ${sealed.type} at ${ctx.position}")
+            }
+        }
+        return SealedEnumCastExpression(left, variant, sealed, effectiveTag)
     }
 }

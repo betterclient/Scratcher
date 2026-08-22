@@ -29,7 +29,12 @@ statement
     | whileStmt
     | repeatStmt
     | forStmt
+    | whenStmt
     | exprStmt
+    ;
+
+whenStmt
+    : whenExpression SEMI?
     ;
 
 tlVarDecl
@@ -164,6 +169,8 @@ expression
     | AMPERSAND functionIdentifier                      # funcRefExpr
     | lambdaDecl ARROW lambdaBlock                      # lambdaExpr
     | THIS                                              # thisExpr
+    | expression IS type                                # checkSealedEnumTypeExpr
+    | expression AS type                                # castSealedEnumExpr
     ;
 
 lambdaDecl
@@ -173,7 +180,11 @@ lambdaDecl
 
 functionIdentifier
     : IDENTIFIER
-    | typePath
+    | simpleTypePath
+    ;
+
+simpleTypePath
+    : IDENTIFIER (COLONCOLON IDENTIFIER)*
     ;
 
 argList
@@ -189,7 +200,7 @@ type
     ;
 
 typePath
-    : IDENTIFIER (COLONCOLON IDENTIFIER)*
+    : IDENTIFIER ((COLONCOLON | DOT) IDENTIFIER)*
     ;
 
 primitiveType
