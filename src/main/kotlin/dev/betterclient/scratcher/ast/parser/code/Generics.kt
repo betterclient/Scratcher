@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PlaceholderType
+import dev.betterclient.scratcher.ast.SealedEnum
 import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.SimpleType
 import dev.betterclient.scratcher.ast.Struct
@@ -33,7 +34,30 @@ object Generics {
                 type.parameterTypes.map { substituteType(context, it, bindings) },
                 substituteType(context, type.returnType, bindings)
             )
-            is SealedEnumType -> type
+            is SealedEnumType -> {
+                if (type.typeBindings.isEmpty()) {
+                    val template = type.sourceAST.sealedEnumTemplates.find { it.name == type.name }
+                        ?: type.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == type.name }
+                    if (template != null && template.typeParameters.any { bindings.containsKey(it) }) {
+                        val typeArgs = template.typeParameters.map { bindings[it] ?: PlaceholderType(it) }
+                        if (typeArgs.none { it is PlaceholderType }) {
+                            return resolveGenericSealedEnum(context, type.sourceAST, type.name, typeArgs)
+                        }
+                    }
+                } else {
+                    val newBindings = type.typeBindings.mapValues { substituteType(context, it.value, bindings) }
+                    if (newBindings != type.typeBindings) {
+                        val baseName = type.name.substringBefore("@")
+                        val template = type.sourceAST.sealedEnumTemplates.find { it.name == baseName }
+                            ?: type.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
+                        if (template != null) {
+                            val typeArgs = template.typeParameters.map { newBindings[it]!! }
+                            return resolveGenericSealedEnum(context, type.sourceAST, baseName, typeArgs)
+                        }
+                    }
+                }
+                type
+            }
             is SimpleType -> {
                 val struct = type.sourceAST.structs.find { it.type == type }
                 if (struct != null && struct.typeBindings.isNotEmpty()) {
@@ -88,6 +112,34 @@ object Generics {
                     }
                 }
             }
+        }
+        if (paramType is SealedEnumType && providedType is SealedEnumType) {
+            val paramBase = paramType.name.substringBefore("@")
+            val providedBase = providedType.name.substringBefore("@")
+            if (paramBase == providedBase) {
+                val paramTemplate = paramType.sourceAST.sealedEnumTemplates.find { it.name == paramBase }
+                    ?: paramType.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == paramBase }
+                    ?: paramType.sourceAST.sealedEnums.find { it.name == paramBase }
+                if (paramTemplate != null && paramType.typeBindings.isNotEmpty() && providedType.typeBindings.isNotEmpty()) {
+                    return paramType.typeBindings.all { (key, value) ->
+                        val providedValue = providedType.typeBindings[key] ?: return@all false
+                        deduceTypeArgs(value, providedValue, typeParams, bindings)
+                    }
+                }
+                if (paramType.typeBindings.isEmpty() && providedType.typeBindings.isNotEmpty() && paramTemplate != null) {
+                    return paramTemplate.typeParameters.all { tp ->
+                        val providedVal = providedType.typeBindings[tp] ?: return@all false
+                        deduceTypeArgs(PlaceholderType(tp), providedVal, typeParams, bindings)
+                    }
+                }
+            }
+        }
+        if (paramType is SealedEnumType && providedType is SimpleType) {
+            val sealedName = paramType.name.substringBefore("@")
+            val sealed = paramType.sourceAST.sealedEnums.find { it.name == sealedName && it.typeBindings == paramType.typeBindings }
+                ?: paramType.sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == sealedName && it.typeBindings == paramType.typeBindings }
+                ?: return paramType == providedType
+            return sealed.types.any { it.type == providedType }
         }
         return paramType == providedType
     }
@@ -195,5 +247,70 @@ object Generics {
         MemoryLib.initMem(StandardLibASTGenerator.memLib, template.sourceAST)
 
         return instantiatedStruct.type
+    }
+
+    fun resolveGenericSealedEnum(
+        context: CompilationContext,
+        currentAST: ASTFile,
+        baseName: String,
+        typeArgs: List<Type>
+    ): Type {
+        val template = currentAST.sealedEnumTemplates.find { it.name == baseName }
+            ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
+            ?: throw NotFoundException("Generic sealed enum template $baseName not found")
+
+        if (template.typeParameters.size != typeArgs.size) {
+            throw GeneralCompilerException("Type argument count mismatch for sealed enum ${template.name}")
+        }
+
+        val suffix = typeArgs.joinToString("_") { it.toSafeString() }
+        val instantiatedName = "${template.name}@$suffix"
+
+        val targetAST = template.sourceAST
+        val existing = targetAST.sealedEnums.find { it.name == instantiatedName }
+            ?: currentAST.sealedEnums.find { it.name == instantiatedName }
+            ?: targetAST.sealedEnums.find { it.type == SealedEnumType(instantiatedName, targetAST) }
+        if (existing != null) {
+            return existing.type
+        }
+        val bindings = template.typeParameters.zip(typeArgs).toMap()
+        val existingByBindings = targetAST.sealedEnums.find { it.name == template.name && it.typeBindings == bindings }
+        if (existingByBindings != null) return existingByBindings.type
+
+        val instantiatedSealed = SealedEnum(
+            name = instantiatedName,
+            types = mutableListOf(),
+            sourceAST = targetAST,
+            typeParameters = emptyList(),
+            typeBindings = bindings
+        )
+        targetAST.sealedEnums.add(instantiatedSealed)
+        val sealedType = instantiatedSealed.type
+        context.types.add(sealedType)
+
+        for (placeholderVariant in template.types) {
+            val short = placeholderVariant.name.substringAfter(".")
+            val variantFullName = "$instantiatedName.$short"
+            val concreteVariant = Struct(
+                name = variantFullName,
+                sourceAST = targetAST,
+                typeBindings = bindings
+            )
+            for (param in placeholderVariant.parameters) {
+                val concreteType = substituteType(context, param.type, bindings)
+                concreteVariant.parameters.add(Parameter(param.name, concreteType))
+            }
+            targetAST.structs.add(concreteVariant)
+            context.types.add(concreteVariant.type)
+            instantiatedSealed.types.add(concreteVariant)
+
+            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                addGC(StructGCInfo(concreteVariant.type, concreteVariant))
+            }
+        }
+
+        MemoryLib.initMem(StandardLibASTGenerator.memLib, targetAST)
+
+        return sealedType
     }
 }

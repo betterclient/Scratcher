@@ -181,7 +181,8 @@ data class PlaceholderType(val name: String) : Type {
 
 data class SealedEnumType(
     val name: String,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val typeBindings: Map<String, Type> = emptyMap()
 ) : Type {
     override val isPrimitive = false
 
@@ -189,18 +190,27 @@ data class SealedEnumType(
         val nonNullOther = other.asNonNull()
         if (this == nonNullOther) return true
 
-        val sealedEnum = sourceAST.sealedEnums.find { it.name == this.name }
+        val sealedEnum = sourceAST.sealedEnums.find { it.name == this.name && it.typeBindings == this.typeBindings }
+            ?: sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == this.name && it.typeBindings == this.typeBindings }
+            ?: sourceAST.sealedEnums.find { it.name == this.name }
             ?: sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == this.name }
+            ?: sourceAST.sealedEnumTemplates.find { it.name == this.name }
+            ?: sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == this.name }
             ?: return false
 
         return sealedEnum.types.any { it.type == nonNullOther }
     }
 
     override fun toString(): String {
-        return "${sourceAST.simplePath}::$name"
+        return if (typeBindings.isEmpty()) "${sourceAST.simplePath}::$name"
+        else "${sourceAST.simplePath}::$name<${typeBindings.values.joinToString(", ")}>"
     }
 
-    override fun toSafeString(): String = "${sourceAST.simplePath}_$name"
+    override fun toSafeString(): String {
+        if (typeBindings.isEmpty()) return "${sourceAST.simplePath}_$name"
+        if (name.contains("@")) return "${sourceAST.simplePath}_$name"
+        return "${sourceAST.simplePath}_${name}@${typeBindings.values.joinToString("_"){it.toSafeString()}}"
+    }
 }
 
 fun unifyTypes(left: Type, right: Type): Type? {

@@ -7,7 +7,7 @@ on GreenFlag {
 
     when(out) {
         Result.Success -> {
-            looks::say("success!");
+            looks::say("success! ${(out as Result.Success).out}");
         }
         Result.Failure -> {
             looks::say("failure :(");
@@ -15,7 +15,7 @@ on GreenFlag {
     }
 }
 
-Result runSomething() {
+Result<str> runSomething() {
     return if(utils::random(0, 5) == 3) {
         Result.Failure(67)
     } else {
@@ -23,7 +23,7 @@ Result runSomething() {
     };
 }
 
-sealed enum Result {
-    Success(str message),
+sealed enum Result<T> {
+    Success(T out),
     Failure(int errorCode)
 }

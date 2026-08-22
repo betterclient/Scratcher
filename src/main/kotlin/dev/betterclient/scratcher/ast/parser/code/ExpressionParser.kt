@@ -83,7 +83,7 @@ class ExpressionParser(
                 right = parseExpression(ctx.expression(1)!!)
             )
             is ScratcherLangParser.ScopeExprContext -> parseScopeExpr(ctx)
-            is ScratcherLangParser.MemberExprContext -> parseMemberExpr(ctx)
+            is ScratcherLangParser.MemberExprContext -> parseMemberExpr(ctx, expectedType)
             is ScratcherLangParser.NullExprContext -> NullExpression
             is ScratcherLangParser.AssertNonNullContext -> {
                 NonNullAssertExpression(parseExpression(ctx.expression()))
@@ -187,7 +187,8 @@ class ExpressionParser(
         }
 
         is ScratcherLangParser.MemberExprContext -> {
-            val sealedVariant = tryResolveSealedVariantConstruction(innerExpr)
+            val argTypesPreview = ctx.argList()?.expression()?.map { ExpressionTypes.getExpressionType(parser.ctx, parseExpression(it)) }
+            val sealedVariant = tryResolveSealedVariantConstruction(innerExpr, expectedType, argTypesPreview)
             if (sealedVariant != null) {
                 val (_, variant, wrapper) = sealedVariant
                 val args = ctx.argList()?.expression()?.map { parseExpression(it) } ?: emptyList()
@@ -578,8 +579,8 @@ class ExpressionParser(
         )
     }
 
-    private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext): Expression {
-        val sealedVariant = tryResolveSealedVariantConstruction(ctx)
+    private fun parseMemberExpr(ctx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null): Expression {
+        val sealedVariant = tryResolveSealedVariantConstruction(ctx, expectedType, null)
         if (sealedVariant != null) {
             val (sealed, variant, wrapper) = sealedVariant
             if (variant.parameters.isEmpty()) {
@@ -650,8 +651,22 @@ class ExpressionParser(
     }
 
     private fun findSealedEnumByName(name: String): SealedEnum? {
-        return ast.sealedEnums.find { it.name == name }
-            ?: ast.imports.values.flatMap { it.sealedEnums }.find { it.name == name }
+        val base = name.substringBefore("@")
+        ast.sealedEnums.find { it.name == name }?.let { return it }
+        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == name }?.let { return it }
+        ast.sealedEnums.find { it.name == base }?.let { return it }
+        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == base }?.let { return it }
+
+        findSealedTemplateByName(base)?.let { return it }
+        return null
+    }
+
+    private fun findSealedTemplateByName(name: String): SealedEnum? {
+        val base = name.substringBefore("@")
+        return ast.sealedEnumTemplates.find { it.name == base }
+            ?: ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == base }
+            ?: ast.sealedEnumTemplates.find { it.name == name }
+            ?: ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == name }
     }
 
     private fun findVariantInfo(variantType: SimpleType): Triple<SealedEnum, Struct, Int>? {
@@ -664,29 +679,110 @@ class ExpressionParser(
         return null
     }
 
-    private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext): Triple<SealedEnum, Struct, dev.betterclient.scratcher.ast.Function>? {
+    private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null, argTypes: List<Type>? = null): Triple<SealedEnum, Struct, dev.betterclient.scratcher.ast.Function>? {
         val leftCtx = memberCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
-        val sealedName = leftCtx.text
+        val sealedBaseName = leftCtx.text.substringBefore("@").substringBefore("<")
         val variantShort = memberCtx.IDENTIFIER().text
-        val sealed = findSealedEnumByName(sealedName) ?: return null
-        val variant = sealed.types.find { it.name.substringAfter(".") == variantShort } ?: return null
-        val wrapper = sealed.allocFuncs[variant] ?: run {
-            val name = "new${sealed.sourceAST.simplePath}::${sealed.name}.${variantShort}"
-            StandardLibASTGenerator.memoryLib.functions.find { it.name == name }
-                ?: StandardLibASTGenerator.memLib.functions.find { it.name == name }
-                ?: parser.ctx.asts.values.flatMap { it.functions }.find { it.name == name }
-                ?: return null
+
+        val concreteSealed = findSealedEnumByName(sealedBaseName)
+        if (concreteSealed != null && concreteSealed.typeParameters.isEmpty()) {
+            val variant = concreteSealed.types.find { it.name.substringAfter(".") == variantShort } ?: return null
+            val wrapper = resolveWrapper(concreteSealed, variant, variantShort) ?: return null
+            return Triple(concreteSealed, variant, wrapper)
         }
-        return Triple(sealed, variant, wrapper)
+
+        val template = findSealedTemplateByName(sealedBaseName) ?: run {
+            val exact = findSealedEnumByName(sealedBaseName) ?: return null
+            val variant = exact.types.find { it.name.substringAfter(".") == variantShort } ?: return null
+            val wrapper = resolveWrapper(exact, variant, variantShort) ?: return null
+            return Triple(exact, variant, wrapper)
+        }
+
+        val bindings = mutableMapOf<String, Type>()
+        var deduced = false
+
+        if (expectedType is SealedEnumType && expectedType.name.substringBefore("@") == template.name) {
+            if (expectedType.typeBindings.isNotEmpty()) {
+                bindings.putAll(expectedType.typeBindings)
+                deduced = true
+            } else {
+                val concreteForExpected = findSealedEnumByName(expectedType.name)
+                if (concreteForExpected != null && concreteForExpected.typeBindings.isNotEmpty()) {
+                    bindings.putAll(concreteForExpected.typeBindings)
+                    deduced = true
+                }
+            }
+        }
+
+        if (argTypes != null) {
+            val placeholderVariant = template.types.find { it.name.substringAfter(".") == variantShort }
+            if (placeholderVariant != null) {
+                for (i in argTypes.indices) {
+                    val paramType = placeholderVariant.parameters.getOrNull(i)?.type ?: continue
+                    Generics.deduceTypeArgs(paramType, argTypes[i], template.typeParameters, bindings)
+                }
+                if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
+            }
+        }
+
+        if (!deduced && parser.currentTypeBindings.isNotEmpty()) {
+            for (tp in template.typeParameters) {
+                parser.currentTypeBindings[tp]?.let { bindings[tp] = it }
+            }
+            if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
+        }
+
+        if (!deduced) {
+            val retType = parser.currentFunction?.returnType as? SealedEnumType
+            if (retType != null && retType.name.substringBefore("@") == template.name && retType.typeBindings.isNotEmpty()) {
+                bindings.putAll(retType.typeBindings)
+                if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
+            } else if (retType != null) {
+                val retSealed = findSealedEnumByName(retType.name)
+                if (retSealed != null && retSealed.typeBindings.isNotEmpty() && retSealed.name.substringBefore("@") == template.name) {
+                    bindings.putAll(retSealed.typeBindings)
+                    if (template.typeParameters.all { bindings.containsKey(it) }) deduced = true
+                }
+            }
+        }
+
+        if (template.typeParameters.all { bindings.containsKey(it) }) {
+            val typeArgs = template.typeParameters.map { bindings[it]!! }
+            val sealedType = try {
+                Generics.resolveGenericSealedEnum(parser.ctx, ast, template.name, typeArgs)
+            } catch (_: Exception) { return null }
+            val concreteSealedEnum = (ast.sealedEnums.find { it.type == sealedType }
+                ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == sealedType }
+                ?: findSealedEnumByName((sealedType as SealedEnumType).name)
+                ?: template.sourceAST.sealedEnums.find { it.type == sealedType }) ?: return null
+            val variant = concreteSealedEnum.types.find { it.name.substringAfter(".") == variantShort } ?: return null
+            val wrapper = resolveWrapper(concreteSealedEnum, variant, variantShort) ?: return null
+            return Triple(concreteSealedEnum, variant, wrapper)
+        }
+
+        return null
+    }
+
+    private fun resolveWrapper(sealed: SealedEnum, variant: Struct, variantShort: String): Function? {
+        sealed.allocFuncs[variant]?.let { return it }
+        val name = "new${sealed.sourceAST.simplePath}::${sealed.name}.${variantShort}"
+        return StandardLibASTGenerator.memoryLib.functions.find { it.name == name }
+            ?: StandardLibASTGenerator.memLib.functions.find { it.name == name }
+            ?: parser.ctx.asts.values.flatMap { it.functions }.find { it.name == name }
     }
 
     private fun tryResolveWhenBranchAsSealedCheck(subjectVar: LocalVariable, condCtx: ScratcherLangParser.ExpressionContext): CheckSealedEnumTypeExpression? {
         val subjectType = subjectVar.type.asNonNull() as? SealedEnumType ?: return null
-        val sealed = findSealedEnumByName(subjectType.name) ?: return null
+        val sealed = findSealedEnumByName(subjectType.name)
+            ?: ast.sealedEnums.find { it.type == subjectType }
+            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == subjectType }
+            ?: return null
+        val baseName = sealed.name.substringBefore("@")
         val variant = when (condCtx) {
             is ScratcherLangParser.MemberExprContext -> {
                 val left = condCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
-                if (left.text != sealed.name) return null
+                val leftBase = left.text.substringBefore("@")
+                if (leftBase != baseName && left.text != sealed.name) return null
                 val variantShort = condCtx.IDENTIFIER().text
                 sealed.types.find { it.name.substringAfter(".") == variantShort }
             }
@@ -703,6 +799,17 @@ class ExpressionParser(
 
     private fun parseIsExpr(ctx: ScratcherLangParser.CheckSealedEnumTypeExprContext): Expression {
         val left = parseExpression(ctx.expression())
+        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftSealedType = leftType.asNonNull() as? SealedEnumType
+
+        if (leftSealedType != null) {
+            val inferred = tryResolveIsAsFromLeft(leftSealedType, ctx.type())
+            if (inferred != null) {
+                val (sealed, variant, tag) = inferred
+                val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
+                return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag)
+            }
+        }
         val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
             ?: throw TypeAnalysisException("IS check target must be a sealed enum variant, got $targetType at ${ctx.position}")
@@ -710,7 +817,6 @@ class ExpressionParser(
             ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
         val (sealed, variant, tag) = info
         val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
         val leftNonNull = leftType.asNonNull()
         if (leftNonNull != sealed.type) {
             if (leftType !is NullableType || leftType.inner != sealed.type) {
@@ -722,6 +828,16 @@ class ExpressionParser(
 
     private fun parseCastExpr(ctx: ScratcherLangParser.CastSealedEnumExprContext): Expression {
         val left = parseExpression(ctx.expression())
+        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftSealedType = leftType.asNonNull() as? SealedEnumType
+        if (leftSealedType != null) {
+            val inferred = tryResolveIsAsFromLeft(leftSealedType, ctx.type())
+            if (inferred != null) {
+                val (sealed, variant, tag) = inferred
+                val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
+                return SealedEnumCastExpression(left, variant, sealed, effectiveTag)
+            }
+        }
         val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
             ?: throw TypeAnalysisException("AS cast target must be a sealed enum variant, got $targetType at ${ctx.position}")
@@ -729,7 +845,6 @@ class ExpressionParser(
             ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
         val (sealed, variant, tag) = info
         val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
         val leftNonNull = leftType.asNonNull()
         if (leftNonNull != sealed.type) {
             if (leftType !is NullableType || leftType.inner != sealed.type) {
@@ -737,5 +852,37 @@ class ExpressionParser(
             }
         }
         return SealedEnumCastExpression(left, variant, sealed, effectiveTag)
+    }
+
+    private fun tryResolveIsAsFromLeft(leftSealedType: SealedEnumType, targetTypeCtx: ScratcherLangParser.TypeContext): Triple<SealedEnum, Struct, Int>? {
+        val pathCtx = targetTypeCtx as? ScratcherLangParser.PathTypeContext ?: return null
+        val ids = pathCtx.typePath().IDENTIFIER()
+        val hasArgs = pathCtx.type().isNotEmpty()
+        val sealed = ast.sealedEnums.find { it.type == leftSealedType }
+            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == leftSealedType }
+            ?: findSealedEnumByName(leftSealedType.name) ?: return null
+        val baseName = sealed.name.substringBefore("@")
+        val variantShort: String = when {
+            ids.size == 1 -> {
+                ids[0].text
+            }
+            ids.size >= 2 -> {
+                val qualifier = ids[ids.size - 2].text.substringBefore("@")
+                if (qualifier != baseName) return null
+                ids.last().text
+            }
+            else -> return null
+        }
+        if (hasArgs) {
+            return try {
+                val explicitType = figureOutType(parser.ctx, ast, targetTypeCtx, localTypeBindings = parser.currentTypeBindings)
+                val variantType = explicitType.asNonNull() as? SimpleType ?: return null
+                findVariantInfo(variantType)
+            } catch (_: Exception) { null }
+        }
+        val idx = sealed.types.indexOfFirst { it.name.substringAfter(".") == variantShort }
+        if (idx == -1) return null
+        val variant = sealed.types[idx]
+        return Triple(sealed, variant, idx)
     }
 }

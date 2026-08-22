@@ -71,7 +71,7 @@ enumDecl
     ;
 
 sealedEnumDecl
-    : SEALED ENUM IDENTIFIER LBRACE (sealedEnumArg (COMMA sealedEnumArg)*)? RBRACE
+    : SEALED ENUM IDENTIFIER typeParameters? LBRACE (sealedEnumArg (COMMA sealedEnumArg)*)? RBRACE
     ;
 
 sealedEnumArg

@@ -318,7 +318,8 @@ class StatementParser(
         }
         blockCtx.returnStmt()?.let {
             block.code.add(ReturnStatement(it.expression()?.let { expr ->
-                StringBoxing.autoConvert(exprParser.parseExpression(expr), parser.currentFunction?.returnType, parser.ctx)
+                val parsed = exprParser.parseExpression(expr, parser.currentFunction?.returnType)
+                StringBoxing.autoConvert(parsed, parser.currentFunction?.returnType, parser.ctx)
             }))
         }
 

@@ -18,6 +18,7 @@ class ASTFile(
     val templates: MutableList<Function> = mutableListOf(),
     val structTemplates: MutableList<Struct> = mutableListOf(),
     val sealedEnums: MutableList<SealedEnum> = mutableListOf(),
+    val sealedEnumTemplates: MutableList<SealedEnum> = mutableListOf(),
 ) {
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
@@ -132,10 +133,13 @@ data class ASTEnum(
 class SealedEnum(
     val name: String,
     val types: MutableList<Struct>,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val typeParameters: List<String> = emptyList(),
+    val typeBindings: Map<String, Type> = emptyMap()
 ) {
-    val type = SealedEnumType(name, sourceAST)
+    val type = SealedEnumType(name, sourceAST, typeBindings)
     val allocFuncs: MutableMap<Struct, Function> = mutableMapOf()
+    var parseInfo: ScratcherLangParser.SealedEnumDeclContext? = null
 }
 
 data class ExpressionLowerResult(

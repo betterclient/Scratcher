@@ -84,18 +84,27 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
 
         val sealedEnumArgMap = mutableMapOf<Struct, ScratcherLangParser.SealedEnumArgContext>()
+        val sealedTemplateVariantMap = mutableMapOf<Struct, Pair<SealedEnum, ScratcherLangParser.SealedEnumArgContext>>()
 
         for (context in initialRead.topLevelElement().filter { it.sealedEnumDecl() != null }) {
             val sealedDecl = context.sealedEnumDecl()!!
             val enumName = sealedDecl.IDENTIFIER().text
+            val typeParams = sealedDecl.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
 
             val sealedEnumAST = SealedEnum(
                 name = enumName,
                 types = mutableListOf(),
-                sourceAST = ast
+                sourceAST = ast,
+                typeParameters = typeParams
             )
-            ctx.types.add(sealedEnumAST.type)
-            ast.sealedEnums.add(sealedEnumAST)
+            sealedEnumAST.parseInfo = sealedDecl
+
+            if (typeParams.isNotEmpty()) {
+                ast.sealedEnumTemplates.add(sealedEnumAST)
+            } else {
+                ctx.types.add(sealedEnumAST.type)
+                ast.sealedEnums.add(sealedEnumAST)
+            }
 
             for (arg in sealedDecl.sealedEnumArg()) {
                 val variantName = arg.IDENTIFIER().text
@@ -103,11 +112,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     name = "$enumName.$variantName",
                     sourceAST = ast
                 )
-                sealedEnumArgMap[structAST] = arg
-
-                ctx.types.add(structAST.type)
-                ast.structs.add(structAST)
                 sealedEnumAST.types.add(structAST)
+                if (typeParams.isNotEmpty()) {
+                    sealedTemplateVariantMap[structAST] = Pair(sealedEnumAST, arg)
+                } else {
+                    sealedEnumArgMap[structAST] = arg
+                    ctx.types.add(structAST.type)
+                    ast.structs.add(structAST)
+                }
             }
         }
 
@@ -177,6 +189,24 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             val paramList = argCtx.paramList()?.param() ?: emptyList()
             for (param in paramList) {
                 val type = figureOutType(ctx, ast, param.type())
+                if (type == PrimitiveType.Void) {
+                    throw VoidVariableException("${ast.simplePath}::${struct.name} has a field with type void.")
+                }
+                struct.parameters.add(
+                    Parameter(
+                        param.IDENTIFIER().text,
+                        type
+                    )
+                )
+            }
+            checkDuplicates(struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
+        }
+
+        for ((struct, pair) in sealedTemplateVariantMap) {
+            val (parentSealed, argCtx) = pair
+            val paramList = argCtx.paramList()?.param() ?: emptyList()
+            for (param in paramList) {
+                val type = figureOutType(ctx, ast, param.type(), parentSealed.typeParameters)
                 if (type == PrimitiveType.Void) {
                     throw VoidVariableException("${ast.simplePath}::${struct.name} has a field with type void.")
                 }
@@ -359,6 +389,23 @@ fun figureOutType(
 
             if (typeArgsCtx.isNotEmpty()) {
                 val resolvedArgs = typeArgsCtx.map { figureOutType(context, currentAST, it, typeParameters, localTypeBindings) }
+                val sealedTemplate = currentAST.sealedEnumTemplates.find { it.name == typeName }
+                    ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == typeName }
+                if (sealedTemplate != null) {
+                    return Generics.resolveGenericSealedEnum(context, currentAST, typeName, resolvedArgs)
+                }
+                if (rawText.contains(".")) {
+                    val qualifier = id[id.size - 2].text
+                    val qualifierSealedTemplate = currentAST.sealedEnumTemplates.find { it.name == qualifier }
+                        ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == qualifier }
+                    if (qualifierSealedTemplate != null) {
+                        val sealedType = Generics.resolveGenericSealedEnum(context, currentAST, qualifier, resolvedArgs)
+                        val sealedEnum = (currentAST.sealedEnums.find { it.type == sealedType }
+                            ?: currentAST.imports.values.flatMap { it.sealedEnums }.find { it.type == sealedType })!!
+                        val variant = sealedEnum.types.find { it.name.substringAfter(".") == typeName }!!
+                        return variant.type
+                    }
+                }
                 return Generics.resolveGenericStruct(context, currentAST, typeName, resolvedArgs)
             }
 
