@@ -4,6 +4,8 @@ import extensions;
 import cast;
 
 int gc_LastCollected = 0;
+int gc_Epoch = 1;
+
 on GreenFlag {
     while(true) {
         utils::wait(1); //collect every second
@@ -12,8 +14,10 @@ on GreenFlag {
 }
 
 warp int collect() {
-    self::clearMarked();
     return 0 if(self::lengthOfRoots() == 0); //????
+
+    //setup marker
+    gc_Epoch++;
 
     int rootIndex = 1;
     repeat(self::lengthOfRoots()) {
@@ -25,7 +29,7 @@ warp int collect() {
     //mark the already freed items
     int freeIndex = 1;
     repeat(self::lengthOfFreeList()) {
-        self::addMarked(cast::toIntOrDefault(self::getFreeList(freeIndex), -1));
+        mark(cast::toIntOrDefault(self::getFreeList(freeIndex), -1));
         freeIndex++;
     }
 
@@ -39,7 +43,7 @@ warp int sweep() {
     int blockSize = 0;
 
     repeat(self::getHeapSize()) {
-        if(!self::isMarked(index)) {
+        if(!isMarked(index)) {
             if (blockStart == -1) {
                 blockStart = index;
             }
@@ -66,7 +70,7 @@ warp void markRoot(int addr) {
     str name = findName(addr);
     return if(name == "0");
 
-    self::addMarked(addr - 1);
+    mark(addr - 1);
 
     int start = self::getFieldsStart(name);
     int count = self::getFieldsCount(name);
@@ -76,13 +80,12 @@ warp void markRoot(int addr) {
         markType(addr + typeIndex, type);
         typeIndex++;
     }
-    //self::freeStrArray(types); freeing this breaks everything????????????
 }
 
 warp void markType(int addr, str type) {
     return if !isValid(addr);
 
-    self::addMarked(addr);
+    mark(addr);
 
     return if(type.contains("n"));
     return if(type == "p");
@@ -106,11 +109,11 @@ warp void markType(int addr, str type) {
 warp void markList(int addr, str type) {
     return if !isValid(addr);
     int capacity = self::getListCapacity(addr);
-    self::addMarked(addr - 1); //alloc name
+    mark(addr - 1); //alloc name
 
     int hIndex = 0;
     repeat(self::getListHeaderSize()) {
-        self::addMarked(addr + hIndex);
+        mark(addr + hIndex);
         hIndex++;
     }
 
@@ -127,7 +130,7 @@ warp void markList(int addr, str type) {
     //now we gotta go to the dataPtr in the heap
     int data = self::getListDataPtr(addr);
     if(cast::toStr(data) != "null") {
-        self::addMarked(data - 1);
+        mark(data - 1);
     }
     index = 0;
     repeat(capacity) {
@@ -135,7 +138,7 @@ warp void markList(int addr, str type) {
         if(out != "p" && out != "0" && out.length() > 0) {
             markType(data + index, out);
         } else {
-            self::addMarked(data + index);
+            mark(data + index);
         }
         index++;
     }
@@ -145,7 +148,7 @@ warp void markStruct(int addr, str type) {
     return if !isValid(addr);
     return if(self::isStack(type)); //stacks already mark themselves
 
-    self::addMarked(addr - 1);
+    mark(addr - 1);
 
     int start = self::getFieldsStart(type);
     int count = self::getFieldsCount(type);
@@ -154,7 +157,7 @@ warp void markStruct(int addr, str type) {
         int actualAddr = addr + typeIndex;
         str fieldType = self::getFieldType(start + typeIndex);
         if(fieldType == "p" || fieldType == "0") {
-            self::addMarked(actualAddr);
+            mark(actualAddr);
         } else {
             markType(actualAddr, fieldType);
         }
@@ -171,9 +174,21 @@ warp bool isValid(int addr) {
     return false if(addr == 0);
     return false if(cast::toStr(addr) == "null");
     return false if(cast::toStr(addr) == "");
-    return false if(self::isMarked(addr));
+    return false if(isMarked(addr));
 
     return cast::toStr(addr) != "reserved";
+}
+
+warp bool isMarked(int addr) {
+    return true if (addr <= 0);
+    
+    return self::getMarked(addr) == gc_Epoch;
+}
+
+warp void mark(int addr) {
+    return if(addr <= 0);
+
+    self::setMarked(addr, gc_Epoch);
 }
 
 warp void markTopLevels() {

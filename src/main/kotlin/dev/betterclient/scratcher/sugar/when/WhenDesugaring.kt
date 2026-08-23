@@ -36,7 +36,7 @@ object WhenDesugaring : CompilerSugar() {
                 val prepend = mutableListOf<Statement>()
 
                 val tempWhenExpr = WhenExpression(subject, branches)
-                val returnType = ExpressionTypes.getExpressionType(context, tempWhenExpr)
+                val returnType = ExpressionTypes.getExpressionType(tempWhenExpr)
                 val tempVar = if (returnType != PrimitiveType.Void) {
                     LocalVariable("whenResult@${getUniqueName()}", returnType)
                 } else null
@@ -46,7 +46,7 @@ object WhenDesugaring : CompilerSugar() {
                     branchStatements.addAll(branch.block.code)
 
                     if (tempVar != null && branchStatements.isNotEmpty()) {
-                        val value = ExpressionTypes.getWhenBranchValue(context, branch)
+                        val value = ExpressionTypes.getWhenBranchValue(branch)
                         if (value != null) {
                             val last = branchStatements.lastOrNull()
                             if (last is ExpressionStatement && last.expression === value) {

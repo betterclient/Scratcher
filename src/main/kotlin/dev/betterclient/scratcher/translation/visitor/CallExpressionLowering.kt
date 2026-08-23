@@ -3,7 +3,6 @@ package dev.betterclient.scratcher.translation.visitor
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.obfuscate
@@ -13,7 +12,6 @@ import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 
 class CallExpressionLowering(
-    val context: CompilationContext,
     val func: Function
 ) : ASTVisitor() {
     val doingReturnLowering = func.returnType != PrimitiveType.Void
@@ -120,7 +118,7 @@ class CallExpressionLowering(
     }
 
     override fun visitNonNullAssertExpression(expression: Expression): Expression {
-        val type = ExpressionTypes.getExpressionType(context, expression)
+        val type = ExpressionTypes.getExpressionType(expression)
         val checked = visit(CallExpression(
             func = ExceptionLib.assertNonNull,
             arguments = listOf(expression, StringLiteral(if (CompilationConstants.OBFUSCATION) {

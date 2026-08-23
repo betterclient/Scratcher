@@ -98,12 +98,19 @@ class EntrypointTranslator(
             ).also { list ->
                 if (CompilationConstants.MARK_AND_SWEEP_GC) {
                     list.add(ListStatements.ClearList(GCLib.rootsList))
+                    list.add(ListStatements.ClearList(GCLib.markedList))
                 }
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        list.add(ListStatements.AddToList(GCLib.markedList, "0".scratch))
+                    }
                 }
                 val index = if (topLevelInitLocals.first > 0) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch)) //reserve for initLocals
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        list.add(ListStatements.AddToList(GCLib.markedList, "0".scratch))
+                    }
                     entrypointCount + 1
                 } else -1
 

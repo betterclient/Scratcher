@@ -423,7 +423,7 @@ class RefCountVisitor(
         get() = ExpressionStatement(CallExpression(inc, listOf(this)))
 
     private fun Expression.getType(): Type {
-        return ExpressionTypes.getExpressionType(this@RefCountVisitor.compilationContext, this)
+        return ExpressionTypes.getExpressionType(this)
     }
 
     private fun Expression.isReturningPlusOne(): Boolean {

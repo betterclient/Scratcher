@@ -24,7 +24,6 @@ import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.ast.unifyTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.sugar.CompilerSugar
@@ -38,7 +37,7 @@ object SafeNullOperations : CompilerSugar() {
         visit(func, object : ASTVisitor() {
             override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
                 val variable = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
-                if (ExpressionTypes.getExpressionType(context, target) !is NullableType)
+                if (ExpressionTypes.getExpressionType(target) !is NullableType)
                     return MemberExpression(target, member, struct)
 
                 return StatementExpression(
@@ -61,8 +60,7 @@ object SafeNullOperations : CompilerSugar() {
                                                 member = member,
                                                 struct = struct
                                             ),
-                                            expectedType = member.type.asNullable(),
-                                            context = context
+                                            expectedType = member.type.asNullable()
                                         )
                                     )
                                 )
@@ -78,8 +76,8 @@ object SafeNullOperations : CompilerSugar() {
                 val op2Visited = visit(operand2)
                 if (op2Visited == NullExpression) return operand1
 
-                val op1Type = ExpressionTypes.getExpressionType(context, operand1)
-                val op2Type = ExpressionTypes.getExpressionType(context, op2Visited)
+                val op1Type = ExpressionTypes.getExpressionType(operand1)
+                val op2Type = ExpressionTypes.getExpressionType(op2Visited)
                 val isLeftNullable = op1Type is NullableType || op1Type == PrimitiveType.Null
                 if (!isLeftNullable) {
                     return operand1
@@ -107,7 +105,7 @@ object SafeNullOperations : CompilerSugar() {
                                 it.code.add(
                                     LocalVariableAssignmentStatement(
                                         variable = lhs,
-                                        assignment = StringBoxing.autoConvert(op2Visited, targetType, context)
+                                        assignment = StringBoxing.autoConvert(op2Visited, targetType)
                                     )
                                 )
                             }

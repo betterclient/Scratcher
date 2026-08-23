@@ -1,7 +1,6 @@
 package dev.betterclient.scratcher.ast.parser.code
 
 import dev.betterclient.scratcher.ast.*
-import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -10,18 +9,18 @@ object StringBoxing {
     val stringBoxStruct: Struct
         get() = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!
 
-    fun autoConvert(expr: Expression, expectedType: Type?, context: CompilationContext): Expression {
+    fun autoConvert(expr: Expression, expectedType: Type?): Expression {
         if (expectedType == null) return expr
 
-        return unboxIfNeeded(expr, expectedType, context).let {
-            boxIfNeeded(it, expectedType, context)
+        return unboxIfNeeded(expr, expectedType).let {
+            boxIfNeeded(it, expectedType)
         }
     }
 
-    fun boxIfNeeded(expr: Expression, expectedType: Type?, context: CompilationContext): Expression {
+    fun boxIfNeeded(expr: Expression, expectedType: Type?): Expression {
         if (expectedType == null) return expr
 
-        val exprType = ExpressionTypes.getExpressionType(context, expr)
+        val exprType = ExpressionTypes.getExpressionType(expr)
 
         if (expectedType.asNonNull().toString() == "str" && expectedType is NullableType && exprType == PrimitiveType.Str) {
             return CallExpression(stringBoxStruct.allocFunc, listOf(expr))
@@ -29,10 +28,10 @@ object StringBoxing {
         return expr
     }
 
-    fun unboxIfNeeded(expr: Expression, expectedType: Type?, context: CompilationContext): Expression {
+    fun unboxIfNeeded(expr: Expression, expectedType: Type?): Expression {
         if (expectedType == null) return expr
 
-        val exprType = ExpressionTypes.getExpressionType(context, expr)
+        val exprType = ExpressionTypes.getExpressionType(expr)
 
         if (expectedType == PrimitiveType.Str &&
             exprType is NullableType &&

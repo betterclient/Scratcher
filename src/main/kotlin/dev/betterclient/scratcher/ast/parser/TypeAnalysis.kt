@@ -219,7 +219,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is TypeLiteral -> expr.type
             is CallExpression -> {
                 if (ListLib.listFuncs.contains(expr.func)) {
-                    ListLib.getActualReturnType(this.ctx, expr) { getActualTypeOrThrow(it, function) }
+                    ListLib.getActualReturnType(expr) { getActualTypeOrThrow(it, function) }
                 } else {
                     expr.arguments.forEachIndexed { index, expression ->
                         checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct")

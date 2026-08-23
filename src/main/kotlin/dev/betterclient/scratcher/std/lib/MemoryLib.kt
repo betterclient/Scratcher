@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -104,6 +105,10 @@ object MemoryLib {
                 allocatedAddress.set(heap.length + 1.sc)
                 control.repeat(actualSize) {
                     heap.add("null".sc)
+
+                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                        GCLib.markedList.add("0".sc)
+                    }
                 }
             }
 

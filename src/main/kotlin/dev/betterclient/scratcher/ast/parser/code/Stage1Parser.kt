@@ -33,7 +33,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             variable.ctx?.let {
                 variable.defaultValue = expressionParser.parseExpression(it, variable.type)
                 if (variable.type == PrimitiveType.Auto) {
-                    variable.type = ExpressionTypes.getExpressionType(this.ctx, variable.defaultValue!!)
+                    variable.type = ExpressionTypes.getExpressionType(variable.defaultValue!!)
                 }
             }
             variable.ctx = null

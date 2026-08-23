@@ -44,11 +44,11 @@ class FunctionResolver(
         }
 
         val expectedArgListTypes = argList?.expression()?.map { expr ->
-            ExpressionTypes.getExpressionType(parser.ctx, parser.expressionParser.parseExpression(expr))
+            ExpressionTypes.getExpressionType(parser.expressionParser.parseExpression(expr))
         }?: listOf()
         val args = argList?.expression()?.map { parser.expressionParser.parseExpression(it) }?: listOf()
         val inflatedArgs = { paramTypes: List<Type> ->
-            args.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i), parser.ctx) }
+            args.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
         }
 
         Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser)?.let {
@@ -258,11 +258,11 @@ class FunctionResolver(
         arguments: List<Expression>
     ): CallExpression? {
         val allArgs = listOf(receiverExpr) + arguments
-        val receiverType = ExpressionTypes.getExpressionType(parser.ctx, receiverExpr)
-        val argTypes = listOf(receiverType) + arguments.map { ExpressionTypes.getExpressionType(parser.ctx, it) }
+        val receiverType = ExpressionTypes.getExpressionType(receiverExpr)
+        val argTypes = listOf(receiverType) + arguments.map { ExpressionTypes.getExpressionType(it) }
 
         val inflatedArgs = { paramTypes: List<Type> ->
-            allArgs.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i), parser.ctx) }
+            allArgs.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
         }
 
         val searchASTs = listOf(ast) + ast.imports.values

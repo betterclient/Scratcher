@@ -1,39 +1,15 @@
 package dev.betterclient.scratcher.std.lib
 
 import dev.betterclient.scratcher.CompilationConstants
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.ListType
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.StandardLibASTFunction
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.Struct
-import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.scratch
-import dev.betterclient.scratcher.ast.GeneralCompilerException
-import dev.betterclient.scratcher.ast.NotFoundException
-import dev.betterclient.scratcher.ast.TypeException
-import dev.betterclient.scratcher.ast.TypeLiteral
-import dev.betterclient.scratcher.std.dsl.CodeBuilder
-import dev.betterclient.scratcher.std.dsl.DSLExpression
-import dev.betterclient.scratcher.std.dsl.compile
-import dev.betterclient.scratcher.std.dsl.compileInline
-import dev.betterclient.scratcher.std.dsl.concat
-import dev.betterclient.scratcher.std.dsl.equals
-import dev.betterclient.scratcher.std.dsl.gt
-import dev.betterclient.scratcher.std.dsl.lt
-import dev.betterclient.scratcher.std.dsl.minus
-import dev.betterclient.scratcher.std.dsl.plus
-import dev.betterclient.scratcher.std.dsl.sc
-import dev.betterclient.scratcher.std.dsl.times
+import dev.betterclient.scratcher.std.dsl.*
 
 object ListLib {
     lateinit var newList: StandardLibASTFunction
@@ -138,7 +114,11 @@ object ListLib {
                 val list = arg("list", PrimitiveType.Integer)
                 val item = arg("item", PrimitiveType.Integer)
                 val index = arg("index", PrimitiveType.Integer)
-                checkOutOfBounds(list, index)
+                checkOutOfBounds(list, index, if (CompilationConstants.OBFUSCATION) {
+                    "".sc
+                } else {
+                    "replace: Unable to find item ".sc concat index concat " in list: ".sc concat list concat " length: ".sc concat MemoryLib.heap[list + lengthOffset.sc]
+                })
 
                 MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + index] = item
             }
@@ -152,7 +132,11 @@ object ListLib {
             val index = arg("index", PrimitiveType.Integer)
             val length = MemoryLib.heap[list + lengthOffset.sc]
             val dataPtr = MemoryLib.heap[list + dataPtrOffset.sc]
-            checkOutOfBounds(list, index)
+            checkOutOfBounds(list, index, if (CompilationConstants.OBFUSCATION) {
+                "".sc
+            } else {
+                "remove: Unable to find item ".sc concat index concat " in list: ".sc concat list concat " length: ".sc concat MemoryLib.heap[list + lengthOffset.sc]
+            })
 
             val shiftIndex = variable("list::shiftIndex")
             shiftIndex.set(index)
@@ -198,7 +182,11 @@ object ListLib {
                 val list = arg("list", PrimitiveType.Integer)
                 val index = arg("index", PrimitiveType.Integer)
                 val returnVal = returnArg(PrimitiveType.Integer)
-                checkOutOfBounds(list, index)
+                checkOutOfBounds(list, index, if (CompilationConstants.OBFUSCATION) {
+                    "".sc
+                } else {
+                    "itemAt: Unable to find item ".sc concat index concat " in list: ".sc concat list concat " length: ".sc concat MemoryLib.heap[list + lengthOffset.sc]
+                })
 
                 MemoryLib.heap[returnVal] = MemoryLib.heap[MemoryLib.heap[list + dataPtrOffset.sc] + index]
             }
@@ -366,7 +354,7 @@ object ListLib {
         ast.imports.forEach { (_, ast) -> figureOutReachableStructs(out, ast) }
     }
 
-    fun getActualReturnType(context: CompilationContext, expr: CallExpression, check: (Expression) -> Type): Type {
+    fun getActualReturnType(expr: CallExpression, check: (Expression) -> Type): Type {
         return when(expr.func) {
             newList -> {
                 val typeLiteral = expr.arguments.firstOrNull() as? TypeLiteral
@@ -470,21 +458,22 @@ object ListLib {
 
     private fun CodeBuilder.checkOutOfBounds(
         list: DSLExpression,
-        index: DSLExpression
+        index: DSLExpression,
+        error: DSLExpression
     ) {
         val length = MemoryLib.heap[list + lengthOffset.sc]
         if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
             control.ifThen(index gt (length - 1.sc)) {
                 call(
                     ExceptionLib.panic,
-                    "IndexOutOfBoundsException".sc
+                    "Scratcher runtime error: IndexOutOfBoundsException: ".sc concat error
                 )
             }
 
             control.ifThen(index lt 0.sc) {
                 call(
                     ExceptionLib.panic,
-                    "IndexOutOfBoundsException".sc
+                    "Scratcher runtime error: IndexOutOfBoundsException: ".sc concat error
                 )
             }
         }

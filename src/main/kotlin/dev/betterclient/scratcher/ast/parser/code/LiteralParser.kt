@@ -48,15 +48,14 @@ class LiteralParser(
                 part.interpolation() != null -> {
                     StringBoxing.unboxIfNeeded(
                         expressionParser.parseExpression(part.interpolation()!!.expression()),
-                        PrimitiveType.Str,
-                        parser.ctx
+                        PrimitiveType.Str
                     )
                 }
                 else -> StringLiteral("")
             }
         }
         val exprsReduced = if (exprs.size == 1) {
-            if (ExpressionTypes.getExpressionType(parser.ctx, exprs[0]) == PrimitiveType.Str) {
+            if (ExpressionTypes.getExpressionType(exprs[0]) == PrimitiveType.Str) {
                 exprs[0]
             } else {
                 ConcatExpression(exprs[0], StringLiteral(""))

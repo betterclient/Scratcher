@@ -96,7 +96,7 @@ class ExpressionParser(
             }
             is ScratcherLangParser.SafeDotExprContext -> {
                 val structExpr = parseExpression(ctx.expression())
-                val struct = ExpressionTypes.getExpressionType(parser.ctx, structExpr).let { type ->
+                val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
                     val baseType = type.asNonNull() as? SimpleType
                     baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type or enum at ${ctx.position}, expected a struct, found $baseType")
                 }
@@ -157,7 +157,7 @@ class ExpressionParser(
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
 
-        return StringBoxing.autoConvert(expr, expectedType, parser.ctx)
+        return StringBoxing.autoConvert(expr, expectedType)
     }
 
     private fun parseDynamicCall(
@@ -189,7 +189,7 @@ class ExpressionParser(
         is ScratcherLangParser.MemberExprContext -> {
             val argCtxs = ctx.argList()?.expression() ?: emptyList()
             val args = argCtxs.map { parseExpression(it) }
-            val argTypes = args.map { ExpressionTypes.getExpressionType(parser.ctx, it) }
+            val argTypes = args.map { ExpressionTypes.getExpressionType(it) }
 
             val sealedVariant = tryResolveSealedVariantConstruction(innerExpr, expectedType, argTypes)
             if (sealedVariant != null) {
@@ -198,7 +198,7 @@ class ExpressionParser(
                     throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} expects ${variant.parameters.size} argument(s), got ${args.size} at ${ctx.position}")
                 }
                 val inflated = args.mapIndexed { i, arg ->
-                    StringBoxing.autoConvert(arg, variant.parameters[i].type, parser.ctx)
+                    StringBoxing.autoConvert(arg, variant.parameters[i].type)
                 }
                 return SealedEnumConstructionExpression(sealed, variant, inflated)
             }
@@ -214,7 +214,7 @@ class ExpressionParser(
 
             try {
                 val memberExpr = parseMemberExpr(innerExpr)
-                val funcType = ExpressionTypes.getExpressionType(parser.ctx, memberExpr) as? FunctionType
+                val funcType = ExpressionTypes.getExpressionType(memberExpr) as? FunctionType
 
                 if (funcType != null && callExpr != null) {
                     throw NotFoundException("Ambiguous reference, found extension function ${callExpr.func} and $funcType from struct parameters")
@@ -223,7 +223,7 @@ class ExpressionParser(
 
             callExpr ?: run {
                 val memberExpr = parseMemberExpr(innerExpr)
-                val funcType = ExpressionTypes.getExpressionType(parser.ctx, memberExpr) as? FunctionType
+                val funcType = ExpressionTypes.getExpressionType(memberExpr) as? FunctionType
 
                 DynamicCallExpression(
                     function = memberExpr,
@@ -241,7 +241,7 @@ class ExpressionParser(
             val func = parseExpression(innerExpr)
             DynamicCallExpression(
                 function = func,
-                type = ExpressionTypes.getExpressionType(parser.ctx, func) as? FunctionType
+                type = ExpressionTypes.getExpressionType(func) as? FunctionType
                     ?: throw GeneralCompilerException(
                         "Dynamic call without a function?"
                     ),
@@ -258,7 +258,7 @@ class ExpressionParser(
         val original = runCatching { parseExpression(innerExpr, expectedType) }
         if (original.isSuccess) {
             val fnExpr = original.getOrNull()!!
-            val fnType = ExpressionTypes.getExpressionType(parser.ctx, fnExpr) as? FunctionType
+            val fnType = ExpressionTypes.getExpressionType(fnExpr) as? FunctionType
             if (fnType != null) {
                 return DynamicCallExpression(
                     function = fnExpr,
@@ -279,7 +279,7 @@ class ExpressionParser(
 
         val receiverVar = LocalVariable(
             "safeDotCall@receiver@${getUniqueName()}",
-            ExpressionTypes.getExpressionType(parser.ctx, receiver)
+            ExpressionTypes.getExpressionType(receiver)
         )
         val actualResolved = resolved.copy(
             arguments = resolved.arguments.mapIndexed { index, expression ->
@@ -314,7 +314,7 @@ class ExpressionParser(
                     thenBlock = CodeBlock().also {
                         it.code.add(LocalVariableAssignmentStatement(
                             out,
-                            StringBoxing.autoConvert(actualResolved, outType, parser.ctx)
+                            StringBoxing.autoConvert(actualResolved, outType)
                         ))
                     }
                 )
@@ -386,8 +386,8 @@ class ExpressionParser(
         val op = if (ctx.EQ() != null) BinaryOperator.EQUAL else BinaryOperator.NOT_EQUAL
         val left = parseExpression(ctx.expression(0)!!)
         val right = parseExpression(ctx.expression(1)!!)
-        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
-        val rightType = ExpressionTypes.getExpressionType(parser.ctx, right)
+        val leftType = ExpressionTypes.getExpressionType(left)
+        val rightType = ExpressionTypes.getExpressionType(right)
 
         if (leftType == PrimitiveType.Null || rightType == PrimitiveType.Null) {
             return BinaryExpression(left, op, right)
@@ -445,7 +445,7 @@ class ExpressionParser(
     private fun bindBoxOnce(boxExpr: Expression, use: (Expression) -> Expression): Expression {
         if (boxExpr.simple) return use(boxExpr)
 
-        val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, boxExpr))
+        val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(boxExpr))
         return StatementExpression(listOf(VariableStatement(boxExpr, temp)), use(LocalVariableExpression(temp)))
     }
 
@@ -454,14 +454,14 @@ class ExpressionParser(
         val leftRef = if (left.simple) {
             left
         } else {
-            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, left))
+            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(left))
             stmts.add(VariableStatement(left, temp))
             LocalVariableExpression(temp)
         }
         val rightRef = if (right.simple) {
             right
         } else {
-            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, right))
+            val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(right))
             stmts.add(VariableStatement(right, temp))
             LocalVariableExpression(temp)
         }
@@ -526,7 +526,8 @@ class ExpressionParser(
 
     fun parseWhenExpr(ctx: ScratcherLangParser.WhenExpressionContext): Expression {
         val subject = ctx.expression()?.let { parseExpression(it) }
-        val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(parser.ctx, it)) }
+        val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(
+            it)) }
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
         val entries = ctx.whenEntry()
         if (entries.isEmpty()) {
@@ -617,7 +618,7 @@ class ExpressionParser(
         }
 
         val structExpr = parseExpression(ctx.expression())
-        val struct = ExpressionTypes.getExpressionType(parser.ctx, structExpr).let { type ->
+        val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
             val baseType = type.asNonNull() as? SimpleType
             baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
         }
@@ -797,7 +798,7 @@ class ExpressionParser(
 
     private fun parseIsExpr(ctx: ScratcherLangParser.CheckSealedEnumTypeExprContext): Expression {
         val left = parseExpression(ctx.expression())
-        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftType = ExpressionTypes.getExpressionType(left)
         val leftSealedType = leftType.asNonNull() as? SealedEnumType
 
         if (leftSealedType != null) {
@@ -826,7 +827,7 @@ class ExpressionParser(
 
     private fun parseCastExpr(ctx: ScratcherLangParser.CastSealedEnumExprContext): Expression {
         val left = parseExpression(ctx.expression())
-        val leftType = ExpressionTypes.getExpressionType(parser.ctx, left)
+        val leftType = ExpressionTypes.getExpressionType(left)
         val leftSealedType = leftType.asNonNull() as? SealedEnumType
         if (leftSealedType != null) {
             val inferred = tryResolveIsAsFromLeft(leftSealedType, ctx.type())

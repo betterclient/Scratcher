@@ -52,7 +52,7 @@ class LambdaDefunctionalization(
         val pars = arguments.map { Parameter(it.name, it.type) }
         val lookup = arguments.zip(pars).toMap()
         val lambdaExpr = LambdaExpression(arguments, block, captured)
-        val fullFuncType = ExpressionTypes.getExpressionType(ctx, lambdaExpr) as FunctionType
+        val fullFuncType = ExpressionTypes.getExpressionType(lambdaExpr) as FunctionType
 
         val userFuncType = FunctionType(fullFuncType.parameterTypes.drop(1), fullFuncType.returnType)
 

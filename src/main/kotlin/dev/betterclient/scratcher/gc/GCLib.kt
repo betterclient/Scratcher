@@ -1,26 +1,9 @@
 package dev.betterclient.scratcher.gc
 
 import dev.betterclient.scratcher.CompilationConstants
-import dev.betterclient.scratcher.ast.ASTEventListener
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.ExpressionLowerResult
-import dev.betterclient.scratcher.ast.ExpressionStatement
-import dev.betterclient.scratcher.ast.InlineStandardLibFunction
-import dev.betterclient.scratcher.ast.ListType
-import dev.betterclient.scratcher.ast.Parameter
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.TLVariable
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.VariableExpression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.ast.CallFunction
-import dev.betterclient.scratcher.codegen.ast.ListExpressions
-import dev.betterclient.scratcher.codegen.ast.ListStatements
-import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
-import dev.betterclient.scratcher.codegen.ast.scratch
+import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
@@ -160,9 +143,6 @@ object GCLib {
             )
         }
 
-        freeFunc(lib, ListType(PrimitiveType.Str), "StrArray")
-        freeFunc(lib, ListType(PrimitiveType.Integer), "IntArray")
-
         lib.functions.add(InlineStandardLibFunction(
             "isReflectGC",
             returnType = PrimitiveType.Bool,
@@ -184,51 +164,29 @@ object GCLib {
         }
     }
 
-    private fun freeFunc(
-        lib: ASTFile,
-        type: Type,
-        name: String
-    ) {
-        compileInline(
-            lib,
-            "free$name",
-            parameters = mutableListOf(Parameter("array", type)),
-        ) {
-            CallFunction(
-                func = ListLib.free.precompiledCode,
-                args = listOf(it[0])
-            )
-        }
-    }
-
     private fun markedListFunctions(lib: ASTFile) {
-        accessFunctions(lib, markedList, "Marked")
         compileInline(
             lib,
-            "addMarked",
-            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer))
+            "setMarked",
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer), Parameter("value", PrimitiveType.Integer)),
         ) {
-            ListStatements.AddToList(
+            ListStatements.ReplaceItem(
                 markedList,
+                it[1],
                 it[0]
             )
         }
+
         compileInline(
             lib,
-            "isMarked",
-            parameters = mutableListOf(Parameter("item", PrimitiveType.Integer)),
-            returnType = PrimitiveType.Bool
+            "getMarked",
+            parameters = mutableListOf(Parameter("index", PrimitiveType.Integer)),
+            returnType = PrimitiveType.Integer
         ) {
-            ListExpressions.ContainsItemInList(
+            ListExpressions.ItemAtIndex(
                 markedList,
                 it[0]
             )
-        }
-        compileInline(
-            lib,
-            "clearMarked"
-        ) {
-            ListStatements.ClearList(markedList)
         }
     }
 
