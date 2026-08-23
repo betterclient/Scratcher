@@ -3,7 +3,7 @@ import com.strumenta.antlrkotlin.gradle.AntlrKotlinTask
 plugins {
     kotlin("jvm") version "2.3.21"
     id("com.strumenta.antlr-kotlin") version "1.0.10"
-
+    application
 }
 
 group = "dev.betterclient"
@@ -30,6 +30,10 @@ val generateKotlinGrammarSource = tasks.register<AntlrKotlinTask>("generateKotli
         .dir("generatedAntlr/com/strumenta/antlrkotlin/parsers/generated")
         .get()
         .asFile
+}
+
+application {
+    mainClass.set("dev.betterclient.scratcher.MainKt")
 }
 
 kotlin {
