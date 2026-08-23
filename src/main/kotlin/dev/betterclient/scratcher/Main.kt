@@ -88,7 +88,7 @@ fun main() {
     reachableFunctions.addAll(uniqueFunctions)
 
     println("Lower expressions")
-    reachableFunctions.forEach { CallExpressionLowering(context, it).run() }
+    reachableFunctions.forEach { CallExpressionLowering(it).run() }
     reachableFunctions.forEach { it.returnType = PrimitiveType.Void }
 
     println("Re-parse locals")
