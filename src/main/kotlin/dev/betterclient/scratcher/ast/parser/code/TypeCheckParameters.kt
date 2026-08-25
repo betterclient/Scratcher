@@ -19,7 +19,7 @@ object TypeCheckParameters {
         ast: ASTFile,
         currentFunction: Function?
     ) {
-        if (CompilationConstants.DISABLE_TYPE_CHECKER || ast.simplePath == "gc_impl") return
+        if ((CompilationConstants.DISABLE_TYPE_CHECKER && currentFunction?.export == false) || ast.simplePath == "gc_impl") return
 
         for (parameter in parameters) {
             when (parameter.type) {
