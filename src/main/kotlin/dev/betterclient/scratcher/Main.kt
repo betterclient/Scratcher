@@ -36,8 +36,8 @@ fun main() {
     }
 
     println("Reachability")
-    val reachableEntrypoints = EntrypointReachability().run(ast) + GCLib.gcFuncs()
-    val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run()
+    val reachableEntrypoints = (EntrypointReachability().run(ast) + GCLib.gcFuncs()).toMutableList()
+    val (reachableFunctions, _) = FunctionReachability(reachableEntrypoints).run(ast)
 
     println("Pre-Optimize")
     Optimizations.apply(reachableFunctions, context)
@@ -58,11 +58,13 @@ fun main() {
     Optimizations.apply(reachableFunctions, context)
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
-    println("Top level variables")
-    val (postReachableFuncs, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run()
+    println("Exports")
+    val (postReachableFuncs, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run(ast)
     reachableFunctions.clear()
     reachableFunctions.addAll(postReachableFuncs)
+    TranslateExports(reachableFunctions, reachableEntrypoints).run()
 
+    println("Top level variables")
     reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null }
 
     val topLevelTranslator = TopLevelVariableTranslator()
@@ -127,6 +129,7 @@ fun main() {
     EntrypointTranslator(
         getFunctionLocalSize = { reachableFunctionsLocalCountsMap[it]!! },
         toScratch = { scratchStubs[it]!! },
+        toScratchTL = { scratchTopLevels[it]!! },
         topLevelInit = scratchStubs[topLevelInit]!!,
         topLevelInitLocals = reachableFunctionsLocalCountsMap[topLevelInit]!!,
     ).translateAll(

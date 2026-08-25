@@ -3,25 +3,22 @@ package dev.betterclient.scratcher.translation
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.codegen.ScratchEditor
-import dev.betterclient.scratcher.codegen.ast.CallFunction
-import dev.betterclient.scratcher.codegen.ast.ControlStatements
-import dev.betterclient.scratcher.codegen.ast.ListExpressions
-import dev.betterclient.scratcher.codegen.ast.ListStatements
-import dev.betterclient.scratcher.codegen.ast.ScratchASTEventListener
-import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
-import dev.betterclient.scratcher.codegen.ast.ScratchStatement
-import dev.betterclient.scratcher.codegen.ast.scratch
+import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.EventListener
+import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.gc.GCInfo
 import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class EntrypointTranslator(
     val getFunctionLocalSize: (Function) -> Pair<Int, GCInfo>,
     val toScratch: (Function) -> ScratchASTFunction,
+    val toScratchTL: (TLVariable) -> ScratchVariable,
     val topLevelInit: ScratchASTFunction,
     val topLevelInitLocals: Pair<Int, GCInfo>
 ) {
@@ -43,13 +40,7 @@ class EntrypointTranslator(
     ) {
         val func = listener.ctx ?: return
         val (localSize, gc) = getFunctionLocalSize(func)
-        val exec = if (localSize == 0) {
-            listOf(
-                CallFunction(
-                    toScratch(func), listOf("-1".scratch)
-                )
-            )
-        } else if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        val alloc = if (localSize == 0) { listOf() } else if (CompilationConstants.MARK_AND_SWEEP_GC) {
             listOf(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
@@ -58,11 +49,6 @@ class EntrypointTranslator(
                 ListStatements.AddToList( //tell the garbage collector about us
                     GCLib.rootsList,
                     ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
-                ),
-                CallFunction(
-                    toScratch(func), listOf( //call the entrypoint
-                        ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
-                    )
                 )
             )
         } else {
@@ -70,20 +56,32 @@ class EntrypointTranslator(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
                     listOf(localSize.toString().scratch, reservedIndex.toString().scratch) //allocate slots for the entrypoint
-                ),
-                CallFunction(
-                    toScratch(func), listOf( //call the entrypoint
-                        ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
-                    )
                 )
+            )
+        }
+
+        val index = if (localSize == 0) "-1".scratch else ListExpressions.ItemAtIndex(MemoryLib.heap, reservedIndex.toString().scratch)
+
+        val call = if (listener.event is EventListener.ProcedureCall) {
+            CallFunction(
+                toScratch(func), listOf(index) //call the entrypoint
+                     + listener.event.func.parent.prototype.arguments.map { LiteralExpression(it.asValue!!) } //with our args
+            )
+        } else {
+            CallFunction(
+                toScratch(func), listOf(index) //call the entrypoint
+            )
+        }
+
+        val wait = if (listener.event is EventListener.ProcedureCall) listOf() else {
+            listOf(
+                ControlStatements.Wait("0".scratch), //give time to the reset entrypoint so it can allocate slots for us (idk if this is actually needed)
             )
         }
 
         editor.addEventListener(ScratchASTEventListener(
             event = listener.event,
-            code = listOf(
-                ControlStatements.Wait("0".scratch), //give time to the reset entrypoint so it can allocate slots for us (idk if this is actually needed)
-            ) + exec
+            code = wait + alloc + call
         ))
     }
 
@@ -133,6 +131,15 @@ class EntrypointTranslator(
                         }
                     )
                 ))
+
+                if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    list.add(
+                        VariableStatements.SetVariableTo(
+                            variable = toScratchTL(StandardLibASTGenerator.gc.variables.find { it.name == "gc_reserved" }!!),
+                            value = (entrypointCount + 1).toString().scratch
+                        )
+                    )
+                }
             }
         )
 

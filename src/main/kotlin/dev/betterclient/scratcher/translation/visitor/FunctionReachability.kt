@@ -14,7 +14,7 @@ import dev.betterclient.scratcher.optimize.visit
 
 class FunctionReachability(val entrypoints: List<ASTEventListener>) {
 
-    fun run(): Pair<MutableList<Function>, Map<TLVariable, Expression?>> {
+    fun run(startAST: ASTFile): Pair<MutableList<Function>, Map<TLVariable, Expression?>> {
         val visitedFunctions = mutableSetOf<Function>()
         val visitedVariables = mutableSetOf<TLVariable>()
 
@@ -70,6 +70,18 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                 enqueueFunction(func)
             }
         }
+
+        val visitedImports = mutableSetOf<ASTFile>()
+        fun visitExports(ast: ASTFile) {
+            if (!visitedImports.add(ast)) return
+            ast.functions.forEach { func ->
+                if (func.export) {
+                    enqueueFunction(func)
+                }
+            }
+            ast.imports.values.forEach(::visitExports)
+        }
+        visitExports(startAST)
 
         while (functionQueue.isNotEmpty() || variableQueue.isNotEmpty()) {
             if (functionQueue.isNotEmpty()) {

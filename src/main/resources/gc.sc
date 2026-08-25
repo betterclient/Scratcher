@@ -5,6 +5,7 @@ import cast;
 
 int gc_LastCollected = 0;
 int gc_Epoch = 1;
+int gc_reserved = 0;
 
 on GreenFlag {
     while(true) {
@@ -31,6 +32,13 @@ warp int collect() {
     repeat(self::lengthOfFreeList()) {
         mark(cast::toIntOrDefault(self::getFreeList(freeIndex), -1));
         freeIndex++;
+    }
+
+    //mark reserved
+    int i = 1;
+    repeat(gc_reserved) {
+        mark(i);
+        i++;
     }
 
     return sweep();

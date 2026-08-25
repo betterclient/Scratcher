@@ -88,3 +88,7 @@ warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
 }
 
 warp void noRender(Triangle<float> t) {}
+
+export warp void printFPS() {
+    looks::say("${counter::get()}");
+}

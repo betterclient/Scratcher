@@ -51,6 +51,10 @@ class ScratchStringParameterExpression(val parameter: ScratchFuncArgument) : Scr
     override fun lower() = parameter.internal.asValue!!
 }
 
+class LiteralExpression(val inner: ScratchValue) : ScratchExpression() {
+    override fun lower(): ScratchValue { return inner }
+}
+
 object OperatorExpressions {
     enum class BinaryOperator(val create: (ScratchValue, ScratchValue) -> ScratchOpcode) {
         ADD(::AddOpcode),

@@ -4,6 +4,7 @@ import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.ast.NotFoundException
+import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.nextBlockPosition
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,15 +12,17 @@ import org.json.JSONObject
 sealed class EventListener {
     object GreenFlag : EventListener()
     class KeyPressed(val key: Key) : EventListener()
+    class ProcedureCall(val func: ScratchFunction) : EventListener()
 }
 
 class EventListenerFunction(
     val first: ScratchOpcode?,
-    eventType: EventListener
+    val eventType: EventListener
 ) : ScratchObject() {
     val parent = when(eventType) {
         is EventListener.KeyPressed -> WhenKeyPressed(eventType.key)
         is EventListener.GreenFlag -> WhenGreenFlagClicked()
+        is EventListener.ProcedureCall -> eventType.func.parent
     }
     init {
         parent.next = first

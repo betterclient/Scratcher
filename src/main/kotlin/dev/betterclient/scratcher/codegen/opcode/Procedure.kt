@@ -39,7 +39,7 @@ class ProcedureDefinitionOpcode(
 class ProcedurePrototypeOpcode(
     val procedureName: String,
     val warp: Boolean = false,
-    private val arguments: List<ScratchOpcode> = listOf()
+    val arguments: List<ScratchOpcode> = listOf()
 ) : ScratchOpcode(null) {
     override val opcode = "procedures_prototype"
     override var shadow = true

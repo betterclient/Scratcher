@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.codegen
 import dev.betterclient.scratcher.codegen.ast.ScratchASTEventListener
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.ast.compile
+import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
@@ -49,6 +50,11 @@ value class ScratchEditor(private val editor: JSONEditor) {
     }
 
     private fun addEventListener(listener: EventListenerFunction) {
+        if (listener.eventType is EventListener.ProcedureCall) {
+            listener.eventType.func.first = listener.first
+            addFunction(listener.eventType.func)
+            return
+        }
         listener.parent.next?.parent = listener.parent
 
         editor.workerSprite.getJSONObject("blocks").apply {
@@ -62,7 +68,6 @@ value class ScratchEditor(private val editor: JSONEditor) {
                     next = next.next
                 }
             }
-
             put(listener.first)
         }
     }

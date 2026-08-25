@@ -9,6 +9,9 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class TopLevelVariableTranslator {
     fun translate(variable: TLVariable): ScratchVariable {
+        if (variable.name.startsWith("Exported Return: ") && variable.sourceAST == StandardLibASTGenerator.compilerLib) {
+            return ScratchVariable(variable.name)
+        }
         return ScratchVariable(obfuscate("${variable.sourceAST.simplePath}::${variable.name}"))
     }
 

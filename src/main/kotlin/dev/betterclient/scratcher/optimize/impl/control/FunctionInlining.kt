@@ -94,6 +94,7 @@ object InlineEligibility {
         if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc) return Int.MAX_VALUE
         if (targetFunc.sourceAST == StandardLibASTGenerator.typeChecker) return Int.MAX_VALUE
         if (targetFunc.sourceAST == StandardLibASTGenerator.refCountGC) return Int.MAX_VALUE
+        if (targetFunc.export) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
 
         if (!func.warp && targetFunc.warp) return Int.MAX_VALUE
