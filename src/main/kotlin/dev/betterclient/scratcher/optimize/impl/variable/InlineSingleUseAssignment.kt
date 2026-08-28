@@ -63,14 +63,22 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
     private fun Expression.isSimple(): Boolean {
         return when (this) {
             is CallExpression -> false
+            is DynamicCallExpression -> false
             is NonNullAssertExpression -> false
             is WhenExpression -> false
+            is LambdaExpression -> false
+            is SealedEnumConstructionExpression -> false
+            is StatementExpression -> false
             is BinaryExpression -> left.isSimple() && right.isSimple()
             is ConcatExpression -> left.isSimple() && right.isSimple()
             is UnaryExpression -> expression.isSimple()
-            is MemberExpression -> expression.isSimple()
-            is TemporaryHeapGetExpression -> index.isSimple()
-            is TemporaryScratchExpr -> inputExprs.all { it.isSimple() }
+            is NonNullOrElseExpression -> operand1.isSimple() && operand2.isSimple()
+            is MemberExpression -> false
+            is SafeDotExpression -> false
+            is TemporaryHeapGetExpression -> false
+            is TemporaryScratchExpr -> false
+            is CheckSealedEnumTypeExpression -> false
+            is SealedEnumCastExpression -> false
             else -> true
         }
     }

@@ -52,7 +52,9 @@ class Struct(
     lateinit var allocFunc: Function
 
     fun getIndex(parameter: Parameter): Int {
-        return parameters.indexOf(parameter)
+        val idx = parameters.indexOfFirst { it.name == parameter.name }
+        if (idx == -1) throw GeneralCompilerException("Parameter ${parameter.name} not found in struct $name")
+        return idx
     }
 }
 
@@ -117,7 +119,7 @@ class LocalVariable(
     var type: Type
 )
 
-class Parameter(
+data class Parameter(
     val name: String,
     val type: Type
 )

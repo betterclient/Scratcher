@@ -9,7 +9,7 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 //this just contains helper functions, actual gc implemented in resources/gc.sc
@@ -94,15 +94,15 @@ object GCLib {
 
         compileInline(
             lib,
-            "getListCapacity",
+            "getListLength",
             parameters = mutableListOf(Parameter("addr", PrimitiveType.Integer)),
             returnType = PrimitiveType.Integer
         ) {
             ListExpressions.ItemAtIndex(
                 MemoryLib.heap,
-                if (ListLib.capacityOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                if (ArrayLib.lengthOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
                     left = it[0],
-                    right = ListLib.capacityOffset.toString().scratch,
+                    right = ArrayLib.lengthOffset.toString().scratch,
                     operator = OperatorExpressions.BinaryOperator.ADD
                 )
             )
@@ -114,13 +114,10 @@ object GCLib {
             parameters = mutableListOf(Parameter("addr", PrimitiveType.Integer)),
             returnType = PrimitiveType.Integer
         ) {
-            ListExpressions.ItemAtIndex(
-                MemoryLib.heap,
-                if (ListLib.dataPtrOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
-                    left = it[0],
-                    right = ListLib.dataPtrOffset.toString().scratch,
-                    operator = OperatorExpressions.BinaryOperator.ADD
-                )
+            if (ArrayLib.dataOffset == 0) it[0] else OperatorExpressions.BinaryExpression(
+                left = it[0],
+                right = ArrayLib.dataOffset.toString().scratch,
+                operator = OperatorExpressions.BinaryOperator.ADD
             )
         }
 
@@ -129,7 +126,7 @@ object GCLib {
             "getListHeaderSize",
             returnType = PrimitiveType.Integer
         ) {
-            ListLib.headerSize.toString().scratch
+            ArrayLib.headerSize.toString().scratch
         }
 
         compileInline(
@@ -226,7 +223,7 @@ object GCLib {
 
         gcList.items.addAll(
             gcNames.flatMap { info ->
-                val typeFields = info.toGCList().split("-").filter { it.isNotEmpty() }
+                val typeFields = info.toFieldList()
                 val start = currentFieldIndex
                 val count = typeFields.size
                 fields.addAll(typeFields)
@@ -261,8 +258,8 @@ object GCLib {
         if (CompilationConstants.REFLECT_GC) {
             reflectList.items.addAll(eligible.flatMap { variable ->
                 listOf(
-                    if (variable.type is ListType) {
-                        "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ListType).raw())}"
+                    if (variable.type is ArrayType) {
+                        "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ArrayType).raw())}"
                     } else {
                         findGC(variable.type).toString()
                     },
@@ -275,8 +272,8 @@ object GCLib {
         original.code.code.clear()
         original.code.code.addAll(
             eligible.map { variable ->
-                val typeStr = if (variable.type is ListType) {
-                    "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ListType).raw())}"
+                val typeStr = if (variable.type is ArrayType) {
+                    "${"l".repeat(variable.type.toString().count { it == '[' })}${findGC((variable.type as ArrayType).raw())}"
                 } else {
                     findGC(variable.type).toString()
                 }

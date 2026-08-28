@@ -116,7 +116,7 @@ warp void markType(int addr, str type) {
 
 warp void markList(int addr, str type) {
     return if !isValid(addr);
-    int capacity = self::getListCapacity(addr);
+    int capacity = self::getListLength(addr);
     mark(addr - 1); //alloc name
 
     int hIndex = 0;
@@ -137,17 +137,15 @@ warp void markList(int addr, str type) {
     //^ actual list type
     //now we gotta go to the dataPtr in the heap
     int data = self::getListDataPtr(addr);
-    if(cast::toStr(data) != "null") {
-        mark(data - 1);
-    }
+
     index = 0;
     repeat(capacity) {
         //now recurse!!
         if(out != "p" && out != "0" && out.length() > 0) {
             markType(data + index, out);
-        } else {
-            mark(data + index);
         }
+
+        mark(data + index);
         index++;
     }
 }

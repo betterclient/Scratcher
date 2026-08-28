@@ -4,7 +4,7 @@ import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.ListType
+import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.Statement
@@ -100,7 +100,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
     private fun findEligibleLocals(current: Function, graph: TCallGraph): List<LocalVariable> {
         val locals = OptimizationUtils.countLocals(current)
         if (!OptimizationUtils.isRecursive(current, graph)) {
-            return locals.filter { variable -> variable.type.isPrimitive || variable.type is ListType }
+            return locals.filter { variable -> variable.type.isPrimitive || variable.type is ArrayType }
         }
 
         val variableStates = locals.associateWith { VariableState.NOT_DECLARED }.toMutableMap()
@@ -236,7 +236,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
             }
         })
 
-        return variableStates.filter { (variable, state) -> (variable.type.isPrimitive || variable.type is ListType) && state != VariableState.UNSAFE }.keys.toList()
+        return variableStates.filter { (variable, state) -> (variable.type.isPrimitive || variable.type is ArrayType) && state != VariableState.UNSAFE }.keys.toList()
     }
 
     private fun merge(left: Map<LocalVariable, VariableState>, right: Map<LocalVariable, VariableState>): Map<LocalVariable, VariableState> {

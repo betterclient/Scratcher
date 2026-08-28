@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.ast.TypeException
 import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.ast.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
     fun run() {
@@ -148,11 +148,13 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                             throw TypeAnalysisException("Must return a value from a non-void function/lambda.")
                         }
                     } else {
+                        val exprType = getActualTypeOrThrow(statement.expression, function)
                         if (retType == PrimitiveType.Void) {
-                            throw TypeAnalysisException("Cannot return a value from a void function/lambda.")
-                        }
-                        if (retType != null) {
-                            checkType(retType, getActualTypeOrThrow(statement.expression, function), "Return statement type")
+                            if (exprType != PrimitiveType.Void) {
+                                throw TypeAnalysisException("Cannot return a value from a void function/lambda.")
+                            }
+                        } else if (retType != null) {
+                            checkType(retType, exprType, "Return statement type")
                         }
                     }
                 }
@@ -218,8 +220,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
             is TypeLiteral -> expr.type
             is CallExpression -> {
-                if (ListLib.listFuncs.contains(expr.func)) {
-                    ListLib.getActualReturnType(expr) { getActualTypeOrThrow(it, function) }
+                if (ArrayLib.arrayFuncs.contains(expr.func)) {
+                    ArrayLib.getActualReturnType(expr) { getActualTypeOrThrow(it, function) }
                 } else {
                     expr.arguments.forEachIndexed { index, expression ->
                         checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct")

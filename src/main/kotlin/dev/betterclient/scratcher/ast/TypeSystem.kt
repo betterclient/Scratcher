@@ -104,7 +104,7 @@ data class SimpleType(
     override fun toSafeString() = toString()
 }
 
-data class ListType(
+data class ArrayType(
     val elementType: Type
 ) : Type {
     override val isPrimitive: Boolean = false
@@ -112,7 +112,7 @@ data class ListType(
     override fun isAssignable(other: Type): Boolean {
         if (this == other) return true
 
-        val baseOther = other.asNonNull() as? ListType ?: return false
+        val baseOther = other.asNonNull() as? ArrayType ?: return false
         return this.elementType == baseOther.elementType
     }
 
@@ -122,7 +122,7 @@ data class ListType(
 
     fun raw(): Type {
         var self: Type = this
-        while (self is ListType) {
+        while (self is ArrayType) {
             self = self.elementType
         }
         return self

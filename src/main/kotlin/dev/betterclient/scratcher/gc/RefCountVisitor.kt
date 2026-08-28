@@ -9,14 +9,14 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import java.math.BigInteger
 
 class RefCountVisitor(
     val structDecs: Map<Struct, Function>,
     val sealedDecs: Map<SealedEnum, Function>,
     val inc: Function,
-    val generateDecList: (ListType) -> Function,
+    val generateDecList: (ArrayType) -> Function,
     val compilationContext: CompilationContext,
     val currentFunction: Function? = null
 ) : ASTVisitor() {
@@ -169,12 +169,12 @@ class RefCountVisitor(
     override fun visitExpressionStatement(expression: Expression): Statement? {
         if (expression is CallExpression) {
             val listExpr = expression.arguments.getOrNull(0)
-            val listType = listExpr?.getType()?.asNonNull() as? ListType
+            val arrayType = listExpr?.getType()?.asNonNull() as? ArrayType
 
-            if (listType != null && listType.elementType.isRefCounted()) {
-                val elemType = listType.elementType
+            if (arrayType != null && arrayType.elementType.isRefCounted()) {
+                val elemType = arrayType.elementType
 
-                if (expression.func == ListLib.replace && expression.arguments.size == 3) {
+                if (expression.func == ArrayLib.replace && expression.arguments.size == 3) {
                     val itemExpr = expression.arguments[1]
                     val indexExpr = expression.arguments[2]
 
@@ -183,66 +183,13 @@ class RefCountVisitor(
                     val tempItem = LocalVariable("compiler@gc_new_item_${getUniqueName()}", elemType)
 
                     stmts.add(VariableStatement(itemExpr, tempItem))
-                    stmts.add(VariableStatement(CallExpression(ListLib.itemAt, listOf(listExpr, indexExpr)), tempOld))
+                    stmts.add(VariableStatement(CallExpression(ArrayLib.itemAt, listOf(listExpr, indexExpr)), tempOld))
                     if (!itemExpr.isReturningPlusOne()) {
                         stmts.add(LocalVariableExpression(tempItem).asIncCall)
                     }
-                    stmts.add(ExpressionStatement(CallExpression(ListLib.replace, listOf(listExpr, LocalVariableExpression(tempItem), indexExpr))))
+                    stmts.add(ExpressionStatement(CallExpression(ArrayLib.replace, listOf(listExpr, LocalVariableExpression(tempItem), indexExpr))))
                     getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
 
-                    return CompositeStatement(stmts)
-
-                } else if (expression.func == ListLib.add && expression.arguments.size == 2) {
-                    val itemExpr = expression.arguments[1]
-                    val tempItem = LocalVariable("compiler@gc_add_item_${getUniqueName()}", elemType)
-
-                    val stmts = mutableListOf<Statement>(
-                        VariableStatement(itemExpr, tempItem)
-                    )
-                    if (!itemExpr.isReturningPlusOne()) {
-                        stmts.add(LocalVariableExpression(tempItem).asIncCall)
-                    }
-                    stmts.add(ExpressionStatement(CallExpression(ListLib.add, listOf(listExpr, LocalVariableExpression(tempItem)))))
-
-                    return CompositeStatement(stmts)
-
-                } else if (expression.func == ListLib.remove && expression.arguments.size == 2) {
-                    val indexExpr = expression.arguments[1]
-                    val tempOld = LocalVariable("compiler@gc_old_item_${getUniqueName()}", elemType)
-
-                    val stmts = mutableListOf<Statement>(
-                        VariableStatement(CallExpression(ListLib.itemAt, listOf(listExpr, indexExpr)), tempOld),
-                        ExpressionStatement(expression)
-                    )
-                    getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
-
-                    return CompositeStatement(stmts)
-
-                } else if (expression.func == ListLib.clear && expression.arguments.size == 1) {
-                    val stmts = mutableListOf<Statement>()
-
-                    val iVar = LocalVariable("compiler@gc_clear_i_${getUniqueName()}", PrimitiveType.Integer)
-                    val lenVar = LocalVariable("compiler@gc_clear_len_${getUniqueName()}", PrimitiveType.Integer)
-
-                    stmts.add(VariableStatement(IntLiteral(BigInteger.ZERO), iVar))
-                    stmts.add(VariableStatement(CallExpression(ListLib.length, listOf(listExpr)), lenVar))
-
-                    val loopBody = CodeBlock().apply {
-                        val tempItem = LocalVariable("compiler@gc_clear_item_${getUniqueName()}", elemType)
-                        code.add(VariableStatement(CallExpression(ListLib.itemAt, listOf(listExpr, LocalVariableExpression(iVar))), tempItem))
-                        getDecCall(elemType, LocalVariableExpression(tempItem))?.let { code.add(it) }
-                        code.add(LocalVariableAssignmentStatement(
-                            iVar,
-                            BinaryExpression(LocalVariableExpression(iVar), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
-                        ))
-                    }
-
-                    stmts.add(WhileStatement(
-                        BinaryExpression(LocalVariableExpression(iVar), BinaryOperator.LESS_THAN, LocalVariableExpression(lenVar)),
-                        loopBody
-                    ))
-
-                    stmts.add(ExpressionStatement(expression))
                     return CompositeStatement(stmts)
                 }
             }
@@ -390,7 +337,7 @@ class RefCountVisitor(
 
     private fun Type.isRefCounted(): Boolean {
         val nonNull = this.asNonNull()
-        if (nonNull is ListType) return true
+        if (nonNull is ArrayType) return true
         if (nonNull is SealedEnumType) return true
         if (nonNull is SimpleType) {
             return (compilationContext.asts.values.flatMap { it.structs } +
@@ -407,7 +354,7 @@ class RefCountVisitor(
                 val decFunc = structDecs[struct] ?: return null
                 ExpressionStatement(CallExpression(decFunc, listOf(expr)))
             }
-            is ListType -> {
+            is ArrayType -> {
                 val decFunc = generateDecList(targetType)
                 ExpressionStatement(CallExpression(decFunc, listOf(expr)))
             }
@@ -428,7 +375,7 @@ class RefCountVisitor(
 
     private fun Expression.isReturningPlusOne(): Boolean {
         if (this is CallExpression) {
-            if (this.func == ListLib.newList) return true
+            if (this.func == ArrayLib.newArray) return true
 
             return this.func !is StandardLibASTFunction && this.func !is InlineStandardLibFunction
         }

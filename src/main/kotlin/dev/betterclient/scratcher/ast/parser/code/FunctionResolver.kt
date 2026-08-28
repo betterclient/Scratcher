@@ -51,7 +51,7 @@ class FunctionResolver(
             args.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
         }
 
-        Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser)?.let {
+        Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser, expectedType)?.let {
             return it
         }
 
@@ -105,9 +105,11 @@ class FunctionResolver(
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
             matchesArgumentsExactly(expectedArgListTypes, foundArgListTypes)
-        }
+        } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.functions }.find {
+            it.name == funcName && matchesArgumentsExactly(expectedArgListTypes, it.parameters.map { par -> par.type })
+        } else null)
 
-        if (sourceAST == StandardLibASTGenerator.listLib && funcName != "newList") {
+        if (sourceAST == StandardLibASTGenerator.arrayLib && funcName != "newArray") {
             //AAAAAAAAAAAAAAAAAAAAAAAAAAA
             resolvedFunc = sourceAST.functions.find { it.name == funcName }?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${parser.currentFunction?.name} at $errorText")
         }
@@ -118,7 +120,9 @@ class FunctionResolver(
 
                 val foundArgListTypes = it.parameters.map { par -> par.type }
                 matchesArguments(expectedArgListTypes, foundArgListTypes)
-            }
+            } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.functions }.find {
+                it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+            } else null)
         }
 
         resolvedFunc?.let {
@@ -161,15 +165,16 @@ class FunctionResolver(
             }
         }
 
-        sourceAST.structs.find {
+        val structFinding = sourceAST.structs.find {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
-            return@find matchesArguments(
-                expectedArgListTypes,
-                foundArgListTypes
-            )
-        }?.let {
+            matchesArguments(expectedArgListTypes, foundArgListTypes)
+        } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.structs }.find {
+            it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+        } else null)
+
+        structFinding?.let {
             return CallExpression(it.allocFunc, inflatedArgs(it.parameters.map { par -> par.type }))
         }
 

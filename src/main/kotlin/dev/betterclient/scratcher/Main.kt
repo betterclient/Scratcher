@@ -13,7 +13,7 @@ import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.RefCountGC
 import dev.betterclient.scratcher.optimize.Optimizations
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.sugar.Desugaring
 import dev.betterclient.scratcher.translation.*
 import dev.betterclient.scratcher.translation.heap.ConvertToHeapAccess
@@ -103,7 +103,7 @@ fun main() {
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions) //make sure these are here
     reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
-    reachableFunctions.addAll(ListLib.listFuncs)
+    reachableFunctions.addAll(ArrayLib.arrayFuncs)
 
     val translator = FunctionStructureTranslator()
     //store it as a pair cause we need the original func for the code itself

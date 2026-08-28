@@ -377,7 +377,7 @@ fun figureOutType(
 ): Type {
     return when(type) {
         is ScratcherLangParser.ArrayTypeContext -> {
-            ListType(
+            ArrayType(
                 figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
             )
         }

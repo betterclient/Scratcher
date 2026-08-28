@@ -6,7 +6,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import java.math.BigInteger
 
@@ -35,7 +35,7 @@ object RefCountGC {
                 sealedDecs = sealedDecs,
                 inc = inc,
                 generateDecList = { list ->
-                    getOrCreateDecList(list, lib, structDecs)
+                    getOrCreateDecArray(list, lib, structDecs)
                 },
                 compilationContext = context,
                 currentFunction = func
@@ -253,16 +253,16 @@ object RefCountGC {
 
     private val listDecMap = mutableMapOf<Type, Function>()
 
-    private fun getOrCreateDecList(
-        listType: ListType,
+    private fun getOrCreateDecArray(
+        arrayType: ArrayType,
         lib: ASTFile,
         structDecs: Map<Struct, Function>
     ): Function {
-        val key = listType.elementType.asNonNull()
+        val key = arrayType.elementType.asNonNull()
         return listDecMap.getOrPut(key) {
             val ptrArg = Parameter("ptr", PrimitiveType.Integer)
             val function = Function(
-                name = "decList@${listType.toSafeString()}",
+                name = "decList@${arrayType.toSafeString()}",
                 parameters = mutableListOf(ptrArg),
                 returnType = PrimitiveType.Void,
                 export = false,
@@ -284,21 +284,19 @@ object RefCountGC {
             ))
 
             val freeBlock = CodeBlock()
-            val elemType = listType.elementType.asNonNull()
+            val elemType = arrayType.elementType.asNonNull()
 
-            if (elemType is SimpleType || elemType is ListType) {
+            if (elemType is SimpleType || elemType is ArrayType) {
                 val iVar = LocalVariable("i", PrimitiveType.Integer)
                 freeBlock.localVariables.add(iVar)
                 freeBlock.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), iVar))
 
                 val lengthExpr = TemporaryHeapGetExpression(
-                    if (ListLib.lengthOffset == 0) ParameterExpression(ptrArg)
-                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ListLib.lengthOffset.toBigInteger()))
+                    if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg)
+                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger()))
                 )
-                val dataPtrExpr = TemporaryHeapGetExpression(
-                    if (ListLib.dataPtrOffset == 0) ParameterExpression(ptrArg)
-                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ListLib.dataPtrOffset.toBigInteger()))
-                )
+                val dataPtrExpr = if (ArrayLib.dataOffset == 0) ParameterExpression(ptrArg)
+                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.dataOffset.toBigInteger()))
 
                 val itemExpr = TemporaryHeapGetExpression(
                     BinaryExpression(dataPtrExpr, BinaryOperator.ADD, LocalVariableExpression(iVar))
@@ -319,7 +317,7 @@ object RefCountGC {
                 ))
             }
 
-            freeBlock.code.add(ExpressionStatement(CallExpression(ListLib.free, listOf(ParameterExpression(ptrArg)))))
+            freeBlock.code.add(ExpressionStatement(CallExpression(ArrayLib.free, listOf(ParameterExpression(ptrArg)))))
 
             thenBlock.code.add(IfStatement(
                 condition = BinaryExpression(
@@ -348,8 +346,8 @@ object RefCountGC {
                 val decFunc = structDecs[targetStruct] ?: return null
                 ExpressionStatement(CallExpression(decFunc, listOf(expr)))
             }
-            is ListType -> {
-                val decListFunc = getOrCreateDecList(targetType, lib, structDecs)
+            is ArrayType -> {
+                val decListFunc = getOrCreateDecArray(targetType, lib, structDecs)
                 ExpressionStatement(CallExpression(decListFunc, listOf(expr)))
             }
             is SealedEnumType -> {

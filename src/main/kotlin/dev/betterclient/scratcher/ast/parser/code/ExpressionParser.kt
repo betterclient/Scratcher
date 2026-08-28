@@ -8,7 +8,7 @@ import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 
 class ExpressionParser(
     val parser: Stage1Parser,
@@ -106,7 +106,7 @@ class ExpressionParser(
 
                 return SafeDotExpression(struct, structExpr, member)
             }
-            is ScratcherLangParser.ListCreationExprContext -> {
+            is ScratcherLangParser.ArrayCreationExprContext -> {
                 val elementType = figureOutType(
                     parser.ctx,
                     ast,
@@ -114,8 +114,8 @@ class ExpressionParser(
                     localTypeBindings = parser.currentTypeBindings
                 )
                 CallExpression(
-                    func = ListLib.newList,
-                    arguments = mutableListOf<Expression>(TypeLiteral(elementType)).also {
+                    func = ArrayLib.newArray,
+                    arguments = mutableListOf(TypeLiteral(elementType), parseExpression(ctx.expression(), PrimitiveType.Integer)).also {
                         if (CompilationConstants.MARK_AND_SWEEP_GC) {
                             it.add(StringLiteral(
                                 "l"
@@ -127,10 +127,16 @@ class ExpressionParser(
             is ScratcherLangParser.IndexExprContext -> {
                 val list = parseExpression(ctx.expression(0)!!)
                 val index = parseExpression(ctx.expression(1)!!)
-                CallExpression(
-                    func = ListLib.itemAt,
-                    listOf(list, index)
-                )
+                val type = ExpressionTypes.getExpressionType(list)
+                if(type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
+                    parser.functionResolver.resolveReceiverFunction(list, "itemAt", listOf(index))
+                        ?: throw NotFoundException("Cannot resolve itemAt for $type")
+                } else {
+                    CallExpression(
+                        func = ArrayLib.itemAt,
+                        listOf(list, index)
+                    )
+                }
             }
             is ScratcherLangParser.WhenExprContext -> {
                 parseWhenExpr(ctx.whenExpression())

@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
 import dev.betterclient.scratcher.gc.findGC
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class ScratchFunctionTranslator(
@@ -25,7 +25,7 @@ class ScratchFunctionTranslator(
     private fun translateStatement(stmt: Statement): List<ScratchStatement> {
         val single = when (stmt) {
             is TemporaryCallStatement -> {
-                if (stmt.func == ListLib.newList) {
+                if (stmt.func == ArrayLib.newArray) {
                     val elementType = (stmt.args[0] as TypeLiteral).type
                     val gcString = if (CompilationConstants.MARK_AND_SWEEP_GC) {
                         val lCount = elementType.toString().count { it == '[' } + 1
@@ -34,7 +34,11 @@ class ScratchFunctionTranslator(
 
                     return listOf(CallFunction(
                         func = lookup(stmt.func),
-                        args = listOfNotNull(translateExpr(stmt.args.last()), gcString?.scratch)
+                        args = listOfNotNull(
+                            translateExpr(stmt.args.last()),
+                            gcString?.scratch,
+                            translateExpr(stmt.args[1])
+                        )
                     ))
                 }
 

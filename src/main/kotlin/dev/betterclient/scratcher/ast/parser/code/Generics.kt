@@ -7,7 +7,7 @@ import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.GeneralCompilerException
-import dev.betterclient.scratcher.ast.ListType
+import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
@@ -29,8 +29,8 @@ object Generics {
     fun substituteType(context: CompilationContext, type: Type, bindings: Map<String, Type>): Type {
         return when (type) {
             is PlaceholderType -> bindings[type.name] ?: type
-            is ListType -> ListType(substituteType(context, type.elementType, bindings))
-            is NullableType -> NullableType(substituteType(context, type.inner, bindings))
+            is ArrayType -> ArrayType(substituteType(context, type.elementType, bindings))
+            is NullableType -> substituteType(context, type.inner, bindings).asNullable()
             is FunctionType -> FunctionType(
                 type.parameterTypes.map { substituteType(context, it, bindings) },
                 substituteType(context, type.returnType, bindings)
@@ -87,7 +87,7 @@ object Generics {
             bindings[paramType.name] = providedType
             return true
         }
-        if (paramType is ListType && providedType is ListType) {
+        if (paramType is ArrayType && providedType is ArrayType) {
             return deduceTypeArgs(paramType.elementType, providedType.elementType, typeParams, bindings)
         }
         if (paramType is NullableType && providedType is NullableType) {
@@ -151,9 +151,12 @@ object Generics {
         funcName: String,
         expectedArgListTypes: List<Type>,
         args: List<Expression>,
-        parser: Stage1Parser
+        parser: Stage1Parser,
+        expectedType: Type? = null
     ): CallExpression? {
-        val template = sourceAST.templates.find { it.name == funcName } ?: return null
+        val template = sourceAST.templates.find { it.name == funcName }
+            ?: sourceAST.imports.values.flatMap { it.templates }.find { it.name == funcName }
+            ?: return null
         if (expectedArgListTypes.size != template.parameters.size) return null
 
         val bindings = mutableMapOf<String, Type>()
@@ -161,7 +164,19 @@ object Generics {
             deduceTypeArgs(template.parameters[i].type, expectedArgListTypes[i], template.typeParameters, bindings)
         }
 
-        if (!matches || !template.typeParameters.all { bindings.containsKey(it) }) return null
+        if (!matches) return null
+
+        if (expectedType != null && !template.typeParameters.all { bindings.containsKey(it) }) {
+            deduceTypeArgs(template.returnType, expectedType, template.typeParameters, bindings)
+        }
+
+        if (!template.typeParameters.all { bindings.containsKey(it) } && parser.currentTypeBindings.isNotEmpty()) {
+            for (tp in template.typeParameters) {
+                parser.currentTypeBindings[tp]?.let { bindings[tp] = it }
+            }
+        }
+
+        if (!template.typeParameters.all { bindings.containsKey(it) }) return null
 
         val typeSuffix = bindings.values.joinToString("_") { it.toSafeString() }
         val instantiatedName = "${template.name}\$$typeSuffix"
@@ -233,7 +248,8 @@ object Generics {
         template.sourceAST.structs.add(instantiatedStruct)
         context.types.add(instantiatedStruct.type)
 
-        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        val isPhantom = typeArgs.any { it.asNonNull() is PlaceholderType }
+        if (CompilationConstants.MARK_AND_SWEEP_GC && !isPhantom) {
             addGC(StructGCInfo(instantiatedStruct.type, instantiatedStruct))
         }
 

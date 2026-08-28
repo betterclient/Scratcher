@@ -4,6 +4,7 @@ import looks;
 import pen;
 import sensing;
 import extensions;
+import list;
 import "fps.sc" as counter;
 
 struct Triangle<Num>(Num x1, Num y1, Num x2, Num y2, Num x3, Num y3);
@@ -21,7 +22,7 @@ on GreenFlag {
         }
     };
 
-    auto triangles = List(Triangle<float>?);
+    list::List<Triangle<float>?> triangles = newList();
     repeat(150) {
         triangles.add(Triangle(
             utils::random(-240, 240),
@@ -54,7 +55,7 @@ on GreenFlag {
     }
 }
 
-warp void render(TriangleRenderMode mode, Triangle<float>?[] triangles) {
+warp void render(TriangleRenderMode mode, list::List<Triangle<float>?> triangles) {
     a.x1++;
     auto amountRendered = 0;
 

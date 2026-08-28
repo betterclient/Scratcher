@@ -6,7 +6,8 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ArrayLib
 import java.math.BigInteger
 
 class StatementParser(
@@ -36,14 +37,21 @@ class StatementParser(
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
-                val elementType = (ExpressionTypes.getExpressionType(list).asNonNull() as? ListType)?.elementType
+                val type = ExpressionTypes.getExpressionType(list)
+                if(type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
+                    val call = parser.functionResolver.resolveReceiverFunction(list, "replace", listOf(index, item))
+                        ?: throw NotFoundException("Cannot resolve replace for $type")
+                    ExpressionStatement(call)
+                } else {
+                    val elementType = (ExpressionTypes.getExpressionType(list).asNonNull() as? ArrayType)?.elementType
 
-                ExpressionStatement(
-                    CallExpression(
-                        func = ListLib.replace,
-                        listOf(list, StringBoxing.autoConvert(item, elementType), index)
+                    ExpressionStatement(
+                        CallExpression(
+                            func = ArrayLib.replace,
+                            listOf(list, StringBoxing.autoConvert(item, elementType), index)
+                        )
                     )
-                )
+                }
             }
             is ScratcherLangParser.AssignStmtContext -> {
                 parseAssignStatement(child)
@@ -124,7 +132,11 @@ class StatementParser(
         val list = exprParser.parseExpression(child.expression())
         val type = ExpressionTypes.getExpressionType(list)
         if (type is NullableType) throw TypeAnalysisException("List is nullable in for statement at ${child.position}")
-        if (type !is ListType) throw TypeAnalysisException("For statement doesn't have a list at ${child.position}")
+        if (type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
+            return parseListForStatement(child, list, type)
+        }
+
+        if (type !is ArrayType) throw TypeAnalysisException("For statement doesn't have an array at ${child.position}")
 
         val listVar = LocalVariable(
             obfuscate("compiler@forStmtList${getUniqueName()}"),
@@ -155,7 +167,7 @@ class StatementParser(
                 it.code.add(
                     RepeatStatement(
                         amount = CallExpression(
-                            func = ListLib.length,
+                            func = ArrayLib.length,
                             arguments = listOf(LocalVariableExpression(listVar))
                         ),
                         block = CodeBlock().also { inner ->
@@ -163,7 +175,7 @@ class StatementParser(
                             inner.code.add(
                                 0, LocalVariableAssignmentStatement(
                                     variable, CallExpression(
-                                        func = ListLib.itemAt,
+                                        func = ArrayLib.itemAt,
                                         listOf(LocalVariableExpression(listVar), LocalVariableExpression(indexVariable))
                                     )
                                 )
@@ -184,6 +196,60 @@ class StatementParser(
                 parser.localVariables.addAll(prevLocalVariables)
             }
         )
+    }
+
+    private fun parseListForStatement(
+        child: ScratcherLangParser.ForStmtContext,
+        list: Expression,
+        type: SimpleType
+    ): IfStatement {
+        val listStruct = (ast.structs + ast.structTemplates + ast.imports.values.flatMap { it.structs + it.structTemplates }).find { it.type == type }
+            ?: (StandardLibASTGenerator.list.value.structs + StandardLibASTGenerator.list.value.structTemplates).find { it.type == type }!!
+        val ptrMember = listStruct.parameters.find { it.name == "ptr" || it.type is ArrayType }!!
+        val listType = (ptrMember.type as ArrayType).elementType
+        val indexVar = LocalVariable("list@for@index", PrimitiveType.Integer)
+        val currentObjVar = LocalVariable(child.IDENTIFIER().text, listType)
+        val listVar = LocalVariable("list@for@list", listStruct.type)
+
+        return IfStatement(BooleanLiteral(true), CodeBlock().also {
+            it.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), indexVar))
+            it.code.add(VariableStatement(null, currentObjVar))
+            it.code.add(VariableStatement(list, listVar))
+            it.code.add(RepeatStatement(
+                amount = MemberExpression(
+                    expression = LocalVariableExpression(listVar),
+                    member = listStruct.parameters.find { it.type == PrimitiveType.Integer }!!, //length
+                    struct = listStruct
+                ),
+                block = CodeBlock().also { block ->
+                    block.code.add(LocalVariableAssignmentStatement(
+                        variable = currentObjVar,
+                        assignment = CallExpression(
+                            func = ArrayLib.itemAt,
+                            arguments = listOf(
+                                MemberExpression(
+                                    expression = LocalVariableExpression(listVar),
+                                    member = ptrMember,
+                                    struct = listStruct
+                                ),
+                                LocalVariableExpression(indexVar)
+                            )
+                        )
+                    ))
+
+                    parseBlock(block, child.block(), injectVariables = listOf(currentObjVar))
+
+                    block.code.add(LocalVariableAssignmentStatement(
+                        variable = indexVar,
+                        assignment = BinaryExpression(
+                            left = LocalVariableExpression(indexVar),
+                            right = IntLiteral(BigInteger.ONE),
+                            operator = BinaryOperator.ADD
+                        )
+                    ))
+                }
+            ))
+        })
     }
 
     private fun parsePostIncStmt(ctx: ScratcherLangParser.PostIncStmtContext): Statement {

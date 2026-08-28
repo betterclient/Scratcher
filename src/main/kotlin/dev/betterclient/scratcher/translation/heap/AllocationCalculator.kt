@@ -51,7 +51,7 @@ class LocalAllocationCalculator(val func: Function) : ASTVisitor() {
     private fun getGCType(type: Type): String {
         return if (type.isPrimitive) {
             "p"
-        } else if (type is ListType) {
+        } else if (type is ArrayType) {
             "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
         } else {
             findGC(type).toString()

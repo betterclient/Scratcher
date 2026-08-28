@@ -4,15 +4,15 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.lib.ListLib
+import dev.betterclient.scratcher.std.lib.ArrayLib
 
 object ExpressionTypes {
     fun getExpressionType(expr: Expression): Type {
         return when(expr) {
             is BinaryExpression -> figureOutBinaryExprReturn(expr)
             is CallExpression -> {
-                if (expr.func.sourceAST.path == "list") {
-                    ListLib.getActualReturnType(expr) { getExpressionType(it) }
+                if (expr.func.sourceAST.path == "array") {
+                    ArrayLib.getActualReturnType(expr) { getExpressionType(it) }
                 } else expr.func.returnType
             }
             is TypeLiteral -> expr.type

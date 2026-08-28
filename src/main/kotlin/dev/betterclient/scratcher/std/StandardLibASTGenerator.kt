@@ -35,6 +35,9 @@ object StandardLibASTGenerator {
         MotionLib.init(motionLib)
         UtilsLib.init(utilsLib)
         StringBoxing.init()
+        ArrayLib.init(arrayLib, editor)
+        list.value
+
         this.editor = editor
 
         rawLibs
@@ -48,7 +51,7 @@ object StandardLibASTGenerator {
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
     val utilsLib = ASTFile("utils")
-    val listLib = ASTFile("list")
+    val arrayLib = ASTFile("array")
 
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
@@ -57,7 +60,8 @@ object StandardLibASTGenerator {
     val compilerLib = ASTFile("compiler")
     val lambdaLib = ASTFile("lambda")
     val extensionsInternalLib = ASTFile("extensions_internal")
-    val extensionsFakeLib = ASTFile("extensions_fake")
+    val extensionsFakeLib = ASTFile("extensions")
+    val listFakeLib = ASTFile("list")
     val gcInternalsLib = ASTFile("gc_internal")
     val gcLib = ASTFile("gc")
     val exceptLib = ASTFile("except")
@@ -73,7 +77,8 @@ object StandardLibASTGenerator {
         "pen" to penLib,
         "motion" to motionLib,
         "utils" to utilsLib,
-        "list" to listLib,
+        "array" to arrayLib,
+        "list" to listFakeLib,
         "extensions" to extensionsFakeLib, //this will get removed after first pass
 
         //not allowed
@@ -100,6 +105,15 @@ object StandardLibASTGenerator {
     val triangle by lazy {
         compile("/triangle.sc", "triangle").also {
             lib["triangle"] = it
+        }
+    }
+
+    val list = lazy {
+        compile("/list.sc", "list").also {
+            listFakeLib.templates.addAll(it.templates)
+            listFakeLib.functions.addAll(it.functions)
+            listFakeLib.structs.addAll(it.structs)
+            listFakeLib.structTemplates.addAll(it.structTemplates)
         }
     }
 
@@ -175,7 +189,6 @@ object StandardLibASTGenerator {
 
     fun generateFrom(startAST: ASTFile) {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
-        ListLib.init(listLib, editor!!)
         ExtensionsInternalLib.init(extensionsInternalLib)
         extensionsLib
 

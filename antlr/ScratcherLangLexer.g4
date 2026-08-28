@@ -25,7 +25,7 @@ STR_TYPE   : 'str';
 VOID_TYPE  : 'void';
 BOOL_TYPE  : 'bool';
 CHAR_TYPE  : 'char';
-LIST       : 'List';
+ARRAY      : 'Array';
 AUTO       : 'auto';
 
 TICK : '\'';
