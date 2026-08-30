@@ -1,5 +1,5 @@
 import utils;
-import looks;
+import say from looks;
 
 sealed enum Result<T, E> {
     Success(T out),
@@ -13,10 +13,10 @@ auto a = Holder(1515);
 on GreenFlag {
     when(tryGet()) {
         Result.Success suc -> {
-            looks::say("Success! ${suc.out.x}");
+            say("Success! ${suc.out.x}");
         }
         Result.Failure fail -> {
-            looks::say("Error message: ${fail.error}");
+            say("Error message: ${fail.error}");
         }
     }
 }

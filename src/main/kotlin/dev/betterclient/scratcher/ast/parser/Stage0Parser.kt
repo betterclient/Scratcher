@@ -13,7 +13,9 @@ import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import org.antlr.v4.kotlinruntime.tree.TerminalNode
 import java.io.File
+import kotlin.collections.set
 
 class CompilationContext {
     fun generateGCNames() {
@@ -136,46 +138,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
 
         for (context in initialRead.importDecl()) {
-            val plainStringLiteralCtx = context.plainStringLiteral()
-
-            if (plainStringLiteralCtx == null) {
-                //stdlib import
-                val moduleNode = context.IDENTIFIER(0)
-                    ?: throw NotFoundException("Module identifier not found in import declaration")
-                val moduleName = moduleNode.text
-
-                val alias = context.IDENTIFIER(1)?.text
-
-                val stdLib = StandardLibASTGenerator.lib[moduleName]
-                    ?: throw NotFoundException("Standard library module $moduleName not found")
-                if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) throw GeneralCompilerException("Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
-                if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
-
-                val key = alias ?: moduleName
-                ast.imports[key] = stdLib
-            } else {
-                //file import
-                val text = plainStringLiteralCtx.text.removeSurrounding("\"")
-                val currentFile = File(fullPath).absoluteFile
-                val parentDir = currentFile.parentFile
-                val importedFile = File(parentDir, text).canonicalFile
-                val importedPath = importedFile.absolutePath
-
-                if (!importedFile.exists()) {
-                    throw NotFoundException("Imported file not found at $importedPath")
-                }
-
-                val importedAST = ctx.asts[importedPath] ?: run {
-                    val sourceCode = importedFile.readText()
-                    val reader = ASTReader(ctx, sourceCode, importedPath)
-                    reader.read()
-                }
-
-                val alias = context.IDENTIFIER(0)?.text
-
-                val key = alias ?: importedFile.nameWithoutExtension
-                ast.imports[key] = importedAST
-            }
+            parseImport(context, ast)
         }
 
         //second read for parameters
@@ -355,6 +318,71 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
 
         return ast
+    }
+
+    private fun findAST(
+        plainStringLiteralContext: ScratcherLangParser.PlainStringLiteralContext?,
+        identifier: TerminalNode?,
+        ast: ASTFile
+    ): ASTFile {
+        if (plainStringLiteralContext == null) {
+            //stdlib import
+            val moduleNode = identifier!!
+            val moduleName = moduleNode.text
+
+            val stdLib = StandardLibASTGenerator.lib[moduleName]
+                ?: throw NotFoundException("Standard library module $moduleName not found")
+            if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) throw GeneralCompilerException("Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
+            if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
+
+            return stdLib
+        } else {
+            //file import
+            val text = plainStringLiteralContext.text.removeSurrounding("\"")
+            val currentFile = File(fullPath).absoluteFile
+            val parentDir = currentFile.parentFile
+            val importedFile = File(parentDir, text).canonicalFile
+            val importedPath = importedFile.absolutePath
+
+            if (!importedFile.exists()) {
+                throw NotFoundException("Imported file not found at $importedPath")
+            }
+
+            val importedAST = ctx.asts[importedPath] ?: run {
+                val sourceCode = importedFile.readText()
+                val reader = ASTReader(ctx, sourceCode, importedPath)
+                reader.read()
+            }
+
+            return importedAST
+        }
+    }
+
+    private fun parseImport(
+        context: ScratcherLangParser.ImportDeclContext,
+        ast: ASTFile
+    ) {
+        when(context) {
+            is ScratcherLangParser.ImportNormalContext -> {
+                val imported = findAST(
+                    context.plainStringLiteral(),
+                    context.IDENTIFIER(),
+                    ast
+                )
+                ast.imports[imported.simplePath] = imported
+            }
+            is ScratcherLangParser.ImportAliasContext -> {
+                val imported = findAST(
+                    context.plainStringLiteral(),
+                    context.IDENTIFIER(0),
+                    ast
+                )
+                ast.imports[context.IDENTIFIER().last().text] = imported
+            }
+            is ScratcherLangParser.ImportSomeContext -> {
+                //TODO
+            }
+        }
     }
 
     private fun checkDuplicates(list: List<Parameter>, error: String) {

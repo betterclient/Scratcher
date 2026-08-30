@@ -15,6 +15,7 @@ ON     : 'on';
 WARP   : 'warp';
 EXPORT : 'export';
 ENUM   : 'enum';
+FROM   : 'from';
 SEALED : 'sealed';
 IS : 'is';
 WHEN   : 'when';
