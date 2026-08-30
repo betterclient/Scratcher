@@ -22,7 +22,7 @@ on GreenFlag {
         }
     };
 
-    list::List<Triangle<float>?> triangles = newList();
+    List<Triangle<float>?> triangles = newList();
     repeat(150) {
         triangles.add(Triangle(
             utils::random(-240, 240),

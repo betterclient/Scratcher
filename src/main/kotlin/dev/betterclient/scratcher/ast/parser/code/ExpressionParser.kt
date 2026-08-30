@@ -539,11 +539,11 @@ class ExpressionParser(
         if (entries.isEmpty()) {
             throw GeneralCompilerException("When expression must have at least one branch at ${ctx.position?.start}")
         }
-        if (entries.count { it.whenCondition().ELSE() != null } > 1) {
+        if (entries.count { it.whenCondition() is ScratcherLangParser.ElseCondContext } > 1) {
             throw DuplicateDefinitionException("Duplicate ELSE condition in ${ctx.position?.start}")
         }
         for (i in entries.indices) {
-            if (entries[i].whenCondition().ELSE() != null && i != entries.lastIndex) {
+            if (entries[i].whenCondition() is ScratcherLangParser.ElseCondContext && i != entries.lastIndex) {
                 throw GeneralCompilerException("ELSE must be the last branch in when expression at ${ctx.position?.start}")
             }
         }
@@ -551,23 +551,72 @@ class ExpressionParser(
         return WhenExpression(
             subjectAssignment,
             entries.map { entry ->
-                val isElse = entry.whenCondition().ELSE() != null
-                val cond = entry.whenCondition().expression()?.let {
-                    if (subjectVar != null) {
-                        val sealedCheck = tryResolveWhenBranchAsSealedCheck(subjectVar, it)
-                        if (sealedCheck != null) return@let sealedCheck
+                val condition = entry.whenCondition()
+                val smartCastInfo = if (condition is ScratcherLangParser.SmartCastConditionContext) {
+                    if (subjectVar == null) throw GeneralCompilerException("Must have a subject to use smart cast condition, at ${condition.position}")
+                    val subjectSealedType = subjectVar.type.asNonNull() as? SealedEnumType
+                    val inferred = if (subjectSealedType != null) tryResolveIsAsFromLeft(subjectSealedType, condition.type()) else null
+                    val (sealed, variant, tag) = inferred ?: run {
+                        val targetType = figureOutType(parser.ctx, ast, condition.type(), localTypeBindings = parser.currentTypeBindings)
+                        val variantType = targetType.asNonNull() as? SimpleType
+                            ?: throw TypeAnalysisException("Smart cast target must be a sealed enum variant, got $targetType at ${condition.position}")
+                        findVariantInfo(variantType)
+                            ?: throw NotFoundException("Type ${condition.type().text} is not a sealed enum variant")
                     }
-                    val expr = parseExpression(it)
-                    if (subjectVar != null) {
-                        BinaryExpression(
-                            left = LocalVariableExpression(subjectVar),
-                            right = expr,
-                            operator = BinaryOperator.EQUAL
+                    val effectiveTag = if (variant.parameters.isEmpty()) -tag - 1 else tag
+                    Triple(sealed, variant, effectiveTag)
+                } else null
+
+                val cond = when(condition) {
+                    is ScratcherLangParser.ExprConditionContext -> {
+                        condition.expression().let {
+                            if (subjectVar != null) {
+                                val sealedCheck = tryResolveWhenBranchAsSealedCheck(subjectVar, it)
+                                if (sealedCheck != null) return@let sealedCheck
+                            }
+                            val expr = parseExpression(it)
+                            if (subjectVar != null) {
+                                BinaryExpression(
+                                    left = LocalVariableExpression(subjectVar),
+                                    right = expr,
+                                    operator = BinaryOperator.EQUAL
+                                )
+                            } else expr
+                        }
+                    }
+                    is ScratcherLangParser.ElseCondContext -> {
+                        BooleanLiteral(true)
+                    }
+                    is ScratcherLangParser.SmartCastConditionContext -> {
+                        val (sealed, variant, effectiveTag) = smartCastInfo!!
+                        CheckSealedEnumTypeExpression(
+                            expr = LocalVariableExpression(subjectVar!!),
+                            targetVariant = variant,
+                            sealedEnum = sealed,
+                            tag = effectiveTag
                         )
-                    } else expr
-                } ?: BooleanLiteral(true) //else
+                    }
+                    else -> throw NotImplementedException("No implementation found for ${entry.text}")
+                }
+                val isElse = condition is ScratcherLangParser.ElseCondContext
+                val castedObj = if (condition is ScratcherLangParser.SmartCastConditionContext) {
+                    LocalVariable(condition.IDENTIFIER().text, smartCastInfo!!.second.type)
+                } else null
 
                 val branchBlock = CodeBlock()
+                val localVariablesSnapshot = parser.localVariables.toList()
+                if (castedObj != null) {
+                    val (sealed, variant, effectiveTag) = smartCastInfo!!
+                    branchBlock.code.add(VariableStatement(SealedEnumCastExpression(
+                        expr = LocalVariableExpression(subjectVar!!),
+                        targetVariant = variant,
+                        sealedEnum = sealed,
+                        tag = effectiveTag,
+                    ), castedObj))
+
+                    parser.localVariables.add(castedObj)
+                }
+
                 if (entry.expression() != null) {
                     branchBlock.code.add(ExpressionStatement(parseExpression(entry.expression()!!)))
                 } else if (entry.codeBlock() != null) {
@@ -578,8 +627,10 @@ class ExpressionParser(
                     block.statement()?.let {
                         branchBlock.code.add(parser.statementParser.parseStatement(it))
                     }
-
                 }
+
+                parser.localVariables.clear()
+                parser.localVariables.addAll(localVariablesSnapshot)
 
                 WhenBranch(
                     cond,

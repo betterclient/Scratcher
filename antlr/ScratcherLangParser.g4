@@ -255,8 +255,9 @@ whenEntry
     ;
 
 whenCondition
-    : expression
-    | ELSE
+    : type IDENTIFIER # smartCastCondition
+    | expression      # exprCondition
+    | ELSE            # elseCond
     ;
 
 ifExpression
