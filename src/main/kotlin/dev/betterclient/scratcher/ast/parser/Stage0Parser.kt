@@ -380,26 +380,39 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 ast.imports[context.IDENTIFIER().last().text] = imported
             }
             is ScratcherLangParser.ImportSomeContext -> {
-                val isWildcard = context.STAR() != null
-                val importName: String? = if (isWildcard) null else context.IDENTIFIER().last().text
+                val isWildcard = context.imported() is ScratcherLangParser.AllContext
 
-                val imported = findAST(context.plainStringLiteral(), context.IDENTIFIER().first(), ast)
+                val importNames = when(val import = context.imported()) {
+                    is ScratcherLangParser.AllContext -> {
+                        listOf()
+                    }
+                    is ScratcherLangParser.ByIdentifierContext -> {
+                        listOf(import.IDENTIFIER().text)
+                    }
+                    is ScratcherLangParser.ListContext -> {
+                        import.IDENTIFIER().map { it.text }
+                    }
+                    else -> throw NotImplementedException("No implementation for ${import.text}")
+                }
+
+                val imported = findAST(context.plainStringLiteral(), context.IDENTIFIER(), ast)
 
                 if (isWildcard) {
-                    //import * from x
+                    //import x::*
                     if (!ast.wildcardImportSources.contains(imported)) {
                         ast.wildcardImportSources.add(imported)
                     }
                 } else {
-                    //import x from x
-                    val name = importName!!
-                    verifyFlatImportNameExists(name, imported)
-                    if (ast.flatImportNames.containsKey(name)) {
-                        throw DuplicateDefinitionException(
-                            "Duplicate flat import of '$name' in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})"
-                        )
+                    //import x::x or x::{x, y, z}
+                    importNames.forEach { name ->
+                        verifyFlatImportNameExists(name, imported)
+                        if (ast.flatImportNames.containsKey(name)) {
+                            throw DuplicateDefinitionException(
+                                "Duplicate flat import of \"$name\" in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})"
+                            )
+                        }
+                        ast.flatImportNames[name] = imported
                     }
-                    ast.flatImportNames[name] = imported
                 }
             }
         }

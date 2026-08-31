@@ -9,7 +9,13 @@ program
 importDecl
     : IMPORT (IDENTIFIER | plainStringLiteral) SEMI                   # importNormal
     | IMPORT (IDENTIFIER | plainStringLiteral) AS IDENTIFIER SEMI     # importAlias
-    | IMPORT (IDENTIFIER | plainStringLiteral) COLONCOLON (IDENTIFIER | STAR) SEMI # importSome
+    | IMPORT (IDENTIFIER | plainStringLiteral) COLONCOLON imported SEMI # importSome
+    ;
+
+imported
+    : IDENTIFIER                                      # byIdentifier
+    | STAR                                            # all
+    | LBRACE (IDENTIFIER (COMMA IDENTIFIER)*)? RBRACE # list
     ;
 
 topLevelElement
