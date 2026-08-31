@@ -20,6 +20,9 @@ class ASTFile(
     val sealedEnums: MutableList<SealedEnum> = mutableListOf(),
     val sealedEnumTemplates: MutableList<SealedEnum> = mutableListOf(),
 ) {
+    val flatImportNames: MutableMap<String, ASTFile> = mutableMapOf()
+    val wildcardImportSources: MutableList<ASTFile> = mutableListOf()
+
     var completedStage1Parsing = false
     var completedTypeAnalysis = false
 }

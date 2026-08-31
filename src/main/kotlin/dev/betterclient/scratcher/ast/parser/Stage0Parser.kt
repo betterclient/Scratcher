@@ -380,8 +380,47 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 ast.imports[context.IDENTIFIER().last().text] = imported
             }
             is ScratcherLangParser.ImportSomeContext -> {
-                //TODO
+                val isWildcard = context.STAR() != null
+                val importName: String? = if (isWildcard) null else context.IDENTIFIER().last().text
+
+                val imported = findAST(context.plainStringLiteral(), context.IDENTIFIER().first(), ast)
+
+                if (isWildcard) {
+                    //import * from x
+                    if (!ast.wildcardImportSources.contains(imported)) {
+                        ast.wildcardImportSources.add(imported)
+                    }
+                } else {
+                    //import x from x
+                    val name = importName!!
+                    verifyFlatImportNameExists(name, imported)
+                    if (ast.flatImportNames.containsKey(name)) {
+                        throw DuplicateDefinitionException(
+                            "Duplicate flat import of '$name' in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})"
+                        )
+                    }
+                    ast.flatImportNames[name] = imported
+                }
             }
+        }
+    }
+
+    private fun verifyFlatImportNameExists(name: String, source: ASTFile) {
+        val found =
+            source.functions.any { it.name == name } ||
+            source.templates.any { it.name == name } ||
+            source.structs.any { it.name == name } ||
+            source.structTemplates.any { it.name == name } ||
+            source.enums.any { it.name == name } ||
+            source.sealedEnums.any { it.name == name } ||
+            source.sealedEnumTemplates.any { it.name == name } ||
+            source.variables.any { it.name == name }
+
+        if (!found) {
+            throw NotFoundException(
+                "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
+                        "Available: ${source.functions.map { it.name }.distinct().take(10).joinToString(", ")}"
+            )
         }
     }
 
@@ -429,24 +468,24 @@ fun figureOutType(
 
             if (typeArgsCtx.isNotEmpty()) {
                 val resolvedArgs = typeArgsCtx.map { figureOutType(context, currentAST, it, typeParameters, localTypeBindings) }
-                val sealedTemplate = currentAST.sealedEnumTemplates.find { it.name == typeName }
-                    ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == typeName }
+                val targetAST = if (id.size == 2) {
+                    currentAST.imports[id[0].text]
+                        ?: throw NotFoundException("Import \"${id[0].text}\" not found for type ${type.text}")
+                } else {
+                    currentAST
+                }
+
+                val sealedTemplate = targetAST.sealedEnumTemplates.find { it.name == typeName }
+                    ?: (if (id.size == 1) {
+                        targetAST.flatImportNames[typeName]?.sealedEnumTemplates?.find { it.name == typeName }
+                            ?: targetAST.wildcardImportSources.firstNotNullOfOrNull { it.sealedEnumTemplates.find { st -> st.name == typeName } }
+                    } else null)
+
                 if (sealedTemplate != null) {
-                    return Generics.resolveGenericSealedEnum(context, currentAST, typeName, resolvedArgs)
+                    return Generics.resolveGenericSealedEnum(context, sealedTemplate.sourceAST, typeName, resolvedArgs)
                 }
-                if (rawText.contains(".")) {
-                    val qualifier = id[id.size - 2].text
-                    val qualifierSealedTemplate = currentAST.sealedEnumTemplates.find { it.name == qualifier }
-                        ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == qualifier }
-                    if (qualifierSealedTemplate != null) {
-                        val sealedType = Generics.resolveGenericSealedEnum(context, currentAST, qualifier, resolvedArgs)
-                        val sealedEnum = (currentAST.sealedEnums.find { it.type == sealedType }
-                            ?: currentAST.imports.values.flatMap { it.sealedEnums }.find { it.type == sealedType })!!
-                        val variant = sealedEnum.types.find { it.name.substringAfter(".") == typeName }!!
-                        return variant.type
-                    }
-                }
-                return Generics.resolveGenericStruct(context, currentAST, typeName, resolvedArgs)
+
+                return Generics.resolveGenericStruct(context, targetAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
             }
 
             if (id.size == 1) {
@@ -489,10 +528,30 @@ fun figureOutType(
                 }
                 1 -> {
                     //current file
-                    context.types.find {
+                    val found = context.types.find {
                         ((it is SimpleType && it.name == id[0].text && it.sourceAST == currentAST) ||
                                 (it is SealedEnumType && it.name == id[0].text && it.sourceAST == currentAST))
-                    } ?: throw NotFoundException("Type ${type.text} not found in current file")
+                    }
+                    if(found != null) return found
+
+                    val flatSource = currentAST.flatImportNames[id[0].text]
+                    if (flatSource != null) {
+                        val fromFlat = context.types.find {
+                            ((it is SimpleType && it.name == id[0].text && it.sourceAST == flatSource) ||
+                                    (it is SealedEnumType && it.name == id[0].text && it.sourceAST == flatSource))
+                        }
+                        if (fromFlat != null) return fromFlat
+                    }
+
+                    for (wildcardAst in currentAST.wildcardImportSources) {
+                        val fromWildcard = context.types.find {
+                            ((it is SimpleType && it.name == id[0].text && it.sourceAST == wildcardAst) ||
+                                    (it is SealedEnumType && it.name == id[0].text && it.sourceAST == wildcardAst))
+                        }
+                        if (fromWildcard != null) return fromWildcard
+                    }
+
+                    throw NotFoundException("Type ${type.text} not found in current file")
                 }
                 else -> {
                     throw GeneralCompilerException("Too many :: in type ${type.text}")

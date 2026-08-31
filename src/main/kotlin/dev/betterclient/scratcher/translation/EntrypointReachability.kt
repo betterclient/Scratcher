@@ -7,15 +7,13 @@ class EntrypointReachability {
     val searched = mutableListOf<ASTFile>()
     fun run(source: ASTFile): List<ASTEventListener> {
         val result = mutableListOf<ASTEventListener>()
-        if (searched.contains(source)) {
-            return result
-        } else {
-            searched.add(source)
+        if (searched.contains(source)) return result
+        searched.add(source)
 
-            result.addAll(source.eventListeners)
-            result.addAll(source.imports.flatMap { (_, file) -> run(file) })
-        }
+        result.addAll(source.eventListeners)
+        result.addAll(source.imports.flatMap { (_, file) -> run(file) })
 
+        result.addAll((source.flatImportNames.values + source.wildcardImportSources).flatMap { run(it) })
         return result
     }
 }

@@ -22,6 +22,12 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 Stage1Parser(ctx, ast).parse()
             }
         }
+        (ast.flatImportNames.values + ast.wildcardImportSources).distinct().forEach { ast ->
+            if (!ast.completedStage1Parsing) {
+                ast.completedStage1Parsing = true
+                Stage1Parser(ctx, ast).parse()
+            }
+        }
 
         if (StandardLibASTGenerator.lib.containsValue(ast)) return //do not try to parse standard lib
 

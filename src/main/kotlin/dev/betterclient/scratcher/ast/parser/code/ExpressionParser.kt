@@ -707,8 +707,20 @@ class ExpressionParser(
             return ParameterExpression(parameterFinding)
         }
 
-        val variable = ast.variables.find { it.name == text }?: throw NotFoundException("Variable $text not found")
-        return VariableExpression(variable, ast)
+        ast.variables.find { it.name == text }?.let { return VariableExpression(it, ast) }
+
+        val flatSource = ast.flatImportNames[text]
+        if (flatSource != null) {
+            val importedVar = flatSource.variables.find { it.name == text }
+            if (importedVar != null) return VariableExpression(importedVar, flatSource)
+        }
+
+        for (wildcardAst in ast.wildcardImportSources) {
+            val importedVar = wildcardAst.variables.find { it.name == text }
+            if (importedVar != null) return VariableExpression(importedVar, wildcardAst)
+        }
+
+        throw NotFoundException("Variable $text not found")
     }
 
     private fun findSealedEnumByName(name: String): SealedEnum? {

@@ -55,10 +55,12 @@ class FunctionResolver(
             return it
         }
 
-        val structTemplate = sourceAST.structTemplates.find {
-            it.name == funcName
-        } ?: sourceAST.imports.values.flatMap { it.structTemplates }.find {
-            it.name == funcName
+        val structTemplate = if (importName != null) {
+            sourceAST.structTemplates.find { it.name == funcName }
+        } else {
+            sourceAST.structTemplates.find { it.name == funcName }
+                ?: sourceAST.flatImportNames[funcName]?.structTemplates?.find { it.name == funcName }
+                ?: sourceAST.wildcardImportSources.firstNotNullOfOrNull { it.structTemplates.find { st -> st.name == funcName } }
         }
 
         if (structTemplate != null) {
@@ -105,9 +107,7 @@ class FunctionResolver(
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
             matchesArgumentsExactly(expectedArgListTypes, foundArgListTypes)
-        } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.functions }.find {
-            it.name == funcName && matchesArgumentsExactly(expectedArgListTypes, it.parameters.map { par -> par.type })
-        } else null)
+        }
 
         if (sourceAST == StandardLibASTGenerator.arrayLib && funcName != "newArray") {
             //AAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -120,9 +120,26 @@ class FunctionResolver(
 
                 val foundArgListTypes = it.parameters.map { par -> par.type }
                 matchesArguments(expectedArgListTypes, foundArgListTypes)
-            } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.functions }.find {
-                it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
-            } else null)
+            }
+        }
+
+        if (resolvedFunc == null && importName == null) {
+            //import from?
+            val flatSource = ast.flatImportNames[funcName]
+            if (flatSource != null) {
+                resolvedFunc = flatSource.functions.find {
+                    it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+                }
+            }
+
+            if (resolvedFunc == null) {
+                for (wildcardAst in ast.wildcardImportSources) {
+                    resolvedFunc = wildcardAst.functions.find {
+                        it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+                    }
+                    if (resolvedFunc != null) break
+                }
+            }
         }
 
         resolvedFunc?.let {
@@ -165,7 +182,7 @@ class FunctionResolver(
             }
         }
 
-        val structFinding = sourceAST.structs.find {
+        var structFinding = sourceAST.structs.find {
             if (it.name != funcName) return@find false
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
@@ -173,6 +190,21 @@ class FunctionResolver(
         } ?: (if (importName == null) sourceAST.imports.values.flatMap { it.structs }.find {
             it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
         } else null)
+
+        if (structFinding == null && importName == null) {
+            val sourcesToCheck = mutableListOf<ASTFile>()
+            ast.flatImportNames[funcName]?.let { sourcesToCheck.add(it) }
+            sourcesToCheck.addAll(ast.wildcardImportSources)
+
+            for (src in sourcesToCheck) {
+                structFinding = src.structs.find {
+                    it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+                } ?: src.structTemplates.find {
+                    it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
+                }
+                if (structFinding != null) break
+            }
+        }
 
         structFinding?.let {
             return CallExpression(it.allocFunc, inflatedArgs(it.parameters.map { par -> par.type }))
@@ -216,8 +248,17 @@ class FunctionResolver(
             funcCall.simpleTypePath()!!.IDENTIFIER(1)!!.text
         }
 
-        val resolvedFunc = sourceAST.functions.filter {
+        var resolvedFunc = sourceAST.functions.filter {
             it.name == funcName
+        }
+
+        if (resolvedFunc.isEmpty() && funcCall.IDENTIFIER() != null) {
+            val name = funcCall.IDENTIFIER()!!.text
+            val flatSource = ast.flatImportNames[name]
+                ?: ast.wildcardImportSources.firstOrNull()?.takeIf { it.functions.any { f -> f.name == name } }
+            if (flatSource != null) {
+                resolvedFunc = flatSource.functions.filter { it.name == name }
+            }
         }
 
         return when(resolvedFunc.size) {

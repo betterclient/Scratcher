@@ -75,11 +75,10 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
         fun visitExports(ast: ASTFile) {
             if (!visitedImports.add(ast)) return
             ast.functions.forEach { func ->
-                if (func.export) {
-                    enqueueFunction(func)
-                }
+                if (func.export) enqueueFunction(func)
             }
             ast.imports.values.forEach(::visitExports)
+            (ast.flatImportNames.values + ast.wildcardImportSources).forEach(::visitExports)
         }
         visitExports(startAST)
 

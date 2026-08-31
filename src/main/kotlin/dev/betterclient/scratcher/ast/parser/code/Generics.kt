@@ -155,8 +155,10 @@ object Generics {
         expectedType: Type? = null
     ): CallExpression? {
         val template = sourceAST.templates.find { it.name == funcName }
-            ?: sourceAST.imports.values.flatMap { it.templates }.find { it.name == funcName }
+            ?: sourceAST.flatImportNames[funcName]?.templates?.find { it.name == funcName }
+            ?: sourceAST.wildcardImportSources.firstNotNullOfOrNull { it.templates.find { t -> t.name == funcName } }
             ?: return null
+
         if (expectedArgListTypes.size != template.parameters.size) return null
 
         val bindings = mutableMapOf<String, Type>()
@@ -217,12 +219,16 @@ object Generics {
 
     fun resolveGenericStruct(
         context: CompilationContext,
-        currentAST: ASTFile,
+        searchAST: ASTFile,
         baseName: String,
-        typeArgs: List<Type>
+        typeArgs: List<Type>,
+        unqualifiedContextAST: ASTFile? = null
     ): Type {
-        val template = currentAST.structTemplates.find { it.name == baseName }
-            ?: currentAST.imports.values.flatMap { it.structTemplates }.find { it.name == baseName }
+        val template = searchAST.structTemplates.find { it.name == baseName }
+            ?: (if (unqualifiedContextAST != null) {
+                unqualifiedContextAST.flatImportNames[baseName]?.structTemplates?.find { it.name == baseName }
+                    ?: unqualifiedContextAST.wildcardImportSources.firstNotNullOfOrNull { it.structTemplates.find { st -> st.name == baseName } }
+            } else null)
             ?: throw NotFoundException("Generic struct template $baseName not found")
 
         if (template.typeParameters.size != typeArgs.size) {
@@ -232,8 +238,8 @@ object Generics {
         val suffix = typeArgs.joinToString("_") { it.toSafeString() }
         val instantiatedName = "${template.name}@$suffix"
 
-        val existing = currentAST.structs.find { it.name == instantiatedName }
-            ?: currentAST.imports.values.flatMap { it.structs }.find { it.name == instantiatedName }
+        val target = template.sourceAST
+        val existing = target.structs.find { it.name == instantiatedName }
         if (existing != null) {
             return existing.type
         }
@@ -241,11 +247,11 @@ object Generics {
         val bindings = template.typeParameters.zip(typeArgs).toMap()
         val instantiatedStruct = Struct(
             name = instantiatedName,
-            sourceAST = template.sourceAST,
+            sourceAST = target,
             typeBindings = bindings
         )
 
-        template.sourceAST.structs.add(instantiatedStruct)
+        target.structs.add(instantiatedStruct)
         context.types.add(instantiatedStruct.type)
 
         val isPhantom = typeArgs.any { it.asNonNull() is PlaceholderType }
@@ -255,7 +261,7 @@ object Generics {
 
         for (field in template.parseInfo!!.structField()) {
             val abstractType =
-                figureOutType(context, template.sourceAST, field.type(), template.typeParameters, bindings)
+                figureOutType(context, target, field.type(), template.typeParameters, bindings)
             val concreteType = substituteType(context, abstractType, bindings)
 
             instantiatedStruct.parameters.add(Parameter(field.IDENTIFIER().text, concreteType))

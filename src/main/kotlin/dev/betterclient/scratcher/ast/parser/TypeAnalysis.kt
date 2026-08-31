@@ -19,6 +19,13 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
 
+        (ast.flatImportNames.values + ast.wildcardImportSources).distinct().forEach { ast ->
+            if (!ast.completedTypeAnalysis) {
+                ast.completedTypeAnalysis = true
+                TypeAnalysis(ctx, ast).run()
+            }
+        }
+
         if (StandardLibASTGenerator.lib.containsValue(ast) && !StandardLibASTGenerator.rawLibs.contains(ast)) {
             return
         }

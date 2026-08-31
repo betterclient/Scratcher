@@ -9,7 +9,7 @@ program
 importDecl
     : IMPORT (IDENTIFIER | plainStringLiteral) SEMI                   # importNormal
     | IMPORT (IDENTIFIER | plainStringLiteral) AS IDENTIFIER SEMI     # importAlias
-    | IMPORT (IDENTIFIER | STAR) FROM (IDENTIFIER | plainStringLiteral) SEMI   # importSome
+    | IMPORT (IDENTIFIER | plainStringLiteral) COLONCOLON (IDENTIFIER | STAR) SEMI # importSome
     ;
 
 topLevelElement
