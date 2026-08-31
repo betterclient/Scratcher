@@ -7,37 +7,6 @@ import extensions;
 import list::*;
 import "fps.sc" as counter;
 
-//standard library
-
-//option 1
-import triangle::{fill, rgb};
-import utils::random;
-import list::*;
-
-//option 2
-import {fill, rgb} from triangle;
-import random from utils;
-import * from list;
-
-//option 3
-from triangle import {fill, rgb};
-from utils import random;
-from list import *;
-
-//user code
-
-//option 1
-import "fps.sc"::*;
-import "../hello.sc"::random;
-
-//option 2
-import * from "fps.sc";
-import random from "../hello.sc";
-
-//option 3
-from "fps.sc" import *;
-from "../hello.sc" import random;
-
 struct Triangle<Num>(Num x1, Num y1, Num x2, Num y2, Num x3, Num y3);
 enum TriangleRenderMode(OFF, RENDER, ITHINK);
 
