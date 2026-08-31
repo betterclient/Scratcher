@@ -15,7 +15,7 @@ importDecl
 imported
     : IDENTIFIER                                      # byIdentifier
     | STAR                                            # all
-    | LBRACE (IDENTIFIER (COMMA IDENTIFIER)*)? RBRACE # list
+    | LBRACE IDENTIFIER (COMMA IDENTIFIER)* RBRACE    # list
     ;
 
 topLevelElement
