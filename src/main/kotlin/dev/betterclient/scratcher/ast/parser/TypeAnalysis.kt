@@ -30,6 +30,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             return
         }
 
+        if (ast.simplePath == "list" || ast.path == "list") return
+
         internalRun()
     }
 
@@ -126,7 +128,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     checkCodeBlock(function, statement.thenBlock.code, expectedReturnType, isWhenBranch)
                 }
                 is LocalVariableAssignmentStatement -> {
-                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Local variable assignment type is not correct")
+                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Local variable: ${statement.variable.name} assignment type is not correct")
                 }
                 is RepeatStatement -> {
                     checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")

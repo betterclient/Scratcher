@@ -11,7 +11,7 @@ object ExpressionTypes {
         return when(expr) {
             is BinaryExpression -> figureOutBinaryExprReturn(expr)
             is CallExpression -> {
-                if (expr.func.sourceAST.path == "array") {
+                if (ArrayLib.arrayFuncs.contains(expr.func)) {
                     ArrayLib.getActualReturnType(expr) { getExpressionType(it) }
                 } else expr.func.returnType
             }

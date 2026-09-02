@@ -35,7 +35,8 @@ object StandardLibASTGenerator {
         MotionLib.init(motionLib)
         UtilsLib.init(utilsLib)
         StringBoxing.init()
-        ArrayLib.init(arrayLib, editor)
+        ArrayLib.init(arrayInternalLib, editor)
+        array
         list.value
 
         this.editor = editor
@@ -51,7 +52,7 @@ object StandardLibASTGenerator {
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
     val utilsLib = ASTFile("utils")
-    val arrayLib = ASTFile("array")
+    val arrayInternalLib = ASTFile("array_internal")
 
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
@@ -77,7 +78,7 @@ object StandardLibASTGenerator {
         "pen" to penLib,
         "motion" to motionLib,
         "utils" to utilsLib,
-        "array" to arrayLib,
+        "array_internal" to arrayInternalLib,
         "list" to listFakeLib,
         "extensions" to extensionsFakeLib, //this will get removed after first pass
 
@@ -117,6 +118,15 @@ object StandardLibASTGenerator {
         }
     }
 
+    val array by lazy {
+        bypassRestrictions = true
+        val out = compile("/array.sc", "array").also {
+            lib["array"] = it
+        }
+        bypassRestrictions = false
+        out
+    }
+
     val extensionsLib by lazy {
         bypassRestrictions = true //needs extensions_internal
         val out = compile("/extensions.sc", "extensions").also {
@@ -153,7 +163,8 @@ object StandardLibASTGenerator {
                 library == dynamicDispatchLib ||
                 library == refCountGC ||
                 library == lambdaLib ||
-                library == extensionsInternalLib
+                library == extensionsInternalLib ||
+                library == arrayInternalLib
     }
 
     fun isStandardLib(function: Function): Boolean {

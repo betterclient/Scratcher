@@ -286,7 +286,7 @@ object RefCountGC {
             val freeBlock = CodeBlock()
             val elemType = arrayType.elementType.asNonNull()
 
-            if (elemType is SimpleType || elemType is ArrayType) {
+            if (elemType is SimpleType || elemType is ArrayType || elemType is SealedEnumType) {
                 val iVar = LocalVariable("i", PrimitiveType.Integer)
                 freeBlock.localVariables.add(iVar)
                 freeBlock.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), iVar))
@@ -317,7 +317,22 @@ object RefCountGC {
                 ))
             }
 
-            freeBlock.code.add(ExpressionStatement(CallExpression(ArrayLib.free, listOf(ParameterExpression(ptrArg)))))
+            val lengthForFree = TemporaryHeapGetExpression(
+                if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg)
+                else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger()))
+            )
+            val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+            } else {
+                ParameterExpression(ptrArg)
+            }
+            val baseFreeSize = BinaryExpression(IntLiteral(ArrayLib.headerSize.toBigInteger()), BinaryOperator.ADD, lengthForFree)
+            val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                BinaryExpression(baseFreeSize, BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+            } else {
+                baseFreeSize
+            }
+            freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize))))
 
             thenBlock.code.add(IfStatement(
                 condition = BinaryExpression(

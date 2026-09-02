@@ -158,7 +158,6 @@ expression
     | expression DOT IDENTIFIER                         # memberExpr
     | expression SAFE_DOT IDENTIFIER                    # safeDotExpr
     | expression LBRACK expression RBRACK               # indexExpr
-    | ARRAY LPAREN type COMMA expression RPAREN         # arrayCreationExpr
     | functionIdentifier LPAREN argList? RPAREN         # callExpr
     | expression LPAREN argList? RPAREN                 # dynamicCallExpr
     | (PLUS | MINUS | BANG) expression                  # unaryExpr

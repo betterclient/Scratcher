@@ -1,13 +1,13 @@
-import array;
+import array::*;
 import except;
 
 struct List<T>(
     int length,
-    T[] ptr
+    T?[] ptr
 );
 
 warp <T> List<T> newList() {
-    return List(0, Array(T, 1));
+    return List(0, arrayOfNulls(1));
 }
 
 warp <T> int List<T>.length() {
@@ -15,9 +15,9 @@ warp <T> int List<T>.length() {
 }
 
 warp <T> void List<T>.add(T item) {
-    if(this.length == array::length(this.ptr)) {
+    if(this.length == this.ptr.length()) {
         reserve(
-            if(array::length(this.ptr) == 0) {
+            if(this.ptr.length() == 0) {
                 2
             } else {
                 this.length * 2
@@ -34,7 +34,7 @@ warp <T> void List<T>.reserve(int newCapacity) {
         except::panic("List.reserve: newCapacity < length, ${newCapacity} < ${this.length}");
     }
 
-    auto newArray = Array(T, newCapacity);
+    auto newArray = arrayOfNulls(newCapacity);
     //copy over
     int index = 0;
     repeat(this.length) {
@@ -63,7 +63,7 @@ warp <T> void List<T>.replace(int index, T item) {
 
 warp <T> void List<T>.clear() {
     this.length = 0;
-    this.ptr = Array(T, 1);
+    this.ptr = arrayOfNulls(1);
 }
 
 warp <T> T List<T>.removeAt(int index) {

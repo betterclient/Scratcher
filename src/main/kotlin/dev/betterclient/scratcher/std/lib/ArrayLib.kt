@@ -15,10 +15,9 @@ object ArrayLib {
     lateinit var itemAt: Function
     lateinit var length: Function
     lateinit var replace: Function
-    lateinit var free: StandardLibASTFunction
 
     val arrayFuncs by lazy {
-        listOf(newArray, itemAt, length, replace, free)
+        listOf(newArray, itemAt, length, replace)
     }
 
     //offsets
@@ -37,8 +36,7 @@ object ArrayLib {
     ) {
         newArray = editor.compile(
             lib,
-            "newArray",
-            userAccessible = false
+            "newArray"
         ) {
             val returnArg = returnArg(PrimitiveType.Integer)
             val name = if (CompilationConstants.MARK_AND_SWEEP_GC) arg("name", PrimitiveType.Str) else null
@@ -157,37 +155,13 @@ object ArrayLib {
                 )
             )
         }
-
-        free = editor.compile(
-            lib,
-            "free",
-            userAccessible = false
-        ) {
-            val list = arg("list", PrimitiveType.Integer)
-            val length = MemoryLib.heap[list + lengthOffset.sc]
-
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                call(
-                    MemoryLib.free,
-                    list - 1.sc,
-                    (headerSize.sc + length)
-                )
-            } else {
-                call(
-                    MemoryLib.free,
-                    list,
-                    (headerSize.sc + length)
-                )
-            }
-        }
     }
 
     fun getActualReturnType(expr: CallExpression, check: (Expression) -> Type): Type {
         return when(expr.func) {
             newArray -> {
-                val expectedArgs = if (CompilationConstants.MARK_AND_SWEEP_GC) 3 else 2
-                if (expr.arguments.size != expectedArgs) {
-                    throw GeneralCompilerException("array::newArray requires $expectedArgs arguments")
+                if (expr.arguments.size != 2) {
+                    throw GeneralCompilerException("array::newArray requires 2 arguments (type, length), got ${expr.arguments.size}")
                 }
                 val typeLiteral = expr.arguments.firstOrNull() as? TypeLiteral
                     ?: throw GeneralCompilerException("Expected TypeLiteral for array::newArray")
@@ -226,11 +200,6 @@ object ArrayLib {
                     throw TypeException(PrimitiveType.Integer, index, "Wrong type passed to array::replace")
                 }
 
-                PrimitiveType.Void
-            }
-            free -> {
-                if (expr.arguments.size != 1) throw GeneralCompilerException("Too many/little arguments on array::free, requires 1 parameter")
-                if (check(expr.arguments[0]) !is ArrayType) throw GeneralCompilerException("Not passing an array to array::free")
                 PrimitiveType.Void
             }
             else -> PrimitiveType.Null

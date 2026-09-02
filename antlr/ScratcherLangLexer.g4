@@ -25,7 +25,6 @@ STR_TYPE   : 'str';
 VOID_TYPE  : 'void';
 BOOL_TYPE  : 'bool';
 CHAR_TYPE  : 'char';
-ARRAY      : 'Array';
 AUTO       : 'auto';
 
 TICK : '\'';

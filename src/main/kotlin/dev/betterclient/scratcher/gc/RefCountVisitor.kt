@@ -173,8 +173,8 @@ class RefCountVisitor(
 
             if (arrayType != null && arrayType.elementType.isRefCounted()) {
                 val elemType = arrayType.elementType
-
-                if (expression.func == ArrayLib.replace && expression.arguments.size == 3) {
+                val insideArrayLibrary = currentFunction?.sourceAST?.simplePath == "array"
+                if (insideArrayLibrary && expression.func == ArrayLib.replace && expression.arguments.size == 3) {
                     val itemExpr = expression.arguments[1]
                     val indexExpr = expression.arguments[2]
 

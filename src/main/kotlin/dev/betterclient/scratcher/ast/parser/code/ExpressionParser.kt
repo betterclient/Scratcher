@@ -106,37 +106,13 @@ class ExpressionParser(
 
                 return SafeDotExpression(struct, structExpr, member)
             }
-            is ScratcherLangParser.ArrayCreationExprContext -> {
-                val elementType = figureOutType(
-                    parser.ctx,
-                    ast,
-                    ctx.type(),
-                    localTypeBindings = parser.currentTypeBindings
-                )
-                CallExpression(
-                    func = ArrayLib.newArray,
-                    arguments = mutableListOf(TypeLiteral(elementType), parseExpression(ctx.expression(), PrimitiveType.Integer)).also {
-                        if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                            it.add(StringLiteral(
-                                "l"
-                            ))
-                        }
-                    }
-                )
-            }
             is ScratcherLangParser.IndexExprContext -> {
+                //TODO: check types or require an "operator" modifier
                 val list = parseExpression(ctx.expression(0)!!)
                 val index = parseExpression(ctx.expression(1)!!)
                 val type = ExpressionTypes.getExpressionType(list)
-                if(type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
-                    parser.functionResolver.resolveReceiverFunction(list, "itemAt", listOf(index))
-                        ?: throw NotFoundException("Cannot resolve itemAt for $type")
-                } else {
-                    CallExpression(
-                        func = ArrayLib.itemAt,
-                        listOf(list, index)
-                    )
-                }
+                parser.functionResolver.resolveReceiverFunction(list, "itemAt", listOf(index))
+                    ?: throw NotFoundException("Cannot resolve itemAt for $type")
             }
             is ScratcherLangParser.WhenExprContext -> {
                 parseWhenExpr(ctx.whenExpression())

@@ -34,24 +34,14 @@ class StatementParser(
             }
             is ScratcherLangParser.ExprStmtContext -> ExpressionStatement(exprParser.parseExpression(child.expression()))
             is ScratcherLangParser.AssignIndexStmtContext -> {
+                //TODO: check types or require an "operator" modifier
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
                 val type = ExpressionTypes.getExpressionType(list)
-                if(type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
-                    val call = parser.functionResolver.resolveReceiverFunction(list, "replace", listOf(index, item))
-                        ?: throw NotFoundException("Cannot resolve replace for $type")
-                    ExpressionStatement(call)
-                } else {
-                    val elementType = (ExpressionTypes.getExpressionType(list).asNonNull() as? ArrayType)?.elementType
-
-                    ExpressionStatement(
-                        CallExpression(
-                            func = ArrayLib.replace,
-                            listOf(list, StringBoxing.autoConvert(item, elementType), index)
-                        )
-                    )
-                }
+                val call = parser.functionResolver.resolveReceiverFunction(list, "replace", listOf(index, item))
+                    ?: throw NotFoundException("Cannot resolve replace($type, ${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")
+                ExpressionStatement(call)
             }
             is ScratcherLangParser.AssignStmtContext -> {
                 parseAssignStatement(child)
@@ -206,7 +196,15 @@ class StatementParser(
         val listStruct = (ast.structs + ast.structTemplates + ast.imports.values.flatMap { it.structs + it.structTemplates }).find { it.type == type }
             ?: (StandardLibASTGenerator.list.value.structs + StandardLibASTGenerator.list.value.structTemplates).find { it.type == type }!!
         val ptrMember = listStruct.parameters.find { it.name == "ptr" || it.type is ArrayType }!!
-        val listType = (ptrMember.type as ArrayType).elementType
+
+        val listType = when {
+            listStruct.typeBindings.isNotEmpty() -> listStruct.typeBindings.values.first()
+            listStruct.typeParameters.isNotEmpty() -> PlaceholderType(listStruct.typeParameters.first())
+            else -> {
+                val raw = (ptrMember.type as ArrayType).elementType
+                if (raw is NullableType && raw.inner is PlaceholderType) raw.inner else raw
+            }
+        }
         val indexVar = LocalVariable("list@for@index", PrimitiveType.Integer)
         val currentObjVar = LocalVariable(child.IDENTIFIER().text, listType)
         val listVar = LocalVariable("list@for@list", listStruct.type)
@@ -234,7 +232,9 @@ class StatementParser(
                                 ),
                                 LocalVariableExpression(indexVar)
                             )
-                        )
+                        ).let { itemAt ->
+                            if (listType is NullableType) itemAt else NonNullAssertExpression(itemAt)
+                        }
                     ))
 
                     parseBlock(block, child.block(), injectVariables = listOf(currentObjVar))

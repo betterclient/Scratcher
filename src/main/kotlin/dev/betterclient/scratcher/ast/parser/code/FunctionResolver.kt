@@ -2,19 +2,25 @@ package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.DuplicateDefinitionException
 import dev.betterclient.scratcher.ast.DynamicCallExpression
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
+import dev.betterclient.scratcher.ast.GeneralCompilerException
+import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.SimpleType
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.TypeLiteral
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ArrayLib
+import java.math.BigInteger
 
 class FunctionResolver(
     val parser: Stage1Parser,
@@ -49,6 +55,29 @@ class FunctionResolver(
         val args = argList?.expression()?.map { parser.expressionParser.parseExpression(it) }?: listOf()
         val inflatedArgs = { paramTypes: List<Type> ->
             args.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
+        }
+
+        //special stuff for array.sc
+        if (sourceAST == StandardLibASTGenerator.arrayInternalLib) {
+            if (funcName == "newArray") {
+                val elemType = parser.currentTypeBindings["T"]
+                    ?: (expectedType as? ArrayType)?.elementType
+                    ?: (expectedType?.asNonNull() as? ArrayType)?.elementType
+                    ?: throw GeneralCompilerException("Cannot infer element type for array_internal::newArray at $errorText. Provide an expected array type or call from a generic <T> context.")
+
+                val lengthArg = if (args.isNotEmpty()) args.last() else IntLiteral(BigInteger.ZERO)
+                return CallExpression(
+                    func = ArrayLib.newArray,
+                    arguments = listOf(TypeLiteral(elemType), lengthArg)
+                )
+            }
+
+            val resolvedFunc = sourceAST.functions.find { it.name == funcName }
+                ?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${parser.currentFunction?.name} at $errorText")
+            return CallExpression(
+                func = resolvedFunc,
+                arguments = inflatedArgs(resolvedFunc.parameters.map { par -> par.type })
+            )
         }
 
         Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser, expectedType)?.let {
@@ -107,11 +136,6 @@ class FunctionResolver(
 
             val foundArgListTypes = it.parameters.map { par -> par.type }
             matchesArgumentsExactly(expectedArgListTypes, foundArgListTypes)
-        }
-
-        if (sourceAST == StandardLibASTGenerator.arrayLib && funcName != "newArray") {
-            //AAAAAAAAAAAAAAAAAAAAAAAAAAA
-            resolvedFunc = sourceAST.functions.find { it.name == funcName }?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${parser.currentFunction?.name} at $errorText")
         }
 
         if (resolvedFunc == null) {
@@ -311,7 +335,7 @@ class FunctionResolver(
             allArgs.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
         }
 
-        val searchASTs = listOf(ast) + ast.imports.values
+        val searchASTs = listOf(ast) + ast.imports.values + ast.wildcardImportSources + ast.flatImportNames.values
 
         for (sourceAST in searchASTs) {
             Generics.tryResolve(parser.ctx, sourceAST, methodName, argTypes, allArgs, parser)?.let {

@@ -172,7 +172,9 @@ data class PlaceholderType(val name: String) : Type {
     override val isPrimitive: Boolean = false
 
     override fun isAssignable(other: Type): Boolean {
-        return other is PlaceholderType && this.name == other.name
+        if (other is PlaceholderType) return this.name == other.name
+        if (other is NullableType) return this == other.inner
+        return false
     }
 
     override fun toString(): String = name

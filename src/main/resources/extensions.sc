@@ -1,5 +1,6 @@
 import array;
 import extensions_internal as self;
+import except::panic;
 
 //general
 warp <T, R> R T.let((T) -> R action) {
@@ -37,13 +38,9 @@ warp bool str.contains(str other) {
 }
 
 warp char[] str.toCharArray() {
-    char[] out = Array(char, length());
-    int index = 0;
-    repeat(length()) {
-        out[index] = charAt(index);
-        index++;
-    }
-    return out;
+    return array::arrayOf(length(), (int index) -> {
+        return charAt(index);
+    });
 }
 
 warp str str.substring(int from, int to) {
@@ -86,4 +83,30 @@ warp int str.indexOf(char target) {
         index++;
     }
     return -1;
+}
+
+//arrays
+warp <T> void T[].copyTo(T[] other) {
+    if(other.length() < this.length()) {
+        panic("Extensions, copyTo: ${other.length()} < ${this.length()}");
+    }
+
+    int index = 0;
+    for(T t in this) {
+        other[index] = t;
+
+        index++;
+    }
+}
+
+warp <T, R> R[] T[].map((T) -> R action) {
+    return array::arrayOf(this.length(), (int index) -> {
+        return action(this[index]);
+    });
+}
+
+warp <T> void T[].forEach((T) -> void action) {
+    for(T t in this) {
+        action(t);
+    }
 }
