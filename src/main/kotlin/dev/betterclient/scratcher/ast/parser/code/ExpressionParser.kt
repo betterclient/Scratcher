@@ -1,14 +1,12 @@
 package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import dev.betterclient.scratcher.std.lib.ArrayLib
 
 class ExpressionParser(
     val parser: Stage1Parser,
@@ -41,25 +39,26 @@ class ExpressionParser(
                 }
                 throw NotFoundException("Not a receiver function!")
             }
-            is ScratcherLangParser.MultExprContext -> BinaryExpression(
+            is ScratcherLangParser.MultExprContext -> buildBinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
-                operator = when {
+                op = when {
                     ctx.MOD() != null -> BinaryOperator.MODULO
                     ctx.SLASH() != null -> BinaryOperator.DIVIDE
                     ctx.STAR() != null -> BinaryOperator.MULTIPLY
                     else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
-                right = parseExpression(ctx.expression(1)!!),
+                right = parseExpression(ctx.expression(1)!!)
             )
-            is ScratcherLangParser.AddExprContext -> BinaryExpression(
+            is ScratcherLangParser.AddExprContext -> buildBinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
-                operator = when {
+                op = when {
                     ctx.PLUS() != null -> BinaryOperator.ADD
                     ctx.MINUS() != null -> BinaryOperator.SUBTRACT
                     else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
                 right = parseExpression(ctx.expression(1)!!)
             )
+
             is ScratcherLangParser.RelExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = when {
@@ -107,12 +106,11 @@ class ExpressionParser(
                 return SafeDotExpression(struct, structExpr, member)
             }
             is ScratcherLangParser.IndexExprContext -> {
-                //TODO: check types or require an "operator" modifier
                 val list = parseExpression(ctx.expression(0)!!)
                 val index = parseExpression(ctx.expression(1)!!)
                 val type = ExpressionTypes.getExpressionType(list)
-                parser.functionResolver.resolveReceiverFunction(list, "itemAt", listOf(index))
-                    ?: throw NotFoundException("Cannot resolve itemAt for $type")
+                parser.functionResolver.resolveReceiverFunction(list, "get", listOf(index), filter = { it.operator })
+                    ?: throw NotFoundException("Cannot resolve get for $type")
             }
             is ScratcherLangParser.WhenExprContext -> {
                 parseWhenExpr(ctx.whenExpression())
@@ -928,5 +926,31 @@ class ExpressionParser(
         if (idx == -1) return null
         val variant = sealed.types[idx]
         return Triple(sealed, variant, idx)
+    }
+
+    fun buildBinaryExpression(left: Expression, op: BinaryOperator, right: Expression): Expression {
+        val opName = when (op) {
+            BinaryOperator.ADD -> "plus"
+            BinaryOperator.SUBTRACT -> "minus"
+            BinaryOperator.MULTIPLY -> "times"
+            BinaryOperator.DIVIDE -> "div"
+            BinaryOperator.MODULO -> "mod"
+            else -> null
+        }
+
+        if (opName != null) {
+            val leftType = ExpressionTypes.getExpressionType(left)
+            val rightType = ExpressionTypes.getExpressionType(right)
+            val leftIsNum = leftType == PrimitiveType.Integer || leftType == PrimitiveType.Float
+            val rightIsNum = rightType == PrimitiveType.Integer || rightType == PrimitiveType.Float
+
+            if (!leftIsNum || !rightIsNum) {
+                parser.functionResolver.resolveOperatorFunction(left, opName, right)?.let {
+                    return it
+                }
+            }
+        }
+
+        return BinaryExpression(left, op, right)
     }
 }

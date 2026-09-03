@@ -65,6 +65,7 @@ object RefCountGC {
             returnType = PrimitiveType.Void,
             export = false,
             warp = true,
+            operator = false,
             sourceAST = lib,
             userAccessible = false,
             code = CodeBlock().also { code ->
@@ -91,6 +92,7 @@ object RefCountGC {
                 returnType = PrimitiveType.Void,
                 export = false,
                 warp = true,
+                operator = false,
                 sourceAST = lib,
                 userAccessible = false,
             ).also {
@@ -108,6 +110,7 @@ object RefCountGC {
                 returnType = PrimitiveType.Void,
                 export = false,
                 warp = true,
+                operator = false,
                 sourceAST = lib,
                 userAccessible = false,
             ).also {
@@ -267,6 +270,7 @@ object RefCountGC {
                 returnType = PrimitiveType.Void,
                 export = false,
                 warp = true,
+                operator = false,
                 sourceAST = lib,
                 userAccessible = false
             )

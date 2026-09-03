@@ -325,7 +325,8 @@ class FunctionResolver(
     fun resolveReceiverFunction(
         receiverExpr: Expression,
         methodName: String,
-        arguments: List<Expression>
+        arguments: List<Expression>,
+        filter: (Function) -> Boolean = { true }
     ): CallExpression? {
         val allArgs = listOf(receiverExpr) + arguments
         val receiverType = ExpressionTypes.getExpressionType(receiverExpr)
@@ -338,7 +339,7 @@ class FunctionResolver(
         val searchASTs = listOf(ast) + ast.imports.values + ast.wildcardImportSources + ast.flatImportNames.values
 
         for (sourceAST in searchASTs) {
-            Generics.tryResolve(parser.ctx, sourceAST, methodName, argTypes, allArgs, parser)?.let {
+            Generics.tryResolve(parser.ctx, sourceAST, methodName, argTypes, allArgs, parser, filter = filter)?.let {
                 return it
             }
 
@@ -346,7 +347,48 @@ class FunctionResolver(
                 if (!func.isReceiver) return@find false
                 if (func.name != methodName) return@find false
                 if (func.parameters.size != argTypes.size) return@find false
+                if (!filter(func)) return@find false
                 matchesArguments(argTypes, func.parameters.map { it.type })
+            }
+
+            if (resolvedFunc != null) {
+                return CallExpression(
+                    func = resolvedFunc,
+                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type })
+                )
+            }
+        }
+
+        return null
+    }
+
+
+    fun resolveOperatorFunction(
+        left: Expression,
+        operatorName: String,
+        right: Expression
+    ): CallExpression? {
+        val allArgs = listOf(left, right)
+        val argTypes = allArgs.map { ExpressionTypes.getExpressionType(it) }
+        val inflatedArgs = { paramTypes: List<Type> ->
+            allArgs.mapIndexed { i, arg -> StringBoxing.autoConvert(arg, paramTypes.getOrNull(i)) }
+        }
+
+        val searchASTs = (listOf(ast) + ast.imports.values + ast.wildcardImportSources + ast.flatImportNames.values).distinct()
+
+        for (sourceAST in searchASTs) {
+            Generics.tryResolve(parser.ctx, sourceAST, operatorName, argTypes, allArgs, parser, filter = { it.operator && !it.isReceiver })?.let {
+                return it
+            }
+
+            var resolvedFunc = sourceAST.functions.find { func ->
+                !func.isReceiver && func.operator && func.name == operatorName && matchesArgumentsExactly(argTypes, func.parameters.map { it.type })
+            }
+
+            if (resolvedFunc == null) {
+                resolvedFunc = sourceAST.functions.find { func ->
+                    !func.isReceiver && func.operator && func.name == operatorName && matchesArguments(argTypes, func.parameters.map { it.type })
+                }
             }
 
             if (resolvedFunc != null) {

@@ -34,13 +34,12 @@ class StatementParser(
             }
             is ScratcherLangParser.ExprStmtContext -> ExpressionStatement(exprParser.parseExpression(child.expression()))
             is ScratcherLangParser.AssignIndexStmtContext -> {
-                //TODO: check types or require an "operator" modifier
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
                 val type = ExpressionTypes.getExpressionType(list)
-                val call = parser.functionResolver.resolveReceiverFunction(list, "replace", listOf(index, item))
-                    ?: throw NotFoundException("Cannot resolve replace($type, ${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")
+                val call = parser.functionResolver.resolveReceiverFunction(list, "set", listOf(index, item), filter = { it.operator })
+                    ?: throw NotFoundException("Cannot resolve $type.set(${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")
                 ExpressionStatement(call)
             }
             is ScratcherLangParser.AssignStmtContext -> {
@@ -295,7 +294,7 @@ class StatementParser(
         } else {
             return when (targetExpr) {
                 is LocalVariableExpression -> {
-                    val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
+                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr)
                     LocalVariableAssignmentStatement(
                         targetExpr.variable,
                         StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type)
@@ -303,7 +302,7 @@ class StatementParser(
                 }
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
-                    val actualAssignment = BinaryExpression(targetExpr, op, valueExpr)
+                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr)
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
                         targetExpr.sourceAST,
@@ -321,7 +320,7 @@ class StatementParser(
                     val declareStmt = VariableStatement(targetExpr.expression, tempBaseVar)
                     val tempBaseExpr = LocalVariableExpression(tempBaseVar)
                     val readExpr = MemberExpression(tempBaseExpr, targetExpr.member, targetExpr.struct)
-                    val actualAssignment = BinaryExpression(readExpr, op, valueExpr)
+                    val actualAssignment = exprParser.buildBinaryExpression(readExpr, op, valueExpr)
 
                     val assignStmt = VariableAssignmentStatement(
                         tempBaseExpr,

@@ -152,59 +152,73 @@ object Generics {
         expectedArgListTypes: List<Type>,
         args: List<Expression>,
         parser: Stage1Parser,
-        expectedType: Type? = null
+        expectedType: Type? = null,
+        filter: (Function) -> Boolean = { true }
     ): CallExpression? {
-        val template = sourceAST.templates.find { it.name == funcName }
-            ?: sourceAST.flatImportNames[funcName]?.templates?.find { it.name == funcName }
-            ?: sourceAST.wildcardImportSources.firstNotNullOfOrNull { it.templates.find { t -> t.name == funcName } }
-            ?: return null
-
-        if (expectedArgListTypes.size != template.parameters.size) return null
-
-        val bindings = mutableMapOf<String, Type>()
-        val matches = expectedArgListTypes.indices.all { i ->
-            deduceTypeArgs(template.parameters[i].type, expectedArgListTypes[i], template.typeParameters, bindings)
-        }
-
-        if (!matches) return null
-
-        if (expectedType != null && !template.typeParameters.all { bindings.containsKey(it) }) {
-            deduceTypeArgs(template.returnType, expectedType, template.typeParameters, bindings)
-        }
-
-        if (!template.typeParameters.all { bindings.containsKey(it) } && parser.currentTypeBindings.isNotEmpty()) {
-            for (tp in template.typeParameters) {
-                parser.currentTypeBindings[tp]?.let { bindings[tp] = it }
+        val candidateTemplates = sequence {
+            yieldAll(sourceAST.templates.filter { it.name == funcName })
+            sourceAST.flatImportNames[funcName]?.templates?.filter { it.name == funcName }?.let { yieldAll(it) }
+            sourceAST.wildcardImportSources.forEach { src ->
+                yieldAll(src.templates.filter { it.name == funcName })
             }
         }
 
-        if (!template.typeParameters.all { bindings.containsKey(it) }) return null
+        return candidateTemplates.firstNotNullOfOrNull { template ->
+            if (expectedArgListTypes.size != template.parameters.size) return@firstNotNullOfOrNull null
 
-        val typeSuffix = bindings.values.joinToString("_") { it.toSafeString() }
-        val instantiatedName = "${template.name}\$$typeSuffix"
-
-        val resolvedFunc = sourceAST.functions.find { it.name == instantiatedName } ?: run {
-            val newParams = template.parameters.map {
-                Parameter(it.name, substituteType(context, it.type, bindings))
-            }.toMutableList()
-            val newReturnType = substituteType(context, template.returnType, bindings)
-
-            Function(
-                name = instantiatedName,
-                parameters = newParams,
-                returnType = newReturnType,
-                export = template.export,
-                warp = template.warp,
-                sourceAST = sourceAST,
-                typeBindings = bindings,
-                isReceiver = template.isReceiver
-            ).also {
-                sourceAST.functions.add(it)
-                compileTemplate(parser, it, template, bindings)
+            val bindings = mutableMapOf<String, Type>()
+            val matches = expectedArgListTypes.indices.all { i ->
+                deduceTypeArgs(template.parameters[i].type, expectedArgListTypes[i], template.typeParameters, bindings)
             }
-        }
+            if (!matches) return@firstNotNullOfOrNull null
 
-        return CallExpression(resolvedFunc, args)
+            if (expectedType != null && !template.typeParameters.all { bindings.containsKey(it) }) {
+                deduceTypeArgs(template.returnType, expectedType, template.typeParameters, bindings)
+            }
+
+            if (!template.typeParameters.all { bindings.containsKey(it) } && parser.currentTypeBindings.isNotEmpty()) {
+                for (tp in template.typeParameters) {
+                    parser.currentTypeBindings[tp]?.let { bindings[tp] = it }
+                }
+            }
+
+            if (!template.typeParameters.all { bindings.containsKey(it) }) return@firstNotNullOfOrNull null
+
+            val typeSuffix = bindings.values.joinToString("_") { it.toSafeString() }
+            val instantiatedName = "${template.name}\$$typeSuffix"
+
+            val resolvedFunc = sourceAST.functions.find { it.name == instantiatedName } ?: run {
+                val newParams = template.parameters.map {
+                    Parameter(it.name, substituteType(context, it.type, bindings))
+                }.toMutableList()
+                val newReturnType = substituteType(context, template.returnType, bindings)
+
+                val candidate = Function(
+                    name = instantiatedName,
+                    parameters = newParams,
+                    returnType = newReturnType,
+                    export = template.export,
+                    warp = template.warp,
+                    operator = template.operator,
+                    sourceAST = sourceAST,
+                    typeBindings = bindings,
+                    isReceiver = template.isReceiver
+                )
+
+                if (!filter(candidate)) return@firstNotNullOfOrNull null
+
+                sourceAST.functions.add(candidate)
+                compileTemplate(parser, candidate, template, bindings)
+                candidate
+            }
+
+            if (!filter(resolvedFunc)) return@firstNotNullOfOrNull null
+
+            val convertedArgs = args.mapIndexed { i, arg ->
+                StringBoxing.autoConvert(arg, resolvedFunc.parameters.getOrNull(i)?.type)
+            }
+            CallExpression(resolvedFunc, convertedArgs)
+        }
     }
 
     fun compileTemplate(parser: Stage1Parser, resolvedFunc: Function, template: Function, bindings: Map<String, Type>) {

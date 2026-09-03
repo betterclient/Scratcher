@@ -21,6 +21,7 @@ class TopLevelVariableTranslator {
             returnType = PrimitiveType.Void,
             export = false,
             warp = true,
+            operator = false,
             userAccessible = false, //idk how you would access it?? This function is created after parsing
             sourceAST = StandardLibASTGenerator.compilerLib
         )

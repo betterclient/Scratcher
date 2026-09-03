@@ -232,6 +232,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 var isWarp = false
                 var isExport = false
+                var isOperator = false
                 func.modifier().forEach { modifier ->
                     when {
                         modifier.EXPORT() != null -> {
@@ -248,6 +249,13 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                             }
                             isWarp = true
                         }
+                        modifier.OPERATOR() != null -> {
+                            if(isOperator) {
+                                val sig = parameterList.joinToString(", ") { it.type.toString() }
+                                throw GeneralCompilerException("Double operator in ${ast.simplePath}::$funcName($sig)")
+                            }
+                            isOperator = true
+                        }
                     }
                 }
 
@@ -257,10 +265,15 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = returnType,
                     warp = isWarp,
                     export = isExport,
+                    operator = isOperator,
                     sourceAST = ast,
                     typeParameters = typeParams,
                     isReceiver = receiverType != null
                 )
+
+                if (funcAST.operator) {
+                    OperatorFunctions.check(funcAST)
+                }
                 funcAST.ctx = func.block()
 
                 if (typeParams.isEmpty()) {
@@ -303,6 +316,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     returnType = PrimitiveType.Void,
                     export = false,
                     warp = false,
+                    operator = false,
                     sourceAST = ast,
                     isEventListener = true
                 )

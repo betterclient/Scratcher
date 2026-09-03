@@ -1,11 +1,20 @@
 import array_internal as self;
+import except::panic;
 
 //new
 warp <T> T?[] arrayOfNulls(int size) {
+    if(size <= 0) {
+        panic("array::arrayOfNulls, size <= 0, got: ${size}");
+    }
+
     return self::newArray(size);
 }
 
 warp <T> T[] arrayOf(int size, (int) -> T init) {
+    if(size <= 0) {
+        panic("array::arrayOf, size <= 0, got: ${size}");
+    }
+
     T[] out = self::newArray(size);
     int index = 0;
     repeat(size) {
@@ -33,10 +42,10 @@ warp <T> int T[].length() {
     return self::length(this);
 }
 
-warp <T> T T[].itemAt(int index) {
+warp operator <T> T T[].get(int index) {
     return self::itemAt(this, index); //self already does index out of bounds
 }
 
-warp <T> void T[].replace(int index, T item) {
+warp operator <T> void T[].set(int index, T item) {
     self::replace(this, item, index);
 }

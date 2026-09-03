@@ -62,6 +62,7 @@ class LambdaDefunctionalization(
             returnType = fullFuncType.returnType,
             export = false,
             warp = true,
+            operator = false,
             sourceAST = StandardLibASTGenerator.lambdaLib,
             code = LambdaDefunctionalization(ctx, lookup, closureConversion).visitCodeBlock(block)
         ).also {
@@ -118,6 +119,7 @@ class LambdaDefunctionalization(
                 returnType = func.returnType,
                 export = false,
                 warp = true,
+                operator = false,
                 sourceAST = StandardLibASTGenerator.lambdaLib,
                 code = trampolineBody
             ).also {

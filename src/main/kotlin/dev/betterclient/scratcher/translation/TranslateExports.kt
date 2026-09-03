@@ -59,6 +59,7 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                 },
                 export = false,
                 warp = function.warp,
+                operator = false,
                 returnType = PrimitiveType.Void,
                 sourceAST = StandardLibASTGenerator.compilerLib,
                 parameters = params

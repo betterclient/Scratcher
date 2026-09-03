@@ -143,6 +143,7 @@ object MemoryLib {
                     returnType = allocReturnType(struct),
                     export = false,
                     warp = true,
+                    operator = false,
                     sourceAST = lib,
                     userAccessible = false
                 ).also { func ->
@@ -278,6 +279,7 @@ object MemoryLib {
             returnType = sealedEnum.type,
             export = false,
             warp = true,
+            operator = false,
             sourceAST = lib,
             userAccessible = false
         ).also { fn ->

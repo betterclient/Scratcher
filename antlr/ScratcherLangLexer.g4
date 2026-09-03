@@ -12,6 +12,7 @@ REPEAT : 'repeat';
 FOR    : 'for';
 IN     : 'in';
 ON     : 'on';
+OPERATOR : 'operator';
 WARP   : 'warp';
 EXPORT : 'export';
 ENUM   : 'enum';

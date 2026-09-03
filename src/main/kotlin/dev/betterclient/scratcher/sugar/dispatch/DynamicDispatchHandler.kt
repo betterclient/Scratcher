@@ -64,6 +64,7 @@ object DynamicDispatchHandler : CompilerSugar() {
                 sourceAST = StandardLibASTGenerator.dynamicDispatchLib,
                 export = false,
                 warp = true,
+                operator = false,
                 code = CodeBlock().also {
                     it.code.addAll(generateTree(
                         literals,

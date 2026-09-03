@@ -45,17 +45,17 @@ warp <T> void List<T>.reserve(int newCapacity) {
     this.ptr = newArray;
 }
 
-warp <T> T List<T>.itemAt(int index) {
+warp operator <T> T List<T>.get(int index) {
     if(index < 0 || index >= this.length) {
-        except::panic("List.itemAt: index out of bounds: ${index} (length: ${this.length})");
+        except::panic("List.get: index out of bounds: ${index} (length: ${this.length})");
     }
 
     return this.ptr[index];
 }
 
-warp <T> void List<T>.replace(int index, T item) {
+warp operator <T> void List<T>.set(int index, T item) {
     if(index < 0 || index >= this.length) {
-        except::panic("List.replace: index out of bounds: ${index} (length: ${this.length})");
+        except::panic("List.set: index out of bounds: ${index} (length: ${this.length})");
     }
 
     this.ptr[index] = item;
@@ -285,5 +285,38 @@ warp <T> List<T> List<T>.drop(int n) {
         }
         index++;
     }
+    return out;
+}
+
+warp <T> void List<T>.addAll(List<T> other) {
+    for(auto t in other) {
+        this.add(t);
+    }
+}
+
+warp <T> void List<T>.addAll(T[] other) {
+    for(auto t in other) {
+        this.add(t);
+    }
+}
+
+warp operator <T> List<T> plus(List<T> first, List<T> second) {
+    List<T> out = newList();
+    out.reserve(first.length() + second.length());
+    out.addAll(first);
+    out.addAll(second);
+    return out;
+}
+
+warp <T> T[] List<T>.toArray() {
+    return arrayOf(this.length(), (int index) -> {
+        return this[index];
+    });
+}
+
+warp <T> List<T> T[].toList() {
+    List<T> out = newList();
+    out.reserve(this.length());
+    out.addAll(this);
     return out;
 }

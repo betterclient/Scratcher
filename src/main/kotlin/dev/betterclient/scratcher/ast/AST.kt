@@ -78,6 +78,7 @@ open class Function(
     val code: CodeBlock = CodeBlock(),
     val export: Boolean,
     val warp: Boolean,
+    val operator: Boolean,
     val userAccessible: Boolean = true,
     val sourceAST: ASTFile,
     val isEventListener: Boolean = false,
@@ -96,7 +97,7 @@ class StandardLibASTFunction(
     userAccessible: Boolean = true,
     sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, true, userAccessible, sourceAST
+    name, parameters, returnType, CodeBlock(), false, true, false, userAccessible, sourceAST
 )
 
 class InlineStandardLibFunction(
@@ -109,7 +110,7 @@ class InlineStandardLibFunction(
     userAccessible: Boolean = true,
     sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, warp, userAccessible, sourceAST
+    name, parameters, returnType, CodeBlock(), false, warp, false, userAccessible, sourceAST
 )
 
 class CodeBlock(

@@ -64,6 +64,7 @@ typeParameters
 modifier
     : EXPORT
     | WARP
+    | OPERATOR
     ;
 
 paramList

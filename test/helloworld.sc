@@ -69,21 +69,26 @@ warp void render(TriangleRenderMode mode, List<Triangle<float>?> triangles) {
         });
     });
 
-    triangles
+    auto filtered = triangles
         .filterNotNull()
         .filter((Triangle<float> t) -> t.x1 > 150)
-        .filter((Triangle<float> t) -> t.y1 > 150)
-        .forEach(
-            when(mode) {
-                TriangleRenderMode.RENDER -> (Triangle<float> tri) -> {
-                    fill(
-                        tri.x1, tri.y1, tri.x2, tri.y2, tri.x3, tri.y3, rgb(random(0, 255), random(0, 255), random(0, 255)), 1
-                    );
-                    amountRendered += 1;
-                };
-                else -> &noRender;
-            }
-        );
+        .filter((Triangle<float> t) -> t.y1 > 150);
+
+    auto filter2 = triangles
+        .filterNotNull()
+        .filter((Triangle<float> t) -> random(0, 15) != 7);
+
+    (filtered + filter2).forEach(
+        when(mode) {
+            TriangleRenderMode.RENDER -> (Triangle<float> tri) -> {
+                fill(
+                    tri.x1, tri.y1, tri.x2, tri.y2, tri.x3, tri.y3, rgb(random(0, 255), random(0, 255), random(0, 255)), 1
+                );
+                amountRendered += 1;
+            };
+            else -> &noRender;
+        }
+    );
 
     looks::say("Amount rendered ${amountRendered}");
 }
