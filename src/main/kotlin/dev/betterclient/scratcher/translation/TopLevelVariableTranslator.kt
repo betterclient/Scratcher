@@ -22,6 +22,7 @@ class TopLevelVariableTranslator {
             export = false,
             warp = true,
             operator = false,
+            private = false,
             userAccessible = false, //idk how you would access it?? This function is created after parsing
             sourceAST = StandardLibASTGenerator.compilerLib
         )

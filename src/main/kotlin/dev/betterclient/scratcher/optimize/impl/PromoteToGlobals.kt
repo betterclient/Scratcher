@@ -43,6 +43,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 mutable = true,
                 type = it.type,
                 defaultValue = null,
+                private = false,
                 sourceAST = StandardLibASTGenerator.globalPromotionLib
             )
             StandardLibASTGenerator.globalPromotionLib.variables.add(variable)

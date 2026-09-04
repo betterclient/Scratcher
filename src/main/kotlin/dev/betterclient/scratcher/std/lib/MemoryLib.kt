@@ -145,6 +145,7 @@ object MemoryLib {
                     warp = true,
                     operator = false,
                     sourceAST = lib,
+                    private = false,
                     userAccessible = false
                 ).also { func ->
                     val ptrVar = LocalVariable("compiler@ptr", struct.type)
@@ -280,6 +281,7 @@ object MemoryLib {
             export = false,
             warp = true,
             operator = false,
+            private = false,
             sourceAST = lib,
             userAccessible = false
         ).also { fn ->

@@ -2,8 +2,8 @@ import array::*;
 import except;
 
 struct List<T>(
-    int length,
-    T?[] ptr
+    private int length,
+    private T?[] ptr
 );
 
 warp <T> List<T> newList() {

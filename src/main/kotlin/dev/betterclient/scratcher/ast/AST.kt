@@ -40,7 +40,8 @@ class Struct(
     val parameters: MutableList<Parameter> = mutableListOf(),
     val sourceAST: ASTFile,
     val typeParameters: List<String> = emptyList(),
-    val typeBindings: Map<String, Type> = emptyMap()
+    val typeBindings: Map<String, Type> = emptyMap(),
+    val private: Boolean
 ) {
     val type = SimpleType(name, sourceAST)
     val sizeOnHeap: Int
@@ -66,7 +67,8 @@ class TLVariable(
     val mutable: Boolean,
     var type: Type,
     var defaultValue: Expression? = null,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val private: Boolean
 ) {
     var ctx: ScratcherLangParser.ExpressionContext? = null
 }
@@ -84,7 +86,8 @@ open class Function(
     val isEventListener: Boolean = false,
     val typeParameters: List<String> = emptyList(),
     val typeBindings: Map<String, Type> = emptyMap(),
-    val isReceiver: Boolean = false
+    val isReceiver: Boolean = false,
+    val private: Boolean
 ) {
     var ctx: ScratcherLangParser.BlockContext? = null
 }
@@ -97,7 +100,7 @@ class StandardLibASTFunction(
     userAccessible: Boolean = true,
     sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, true, false, userAccessible, sourceAST
+    name, parameters, returnType, CodeBlock(), false, true, false, userAccessible, sourceAST, private = false
 )
 
 class InlineStandardLibFunction(
@@ -110,7 +113,7 @@ class InlineStandardLibFunction(
     userAccessible: Boolean = true,
     sourceAST: ASTFile
 ) : Function(
-    name, parameters, returnType, CodeBlock(), false, warp, false, userAccessible, sourceAST
+    name, parameters, returnType, CodeBlock(), false, warp, false, userAccessible, sourceAST, private = false
 )
 
 class CodeBlock(
@@ -125,7 +128,8 @@ class LocalVariable(
 
 data class Parameter(
     val name: String,
-    val type: Type
+    val type: Type,
+    val private: Boolean = false//ONLY FOR STRUCTS!!!!
 )
 
 data class ASTEnum(
@@ -141,7 +145,8 @@ class SealedEnum(
     val types: MutableList<Struct>,
     val sourceAST: ASTFile,
     val typeParameters: List<String> = emptyList(),
-    val typeBindings: Map<String, Type> = emptyMap()
+    val typeBindings: Map<String, Type> = emptyMap(),
+    val private: Boolean
 ) {
     val type = SealedEnumType(name, sourceAST, typeBindings)
     val allocFuncs: MutableMap<Struct, Function> = mutableMapOf()

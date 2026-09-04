@@ -47,7 +47,8 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                             true,
                             function.returnType,
                             null,
-                            compilerLib
+                            compilerLib,
+                            private = false,
                         )
                         compilerLib.variables.add(outVar)
                         block.code.add(TLVariableAssignmentStatement(
@@ -62,6 +63,7 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                 operator = false,
                 returnType = PrimitiveType.Void,
                 sourceAST = StandardLibASTGenerator.compilerLib,
+                private = false,
                 parameters = params
             ).also { func ->
                 StandardLibASTGenerator.compilerLib.functions.add(func)

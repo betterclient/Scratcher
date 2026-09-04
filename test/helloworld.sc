@@ -5,6 +5,7 @@ import pen;
 import sensing;
 import extensions;
 import list::*;
+import array;
 import "fps.sc" as counter;
 
 struct Triangle<Num>(Num x1, Num y1, Num x2, Num y2, Num x3, Num y3);
@@ -77,6 +78,8 @@ warp void render(TriangleRenderMode mode, List<Triangle<float>?> triangles) {
     auto filter2 = triangles
         .filterNotNull()
         .filter((Triangle<float> t) -> random(0, 15) != 7);
+
+    triangles.ptr[5] = a;
 
     (filtered + filter2).forEach(
         when(mode) {

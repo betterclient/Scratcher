@@ -46,7 +46,7 @@ whenStmt
     ;
 
 tlVarDecl
-    : (isConst=CONST)? (AUTO | type) IDENTIFIER (ASSIGN expression)? SEMI
+    : PRIVATE? (isConst=CONST)? (AUTO | type) IDENTIFIER (ASSIGN expression)? SEMI
     ;
 
 varDecl
@@ -54,7 +54,7 @@ varDecl
     ;
 
 funcDecl
-    : modifier* typeParameters? type (type DOT)? IDENTIFIER LPAREN paramList? RPAREN block
+    : PRIVATE? modifier* typeParameters? type (type DOT)? IDENTIFIER LPAREN paramList? RPAREN block
     ;
 
 typeParameters
@@ -76,11 +76,11 @@ param
     ;
 
 enumDecl
-    : ENUM IDENTIFIER LPAREN IDENTIFIER (COMMA IDENTIFIER)* RPAREN SEMI
+    : PRIVATE? ENUM IDENTIFIER LPAREN IDENTIFIER (COMMA IDENTIFIER)* RPAREN SEMI
     ;
 
 sealedEnumDecl
-    : SEALED ENUM IDENTIFIER typeParameters? LBRACE (sealedEnumArg (COMMA sealedEnumArg)*)? RBRACE
+    : PRIVATE? SEALED ENUM IDENTIFIER typeParameters? LBRACE (sealedEnumArg (COMMA sealedEnumArg)*)? RBRACE
     ;
 
 sealedEnumArg
@@ -88,11 +88,11 @@ sealedEnumArg
     ;
 
 structDecl
-    : STRUCT IDENTIFIER typeParameters? LPAREN structField (COMMA structField)* RPAREN SEMI
+    : PRIVATE? STRUCT IDENTIFIER typeParameters? LPAREN structField (COMMA structField)* RPAREN SEMI
     ;
 
 structField
-    : type IDENTIFIER
+    : PRIVATE? type IDENTIFIER
     ;
 
 block

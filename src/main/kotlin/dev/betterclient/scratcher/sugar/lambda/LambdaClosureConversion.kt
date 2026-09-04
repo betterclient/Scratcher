@@ -32,7 +32,8 @@ class LambdaClosureConversion(
     val lambdaCapturesEnum = SealedEnum(
         name = "LambdaCaptures",
         sourceAST = StandardLibASTGenerator.lambdaLib,
-        types = mutableListOf()
+        types = mutableListOf(),
+        private = false,
     ).also {
         StandardLibASTGenerator.lambdaLib.sealedEnums.add(it)
         ctx.types.add(it.type)
@@ -77,7 +78,8 @@ class LambdaClosureConversion(
     ): Expression {
         val myCapture = Struct(
             name = "LambdaCapture@${index}",
-            sourceAST = StandardLibASTGenerator.lambdaLib
+            sourceAST = StandardLibASTGenerator.lambdaLib,
+            private = false,
         ).also {
             StandardLibASTGenerator.lambdaLib.structs.add(it)
             lambdaCapturesEnum.types.add(it)
@@ -125,7 +127,8 @@ class LambdaClosureConversion(
         Struct(
             name = "LambdaBox${type.toSafeString()}",
             parameters = mutableListOf(Parameter("val", type)),
-            sourceAST = StandardLibASTGenerator.lambdaLib
+            sourceAST = StandardLibASTGenerator.lambdaLib,
+            private = false,
         ).also {
             StandardLibASTGenerator.lambdaLib.structs.add(it)
             ctx.types.add(it.type)

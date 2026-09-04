@@ -189,7 +189,7 @@ object Generics {
 
             val resolvedFunc = sourceAST.functions.find { it.name == instantiatedName } ?: run {
                 val newParams = template.parameters.map {
-                    Parameter(it.name, substituteType(context, it.type, bindings))
+                    Parameter(it.name, substituteType(context, it.type, bindings), false)
                 }.toMutableList()
                 val newReturnType = substituteType(context, template.returnType, bindings)
 
@@ -202,7 +202,8 @@ object Generics {
                     operator = template.operator,
                     sourceAST = sourceAST,
                     typeBindings = bindings,
-                    isReceiver = template.isReceiver
+                    isReceiver = template.isReceiver,
+                    private = template.private
                 )
 
                 if (!filter(candidate)) return@firstNotNullOfOrNull null
@@ -262,7 +263,8 @@ object Generics {
         val instantiatedStruct = Struct(
             name = instantiatedName,
             sourceAST = target,
-            typeBindings = bindings
+            typeBindings = bindings,
+            private = template.private,
         )
 
         target.structs.add(instantiatedStruct)
@@ -278,7 +280,7 @@ object Generics {
                 figureOutType(context, target, field.type(), template.typeParameters, bindings)
             val concreteType = substituteType(context, abstractType, bindings)
 
-            instantiatedStruct.parameters.add(Parameter(field.IDENTIFIER().text, concreteType))
+            instantiatedStruct.parameters.add(Parameter(field.IDENTIFIER().text, concreteType, false))
         }
 
         MemoryLib.initMem(StandardLibASTGenerator.memLib, template.sourceAST)
@@ -319,7 +321,8 @@ object Generics {
             types = mutableListOf(),
             sourceAST = targetAST,
             typeParameters = emptyList(),
-            typeBindings = bindings
+            typeBindings = bindings,
+            private = template.private
         )
         targetAST.sealedEnums.add(instantiatedSealed)
         val sealedType = instantiatedSealed.type
@@ -335,11 +338,12 @@ object Generics {
             val concreteVariant = Struct(
                 name = variantFullName,
                 sourceAST = targetAST,
-                typeBindings = bindings
+                typeBindings = bindings,
+                private = false
             )
             for (param in placeholderVariant.parameters) {
                 val concreteType = substituteType(context, param.type, bindings)
-                concreteVariant.parameters.add(Parameter(param.name, concreteType))
+                concreteVariant.parameters.add(Parameter(param.name, concreteType, false))
             }
             targetAST.structs.add(concreteVariant)
             context.types.add(concreteVariant.type)

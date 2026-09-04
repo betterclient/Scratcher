@@ -66,11 +66,13 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         for (context in initialRead.topLevelElement().filter { it.structDecl() != null }) {
             val struct = context.structDecl()!!
             val typeParams = struct.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
+            val isPrivate = struct.PRIVATE() != null
 
             val structAST = Struct(
                 name = struct.IDENTIFIER().text,
                 sourceAST = ast,
-                typeParameters = typeParams
+                typeParameters = typeParams,
+                private = isPrivate
             )
             structAST.parseInfo = struct
 
@@ -104,12 +106,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             val sealedDecl = context.sealedEnumDecl()!!
             val enumName = sealedDecl.IDENTIFIER().text
             val typeParams = sealedDecl.typeParameters()?.IDENTIFIER()?.map { it.text } ?: emptyList()
+            val isPrivate = sealedDecl.PRIVATE() != null
 
             val sealedEnumAST = SealedEnum(
                 name = enumName,
                 types = mutableListOf(),
                 sourceAST = ast,
-                typeParameters = typeParams
+                typeParameters = typeParams,
+                private = isPrivate
             )
             sealedEnumAST.parseInfo = sealedDecl
 
@@ -124,7 +128,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val variantName = arg.IDENTIFIER().text
                 val structAST = Struct(
                     name = "$enumName.$variantName",
-                    sourceAST = ast
+                    sourceAST = ast,
+                    private = false
                 )
                 sealedEnumAST.types.add(structAST)
                 if (typeParams.isNotEmpty()) {
@@ -146,11 +151,13 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             for (field in struct.parseInfo!!.structField()) {
                 val type = figureOutType(ctx, ast, field.type(), struct.typeParameters)
 
+                val isPrivate = field.PRIVATE() != null
                 if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
-                        type
+                        type,
+                        isPrivate
                     )
                 )
             }
@@ -170,7 +177,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 struct.parameters.add(
                     Parameter(
                         param.IDENTIFIER().text,
-                        type
+                        type,
+                        false
                     )
                 )
             }
@@ -188,7 +196,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 struct.parameters.add(
                     Parameter(
                         param.IDENTIFIER().text,
-                        type
+                        type,
+                        false
                     )
                 )
             }
@@ -202,6 +211,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val hasReceiver = func.type().size > 1
                 val returnTypeCtx = func.type(0)!!
                 val receiverTypeCtx = if (hasReceiver) func.type(1) else null
+                val isPrivate = func.PRIVATE() != null
 
                 val returnType = figureOutType(ctx, ast, returnTypeCtx, typeParams)
                 val receiverType = receiverTypeCtx?.let { figureOutType(ctx, ast, it, typeParams) }
@@ -209,11 +219,11 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
                     val type = figureOutType(ctx, ast, it.type(), typeParams)
                     if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
-                    Parameter(it.IDENTIFIER().text, type)
+                    Parameter(it.IDENTIFIER().text, type, false)
                 }.toMutableList()
 
                 if (receiverType != null) {
-                    parameterList.add(0, Parameter("this", receiverType))
+                    parameterList.add(0, Parameter("this", receiverType, false))
                 }
 
                 checkDuplicates(parameterList, "function ${ast.simplePath}::${func.IDENTIFIER().text}")
@@ -268,7 +278,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     operator = isOperator,
                     sourceAST = ast,
                     typeParameters = typeParams,
-                    isReceiver = receiverType != null
+                    isReceiver = receiverType != null,
+                    private = isPrivate
                 )
 
                 if (funcAST.operator) {
@@ -283,6 +294,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 }
             } else if (context.tlVarDecl() != null) {
                 val variable = context.tlVarDecl()!!
+                val private = variable.PRIVATE() != null
                 if (variable.expression() == null && variable.AUTO() != null) {
                     throw GeneralCompilerException("Top-level auto variable ${variable.IDENTIFIER().text} must have an initializer.")
                 }
@@ -293,7 +305,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     variable.type()?.let {
                         figureOutType(ctx, ast, it)
                     }?: PrimitiveType.Auto,
-                    sourceAST = ast
+                    sourceAST = ast,
+                    private = private
                 )
                 astVariable.ctx = variable.expression()
                 if (astVariable.type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
@@ -318,7 +331,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     warp = false,
                     operator = false,
                     sourceAST = ast,
-                    isEventListener = true
+                    isEventListener = true,
+                    private = false
                 )
                 func.ctx = event.block()
 

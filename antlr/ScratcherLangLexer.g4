@@ -13,6 +13,7 @@ FOR    : 'for';
 IN     : 'in';
 ON     : 'on';
 OPERATOR : 'operator';
+PRIVATE : 'private';
 WARP   : 'warp';
 EXPORT : 'export';
 ENUM   : 'enum';

@@ -32,7 +32,8 @@ class LambdaDefunctionalization(
                     Parameter("func", targetFuncType),
                     Parameter("captures", captureType.asNullable())
                 ),
-                sourceAST = StandardLibASTGenerator.lambdaLib
+                sourceAST = StandardLibASTGenerator.lambdaLib,
+                private = false,
             )
             StandardLibASTGenerator.lambdaLib.structs.add(struct)
             ctx.types.add(struct.type)
@@ -64,6 +65,7 @@ class LambdaDefunctionalization(
             warp = true,
             operator = false,
             sourceAST = StandardLibASTGenerator.lambdaLib,
+            private = false,
             code = LambdaDefunctionalization(ctx, lookup, closureConversion).visitCodeBlock(block)
         ).also {
             StandardLibASTGenerator.lambdaLib.functions.add(it)
@@ -121,7 +123,8 @@ class LambdaDefunctionalization(
                 warp = true,
                 operator = false,
                 sourceAST = StandardLibASTGenerator.lambdaLib,
-                code = trampolineBody
+                code = trampolineBody,
+                private = false,
             ).also {
                 StandardLibASTGenerator.lambdaLib.functions.add(it)
             }

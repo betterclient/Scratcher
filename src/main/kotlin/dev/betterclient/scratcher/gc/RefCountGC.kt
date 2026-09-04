@@ -66,6 +66,7 @@ object RefCountGC {
             export = false,
             warp = true,
             operator = false,
+            private = false,
             sourceAST = lib,
             userAccessible = false,
             code = CodeBlock().also { code ->
@@ -95,6 +96,7 @@ object RefCountGC {
                 operator = false,
                 sourceAST = lib,
                 userAccessible = false,
+                private = false,
             ).also {
                 lib.functions.add(it)
             }
@@ -113,6 +115,7 @@ object RefCountGC {
                 operator = false,
                 sourceAST = lib,
                 userAccessible = false,
+                private = false,
             ).also {
                 lib.functions.add(it)
             }
@@ -272,6 +275,7 @@ object RefCountGC {
                 warp = true,
                 operator = false,
                 sourceAST = lib,
+                private = false,
                 userAccessible = false
             )
             lib.functions.add(function)

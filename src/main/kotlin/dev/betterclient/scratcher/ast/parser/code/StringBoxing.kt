@@ -67,8 +67,9 @@ object StringBoxing {
     fun init() {
         StandardLibASTGenerator.compilerLib.structs.add(Struct(
             name = "StringBox",
-            parameters = mutableListOf(Parameter("str", PrimitiveType.Str)),
-            sourceAST = StandardLibASTGenerator.compilerLib
+            parameters = mutableListOf(Parameter("str", PrimitiveType.Str, false)),
+            sourceAST = StandardLibASTGenerator.compilerLib,
+            private = false
         ))
     }
 }
