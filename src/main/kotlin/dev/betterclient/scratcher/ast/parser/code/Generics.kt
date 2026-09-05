@@ -42,7 +42,7 @@ object Generics {
                     if (template != null && template.typeParameters.any { bindings.containsKey(it) }) {
                         val typeArgs = template.typeParameters.map { bindings[it] ?: PlaceholderType(it) }
                         if (typeArgs.none { it is PlaceholderType }) {
-                            return resolveGenericSealedEnum(context, type.sourceAST, type.name, typeArgs)
+                            return resolveGenericSealedEnum(context, type.sourceAST, type.sourceAST, type.name, typeArgs, type.sourceAST)
                         }
                     }
                 } else {
@@ -53,7 +53,7 @@ object Generics {
                             ?: type.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
                         if (template != null) {
                             val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericSealedEnum(context, type.sourceAST, baseName, typeArgs)
+                            return resolveGenericSealedEnum(context, type.sourceAST, type.sourceAST, baseName, typeArgs, type.sourceAST)
                         }
                     }
                 }
@@ -68,7 +68,7 @@ object Generics {
                         val template = type.sourceAST.structTemplates.find { it.name == baseName }
                         if (template != null) {
                             val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericStruct(context, type.sourceAST, baseName, typeArgs)
+                            return resolveGenericStruct(context, type.sourceAST, type.sourceAST, baseName, typeArgs)
                         }
                     }
                 }
@@ -161,6 +161,8 @@ object Generics {
             sourceAST.wildcardImportSources.forEach { src ->
                 yieldAll(src.templates.filter { it.name == funcName })
             }
+        }.filter {
+            return@filter !(it.private && it.sourceAST != parser.ast)
         }
 
         return candidateTemplates.firstNotNullOfOrNull { template ->
@@ -185,7 +187,7 @@ object Generics {
             if (!template.typeParameters.all { bindings.containsKey(it) }) return@firstNotNullOfOrNull null
 
             val typeSuffix = bindings.values.joinToString("_") { it.toSafeString() }
-            val instantiatedName = "${template.name}\$$typeSuffix"
+            val instantiatedName = $$"$${template.name}$$$typeSuffix"
 
             val resolvedFunc = sourceAST.functions.find { it.name == instantiatedName } ?: run {
                 val newParams = template.parameters.map {
@@ -235,6 +237,7 @@ object Generics {
     fun resolveGenericStruct(
         context: CompilationContext,
         searchAST: ASTFile,
+        startAST: ASTFile,
         baseName: String,
         typeArgs: List<Type>,
         unqualifiedContextAST: ASTFile? = null
@@ -245,6 +248,10 @@ object Generics {
                     ?: unqualifiedContextAST.wildcardImportSources.firstNotNullOfOrNull { it.structTemplates.find { st -> st.name == baseName } }
             } else null)
             ?: throw NotFoundException("Generic struct template $baseName not found")
+
+        if (template.private && template.sourceAST != startAST) {
+            throw NotFoundException("Cannot access ${template.sourceAST.simplePath}::${template.name} from ${startAST.simplePath} because it is private!")
+        }
 
         if (template.typeParameters.size != typeArgs.size) {
             throw GeneralCompilerException("Type argument count mismatch for ${template.name}")
@@ -280,7 +287,9 @@ object Generics {
                 figureOutType(context, target, field.type(), template.typeParameters, bindings)
             val concreteType = substituteType(context, abstractType, bindings)
 
-            instantiatedStruct.parameters.add(Parameter(field.IDENTIFIER().text, concreteType, false))
+            instantiatedStruct.parameters.add(
+                Parameter(field.IDENTIFIER().text, concreteType, field.PRIVATE() != null)
+            )
         }
 
         MemoryLib.initMem(StandardLibASTGenerator.memLib, template.sourceAST)
@@ -290,13 +299,23 @@ object Generics {
 
     fun resolveGenericSealedEnum(
         context: CompilationContext,
-        currentAST: ASTFile,
+        searchAST: ASTFile,
+        startAST: ASTFile,
         baseName: String,
-        typeArgs: List<Type>
+        typeArgs: List<Type>,
+        unqualifiedContextAST: ASTFile? = null
     ): Type {
-        val template = currentAST.sealedEnumTemplates.find { it.name == baseName }
-            ?: currentAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
+        val template = searchAST.sealedEnumTemplates.find { it.name == baseName }
+            ?: (if (unqualifiedContextAST != null) {
+                unqualifiedContextAST.flatImportNames[baseName]?.sealedEnumTemplates?.find { it.name == baseName }
+                    ?: unqualifiedContextAST.wildcardImportSources.firstNotNullOfOrNull { it.sealedEnumTemplates.find { st -> st.name == baseName } }
+                    ?: searchAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
+            } else null)
             ?: throw NotFoundException("Generic sealed enum template $baseName not found")
+
+        if (template.private && template.sourceAST != startAST) {
+            throw NotFoundException("${template.name} cannot be accessed by ${startAST.simplePath} because it is private")
+        }
 
         if (template.typeParameters.size != typeArgs.size) {
             throw GeneralCompilerException("Type argument count mismatch for sealed enum ${template.name}")
@@ -307,7 +326,7 @@ object Generics {
 
         val targetAST = template.sourceAST
         val existing = targetAST.sealedEnums.find { it.name == instantiatedName }
-            ?: currentAST.sealedEnums.find { it.name == instantiatedName }
+            ?: startAST.sealedEnums.find { it.name == instantiatedName }
             ?: targetAST.sealedEnums.find { it.type == SealedEnumType(instantiatedName, targetAST) }
         if (existing != null) {
             return existing.type

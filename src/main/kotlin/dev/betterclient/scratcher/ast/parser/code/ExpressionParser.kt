@@ -102,6 +102,9 @@ class ExpressionParser(
                 val memberName = ctx.IDENTIFIER().text
 
                 val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
+                if (member.private && struct.sourceAST != this.parser.ast) {
+                    throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
+                }
 
                 return SafeDotExpression(struct, structExpr, member)
             }
@@ -176,6 +179,9 @@ class ExpressionParser(
                 val (sealed, variant) = sealedVariant
                 if (args.size != variant.parameters.size) {
                     throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} expects ${variant.parameters.size} argument(s), got ${args.size} at ${ctx.position}")
+                }
+                if (sealed.private && sealed.sourceAST != parser.ast) {
+                    throw NotFoundException("Sealed enum ${sealed.name} is private and cannot be accessed from ${parser.ast.simplePath}")
                 }
                 val inflated = args.mapIndexed { i, arg ->
                     StringBoxing.autoConvert(arg, variant.parameters[i].type)
@@ -622,6 +628,9 @@ class ExpressionParser(
             if (variant.parameters.isNotEmpty()) {
                 throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} requires arguments, use ${sealed.name}.${variant.name.substringAfter(".")}(...)")
             }
+            if (sealed.sourceAST != parser.ast && sealed.private) {
+                throw NotFoundException("Sealed enum ${sealed.name} is private! and cannot be accessed from ${parser.ast.simplePath}")
+            }
             return SealedEnumConstructionExpression(sealed, variant, emptyList())
         }
 
@@ -629,12 +638,17 @@ class ExpressionParser(
             is ScratcherLangParser.IdExprContext -> {
                 val name = leftExpr.text
                 ast.enums.find { it.name == name }
-                    ?: ast.imports.values.flatMap { it.enums }.find { it.name == name }
+                    ?: ast.flatImportNames.values.flatMap { it.enums }.find { it.name == name }
+                    ?: ast.wildcardImportSources.flatMap { it.enums }.find { it.name == name }
             }
             is ScratcherLangParser.ScopeExprContext -> {
                 val importName = leftExpr.IDENTIFIER(0)!!.text
                 val enumName = leftExpr.IDENTIFIER(1)!!.text
-                ast.imports[importName]?.enums?.find { it.name == enumName }
+                ast.imports[importName]?.enums?.find { it.name == enumName }?.also {
+                    if (it.private && it.sourceAST != this.parser.ast) {
+                        throw NotFoundException("Enum ${it.name} is private!")
+                    }
+                }
             }
             else -> null
         }
@@ -644,6 +658,9 @@ class ExpressionParser(
             val ordinal = enum.values.indexOf(memberName)
             if (ordinal == -1) {
                 throw NotFoundException("Enum ${enum.name} does not have value $memberName")
+            }
+            if (enum.private && enum.sourceAST != this.parser.ast) {
+                throw NotFoundException("Enum ${enum.name} is private!")
             }
             return EnumLiteral(enum, memberName, ordinal)
         }
@@ -657,16 +674,27 @@ class ExpressionParser(
 
         val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
 
+        if (member.private && struct.sourceAST != this.parser.ast) {
+            throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
+        }
+
         return MemberExpression(structExpr, member, struct)
     }
 
     private fun parseScopeExpr(ctx: ScratcherLangParser.ScopeExprContext): Expression {
-        //this is just for accessing tl variables from imports
         val import = ctx.IDENTIFIER(0)!!.text
         val variable = ctx.IDENTIFIER(1)!!.text
+        val importedAST = ast.imports[import]
+            ?: throw NotFoundException("Import \"$import\" not found for ${ctx.text}")
 
-        return ast.imports[import]?.variables?.find { it.name == variable }?.let { VariableExpression(it, ast.imports[import]!!) }
+        val tlVar = importedAST.variables.find { it.name == variable }
             ?: throw NotFoundException("${ctx.text} not found")
+
+        if (tlVar.private && importedAST != ast) {
+            throw NotFoundException("Variable ${ctx.text} is private and cannot be accessed from ${ast.simplePath}")
+        }
+
+        return VariableExpression(tlVar, importedAST)
     }
 
     private fun parseIdentifier(text: String): Expression {
@@ -686,41 +714,73 @@ class ExpressionParser(
         val flatSource = ast.flatImportNames[text]
         if (flatSource != null) {
             val importedVar = flatSource.variables.find { it.name == text }
-            if (importedVar != null) return VariableExpression(importedVar, flatSource)
+            if (importedVar != null) {
+                if (importedVar.private && flatSource != ast) {
+                    throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
+                }
+                return VariableExpression(importedVar, flatSource)
+            }
         }
 
         for (wildcardAst in ast.wildcardImportSources) {
-            val importedVar = wildcardAst.variables.find { it.name == text }
+            val privateMatch = wildcardAst.variables.find { it.name == text && it.private }
+            if (privateMatch != null && wildcardAst != ast) {
+                throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
+            }
+            val importedVar = wildcardAst.variables.find { it.name == text && !it.private }
             if (importedVar != null) return VariableExpression(importedVar, wildcardAst)
         }
 
         throw NotFoundException("Variable $text not found")
     }
 
+    private fun requireSealedVisible(sealed: SealedEnum) {
+        if (sealed.private && sealed.sourceAST != ast) {
+            throw NotFoundException("Sealed enum ${sealed.name} is private and cannot be accessed from ${ast.simplePath}")
+        }
+    }
+
     private fun findSealedEnumByName(name: String): SealedEnum? {
         val base = name.substringBefore("@")
-        ast.sealedEnums.find { it.name == name }?.let { return it }
-        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == name }?.let { return it }
-        ast.sealedEnums.find { it.name == base }?.let { return it }
-        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == base }?.let { return it }
+        ast.sealedEnums.find { it.name == name }?.let { requireSealedVisible(it); return it }
+        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+        ast.flatImportNames.values.flatMap { it.sealedEnums }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+        ast.wildcardImportSources.flatMap { it.sealedEnums }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+        ast.sealedEnums.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.imports.values.flatMap { it.sealedEnums }.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.flatImportNames.values.flatMap { it.sealedEnums }.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.wildcardImportSources.flatMap { it.sealedEnums }.find { it.name == base }?.let { requireSealedVisible(it); return it }
 
-        findSealedTemplateByName(base)?.let { return it }
+        findSealedTemplateByName(base)?.let { requireSealedVisible(it); return it }
         return null
     }
 
     private fun findSealedTemplateByName(name: String): SealedEnum? {
         val base = name.substringBefore("@")
-        return ast.sealedEnumTemplates.find { it.name == base }
-            ?: ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == base }
-            ?: ast.sealedEnumTemplates.find { it.name == name }
-            ?: ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == name }
+        ast.sealedEnumTemplates.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.flatImportNames.values.flatMap { it.sealedEnumTemplates }.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        ast.wildcardImportSources.flatMap { it.sealedEnumTemplates }.find { it.name == base }?.let { requireSealedVisible(it); return it }
+        if (base != name) {
+            ast.sealedEnumTemplates.find { it.name == name }?.let { requireSealedVisible(it); return it }
+            ast.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+            ast.flatImportNames.values.flatMap { it.sealedEnumTemplates }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+            ast.wildcardImportSources.flatMap { it.sealedEnumTemplates }.find { it.name == name }?.let { requireSealedVisible(it); return it }
+        }
+        return null
     }
 
     private fun findVariantInfo(variantType: SimpleType): Triple<SealedEnum, Struct, Int>? {
-        val allSealed = ast.sealedEnums + ast.imports.values.flatMap { it.sealedEnums }
+        val allSealed = ast.sealedEnums +
+                ast.imports.values.flatMap { it.sealedEnums } +
+                ast.flatImportNames.values.flatMap { it.sealedEnums } +
+                ast.wildcardImportSources.flatMap { it.sealedEnums }
         for (sealed in allSealed) {
             for ((idx, variant) in sealed.types.withIndex()) {
-                if (variant.type == variantType) return Triple(sealed, variant, idx)
+                if (variant.type == variantType) {
+                    requireSealedVisible(sealed)
+                    return Triple(sealed, variant, idx)
+                }
             }
         }
         return null
@@ -793,9 +853,13 @@ class ExpressionParser(
 
         if (template.typeParameters.all { bindings.containsKey(it) }) {
             val typeArgs = template.typeParameters.map { bindings[it]!! }
+            requireSealedVisible(template)
             val sealedType = try {
-                Generics.resolveGenericSealedEnum(parser.ctx, ast, template.name, typeArgs)
-            } catch (_: Exception) { return null }
+                Generics.resolveGenericSealedEnum(parser.ctx, ast, ast, template.name, typeArgs, ast)
+            } catch (e: Exception) {
+                if ((e as? NotFoundException)?.message?.contains("private") == true) throw e
+                return null
+            }
             val concreteSealedEnum = (ast.sealedEnums.find { it.type == sealedType }
                 ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == sealedType }
                 ?: findSealedEnumByName((sealedType as SealedEnumType).name)
@@ -816,9 +880,10 @@ class ExpressionParser(
     private fun tryResolveWhenBranchAsSealedCheck(subjectVar: LocalVariable, condCtx: ScratcherLangParser.ExpressionContext): CheckSealedEnumTypeExpression? {
         val subjectType = subjectVar.type.asNonNull() as? SealedEnumType ?: return null
         val sealed = findSealedEnumByName(subjectType.name)
-            ?: ast.sealedEnums.find { it.type == subjectType }
-            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == subjectType }
+            ?: ast.sealedEnums.find { it.type == subjectType }?.also { requireSealedVisible(it) }
+            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == subjectType }?.also { requireSealedVisible(it) }
             ?: return null
+        requireSealedVisible(sealed)
         val baseName = sealed.name.substringBefore("@")
         val variant = when (condCtx) {
             is ScratcherLangParser.MemberExprContext -> {
@@ -900,9 +965,10 @@ class ExpressionParser(
         val pathCtx = targetTypeCtx as? ScratcherLangParser.PathTypeContext ?: return null
         val ids = pathCtx.typePath().IDENTIFIER()
         val hasArgs = pathCtx.type().isNotEmpty()
-        val sealed = ast.sealedEnums.find { it.type == leftSealedType }
-            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == leftSealedType }
+        val sealed = ast.sealedEnums.find { it.type == leftSealedType }?.also { requireSealedVisible(it) }
+            ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == leftSealedType }?.also { requireSealedVisible(it) }
             ?: findSealedEnumByName(leftSealedType.name) ?: return null
+        requireSealedVisible(sealed)
         val baseName = sealed.name.substringBefore("@")
         val variantShort: String = when {
             ids.size == 1 -> {

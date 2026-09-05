@@ -118,11 +118,15 @@ class FunctionResolver(
                 val typeSuffix = resolvedTypes.joinToString("_") { it.toSafeString() }
                 val instantiatedName = "$funcName@$typeSuffix"
 
-                var concreteStruct = sourceAST.structs.find { it.name == instantiatedName }
+                var concreteStruct = structTemplate.sourceAST.structs.find { it.name == instantiatedName }
 
                 if (concreteStruct == null) {
-                    val concreteType = Generics.resolveGenericStruct(parser.ctx, sourceAST, funcName, resolvedTypes) as SimpleType
-                    concreteStruct = sourceAST.structs.find { it.type == concreteType }
+                    val concreteType = Generics.resolveGenericStruct(parser.ctx, structTemplate.sourceAST, ast, funcName, resolvedTypes) as SimpleType
+                    concreteStruct = structTemplate.sourceAST.structs.find { it.type == concreteType }
+                }
+
+                if (concreteStruct?.private == true && concreteStruct.sourceAST != ast) {
+                    throw NotFoundException("${concreteStruct.name} is private and cannot be accessed from ${ast.simplePath}")
                 }
 
                 if (concreteStruct != null) {
@@ -169,6 +173,9 @@ class FunctionResolver(
         resolvedFunc?.let {
             if (!it.userAccessible) {
                 throw NotFoundException("Function $errorText is not accessible.")
+            }
+            if (it.private && it.sourceAST != ast) {
+                throw NotFoundException("Function ${it.name} is private and cannot be accessed from ${ast.simplePath}")
             }
             return CallExpression(
                 func = it,
@@ -231,6 +238,12 @@ class FunctionResolver(
         }
 
         structFinding?.let {
+            if (it.private && it.sourceAST != ast) {
+                throw NotFoundException("${it.name} is private and cannot be accessed from ${ast.simplePath}")
+            }
+            if (it.sourceAST != ast && it.parameters.any { param -> param.private }) {
+                throw NotFoundException("Cannot instantiate struct ${it.name} from ${ast.simplePath}: it contains private fields")
+            }
             return CallExpression(it.allocFunc, inflatedArgs(it.parameters.map { par -> par.type }))
         }
 
@@ -279,9 +292,9 @@ class FunctionResolver(
         if (resolvedFunc.isEmpty() && funcCall.IDENTIFIER() != null) {
             val name = funcCall.IDENTIFIER()!!.text
             val flatSource = ast.flatImportNames[name]
-                ?: ast.wildcardImportSources.firstOrNull()?.takeIf { it.functions.any { f -> f.name == name } }
+                ?: ast.wildcardImportSources.firstOrNull()?.takeIf { it.functions.any { f -> f.name == name && !f.private } }
             if (flatSource != null) {
-                resolvedFunc = flatSource.functions.filter { it.name == name }
+                resolvedFunc = flatSource.functions.filter { it.name == name && !it.private }
             }
         }
 
@@ -292,6 +305,9 @@ class FunctionResolver(
             1 -> {
                 if (!resolvedFunc[0].userAccessible) {
                     throw NotFoundException("Function ${funcCall.text} is not accessible.")
+                }
+                if (resolvedFunc[0].private && resolvedFunc[0].sourceAST != ast) {
+                    throw NotFoundException("Function ${funcCall.text} is private and cannot be accessed from ${ast.simplePath}")
                 }
                 resolvedFunc[0]
             }
@@ -346,6 +362,7 @@ class FunctionResolver(
             val resolvedFunc = sourceAST.functions.find { func ->
                 if (!func.isReceiver) return@find false
                 if (func.name != methodName) return@find false
+                if (func.private && func.sourceAST != parser.ast) return@find false
                 if (func.parameters.size != argTypes.size) return@find false
                 if (!filter(func)) return@find false
                 matchesArguments(argTypes, func.parameters.map { it.type })
@@ -377,17 +394,22 @@ class FunctionResolver(
         val searchASTs = (listOf(ast) + ast.imports.values + ast.wildcardImportSources + ast.flatImportNames.values).distinct()
 
         for (sourceAST in searchASTs) {
-            Generics.tryResolve(parser.ctx, sourceAST, operatorName, argTypes, allArgs, parser, filter = { it.operator && !it.isReceiver })?.let {
-                return it
-            }
+            Generics.tryResolve(
+                parser.ctx, sourceAST, operatorName, argTypes, allArgs, parser,
+                filter = { it.operator && !it.isReceiver && !(it.private && it.sourceAST != ast) }
+            )?.let { return it }
 
             var resolvedFunc = sourceAST.functions.find { func ->
-                !func.isReceiver && func.operator && func.name == operatorName && matchesArgumentsExactly(argTypes, func.parameters.map { it.type })
+                !func.isReceiver && func.operator && func.name == operatorName &&
+                        !(func.private && func.sourceAST != ast) &&
+                        matchesArgumentsExactly(argTypes, func.parameters.map { it.type })
             }
 
             if (resolvedFunc == null) {
                 resolvedFunc = sourceAST.functions.find { func ->
-                    !func.isReceiver && func.operator && func.name == operatorName && matchesArguments(argTypes, func.parameters.map { it.type })
+                    !func.isReceiver && func.operator && func.name == operatorName &&
+                            !(func.private && func.sourceAST != ast) &&
+                            matchesArguments(argTypes, func.parameters.map { it.type })
                 }
             }
 

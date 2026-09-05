@@ -129,13 +129,14 @@ class LocalVariable(
 data class Parameter(
     val name: String,
     val type: Type,
-    val private: Boolean = false//ONLY FOR STRUCTS!!!!
+    val private: Boolean = false //ONLY FOR STRUCTS!!!!
 )
 
 data class ASTEnum(
     val name: String,
     val values: List<String>,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val private: Boolean
 ) {
     val type = SimpleType(name, sourceAST)
 }

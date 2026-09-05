@@ -86,10 +86,12 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
         for (context in initialRead.topLevelElement().filter { it.enumDecl() != null }) {
             val enum = context.enumDecl()!!
+            val private = enum.PRIVATE() != null
             val enumAST = ASTEnum(
                 enum.IDENTIFIER(0)!!.text,
                 enum.IDENTIFIER().subList(1, enum.IDENTIFIER().size).map { it.text },
-                ast
+                ast,
+                private = private
             )
             ctx.types.add(enumAST.type)
             ast.enums.find { it.name == enumAST.name }?.let {
@@ -267,6 +269,10 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                             isOperator = true
                         }
                     }
+                }
+
+                if (isPrivate && isExport) {
+                    throw GeneralCompilerException("Function ${ast.simplePath}::$funcName cannot be both private and exported")
                 }
 
                 val funcAST = Function(
@@ -448,19 +454,29 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
     private fun verifyFlatImportNameExists(name: String, source: ASTFile) {
         val found =
-            source.functions.any { it.name == name } ||
-            source.templates.any { it.name == name } ||
-            source.structs.any { it.name == name } ||
-            source.structTemplates.any { it.name == name } ||
-            source.enums.any { it.name == name } ||
-            source.sealedEnums.any { it.name == name } ||
-            source.sealedEnumTemplates.any { it.name == name } ||
-            source.variables.any { it.name == name }
+            source.functions.any { it.name == name && !it.private } ||
+            source.templates.any { it.name == name && !it.private } ||
+            source.structs.any { it.name == name && !it.private } ||
+            source.structTemplates.any { it.name == name && !it.private } ||
+            source.enums.any { it.name == name && !it.private } ||
+            source.sealedEnums.any { it.name == name && !it.private } ||
+            source.sealedEnumTemplates.any { it.name == name && !it.private } ||
+            source.variables.any { it.name == name && !it.private }
 
         if (!found) {
+            val available = (
+                source.functions.filter { !it.private }.map { it.name } +
+                source.templates.filter { !it.private }.map { it.name } +
+                source.structs.filter { !it.private }.map { it.name } +
+                source.structTemplates.filter { !it.private }.map { it.name } +
+                source.enums.filter { !it.private }.map { it.name } +
+                source.sealedEnums.filter { !it.private }.map { it.name } +
+                source.sealedEnumTemplates.filter { !it.private }.map { it.name } +
+                source.variables.filter { !it.private }.map { it.name }
+            ).distinct().take(10).joinToString(", ")
             throw NotFoundException(
                 "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
-                        "Available: ${source.functions.map { it.name }.distinct().take(10).joinToString(", ")}"
+                        "Available: $available"
             )
         }
     }
@@ -521,13 +537,14 @@ fun figureOutType(
                     ?: (if (id.size == 1) {
                         targetAST.flatImportNames[typeName]?.sealedEnumTemplates?.find { it.name == typeName }
                             ?: targetAST.wildcardImportSources.firstNotNullOfOrNull { it.sealedEnumTemplates.find { st -> st.name == typeName } }
+                            ?: targetAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == typeName }
                     } else null)
 
                 if (sealedTemplate != null) {
-                    return Generics.resolveGenericSealedEnum(context, sealedTemplate.sourceAST, typeName, resolvedArgs)
+                    return Generics.resolveGenericSealedEnum(context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
                 }
 
-                return Generics.resolveGenericStruct(context, targetAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
+                return Generics.resolveGenericStruct(context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
             }
 
             if (id.size == 1) {
@@ -547,10 +564,30 @@ fun figureOutType(
                     val typeFullName = parts[1]
                     val otherFile = currentAST.imports[importName]
                         ?: throw NotFoundException("Type ${type.text} not found in any imports")
-                    return context.types.find {
+                    val found = context.types.find {
                         (it is SimpleType && it.name == typeFullName && it.sourceAST == otherFile) ||
                                 (it is SealedEnumType && it.name == typeFullName && it.sourceAST == otherFile)
                     } ?: throw NotFoundException("Type ${type.text} not found in import $importName")
+                    if (otherFile != currentAST) {
+                        val isPrivate = if (typeFullName.contains(".")) {
+                            val parentName = typeFullName.substringBefore(".").substringBefore("@")
+                            otherFile.sealedEnums.find { it.name == parentName || it.name.substringBefore("@") == parentName }?.private
+                                ?: otherFile.sealedEnumTemplates.find { it.name == parentName }?.private
+                                ?: otherFile.structs.find { it.name == typeFullName }?.private
+                                ?: false
+                        } else {
+                            otherFile.structs.find { it.name == typeFullName }?.private
+                                ?: otherFile.structTemplates.find { it.name == typeFullName }?.private
+                                ?: otherFile.enums.find { it.name == typeFullName }?.private
+                                ?: otherFile.sealedEnums.find { it.name == typeFullName }?.private
+                                ?: otherFile.sealedEnumTemplates.find { it.name == typeFullName }?.private
+                                ?: false
+                        }
+                        if (isPrivate) {
+                            throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                        }
+                    }
+                    return found
                 } else {
                     return context.types.find {
                         it is SimpleType && it.name == rawText && it.sourceAST == currentAST
@@ -563,6 +600,19 @@ fun figureOutType(
                     //from other file
                     val otherFile = currentAST.imports[id[0].text]
                         ?: throw NotFoundException("Type ${type.text} not found in any imports")
+
+                    val typeName = id[1].text
+                    val isPrivate = otherFile.structs.find { it.name == typeName }?.private
+                        ?: otherFile.structTemplates.find { it.name == typeName }?.private
+                        ?: otherFile.enums.find { it.name == typeName }?.private
+                        ?: otherFile.sealedEnums.find { it.name == typeName }?.private
+                        ?: otherFile.sealedEnumTemplates.find { it.name == typeName }?.private
+                        ?: false
+
+                    if (isPrivate && otherFile != currentAST) {
+                        throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                    }
+
                     context.types.find {
                         ((it is SimpleType && it.name == id[1].text && it.sourceAST == otherFile) ||
                                 (it is SealedEnumType && it.name == id[1].text && it.sourceAST == otherFile))
@@ -582,13 +632,35 @@ fun figureOutType(
                             ((it is SimpleType && it.name == id[0].text && it.sourceAST == flatSource) ||
                                     (it is SealedEnumType && it.name == id[0].text && it.sourceAST == flatSource))
                         }
-                        if (fromFlat != null) return fromFlat
+                        if (fromFlat != null) {
+                            if (flatSource != currentAST) {
+                                val typeName = id[0].text
+                                val isPrivate = flatSource.structs.find { it.name == typeName }?.private
+                                    ?: flatSource.structTemplates.find { it.name == typeName }?.private
+                                    ?: flatSource.enums.find { it.name == typeName }?.private
+                                    ?: flatSource.sealedEnums.find { it.name == typeName }?.private
+                                    ?: flatSource.sealedEnumTemplates.find { it.name == typeName }?.private
+                                    ?: false
+                                if (isPrivate) {
+                                    throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                                }
+                            }
+                            return fromFlat
+                        }
                     }
 
                     for (wildcardAst in currentAST.wildcardImportSources) {
                         val fromWildcard = context.types.find {
-                            ((it is SimpleType && it.name == id[0].text && it.sourceAST == wildcardAst) ||
-                                    (it is SealedEnumType && it.name == id[0].text && it.sourceAST == wildcardAst))
+                            val matches = (it is SimpleType && it.name == id[0].text && it.sourceAST == wildcardAst) ||
+                                    (it is SealedEnumType && it.name == id[0].text && it.sourceAST == wildcardAst)
+                            if (!matches) return@find false
+
+                            val isPrivate = wildcardAst.structs.find { s -> s.type == it }?.private
+                                ?: wildcardAst.enums.find { e -> e.type == it }?.private
+                                ?: wildcardAst.sealedEnums.find { se -> se.type == it }?.private
+                                ?: false
+
+                            !isPrivate
                         }
                         if (fromWildcard != null) return fromWildcard
                     }
