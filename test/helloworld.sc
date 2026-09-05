@@ -79,8 +79,6 @@ warp void render(TriangleRenderMode mode, List<Triangle<float>?> triangles) {
         .filterNotNull()
         .filter((Triangle<float> t) -> random(0, 15) != 7);
 
-    triangles.ptr[5] = a;
-
     (filtered + filter2).forEach(
         when(mode) {
             TriangleRenderMode.RENDER -> (Triangle<float> tri) -> {

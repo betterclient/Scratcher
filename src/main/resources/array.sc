@@ -3,16 +3,16 @@ import except::panic;
 
 //new
 warp <T> T?[] arrayOfNulls(int size) {
-    if(size <= 0) {
-        panic("array::arrayOfNulls, size <= 0, got: ${size}");
+    if(size < 0) {
+        panic("array::arrayOfNulls, size < 0, got: ${size}");
     }
 
     return self::newArray(size);
 }
 
 warp <T> T[] arrayOf(int size, (int) -> T init) {
-    if(size <= 0) {
-        panic("array::arrayOf, size <= 0, got: ${size}");
+    if(size < 0) {
+        panic("array::arrayOf, size < 0, got: ${size}");
     }
 
     T[] out = self::newArray(size);

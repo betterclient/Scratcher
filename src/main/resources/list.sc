@@ -31,7 +31,11 @@ warp <T> void List<T>.add(T item) {
 
 warp <T> void List<T>.reserve(int newCapacity) {
     if(newCapacity < this.length) {
-        except::panic("List.reserve: newCapacity < length, ${newCapacity} < ${this.length}");
+        return;
+    }
+
+    if(newCapacity <= this.ptr.length()) {
+        return;
     }
 
     auto newArray = arrayOfNulls(newCapacity);
