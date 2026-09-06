@@ -12,10 +12,10 @@ object CompilationConstants {
 
     //garbage collector settings
     //you can enable both collectors if you want
-    const val REFCOUNT_GC = true //reference counting garbage collector
+    const val REFCOUNT_GC = false //reference counting garbage collector
 
     //mark and sweep settings
-    const val MARK_AND_SWEEP_GC = true //mark and sweep garbage collector
+    const val MARK_AND_SWEEP_GC = false //mark and sweep garbage collector
     const val AUTOMATIC_GC = true //enable automatic gc::collect every 1 second (this will make it so you have to call gc::collect yourself)
     const val REFLECT_GC = false //use hacked blocks to do top level marking in garbage collection, might be incompatible with turbowarp
 
