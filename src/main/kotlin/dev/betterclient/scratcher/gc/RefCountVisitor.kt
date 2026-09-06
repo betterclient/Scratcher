@@ -167,31 +167,56 @@ class RefCountVisitor(
     }
 
     override fun visitExpressionStatement(expression: Expression): Statement? {
-        if (expression is CallExpression) {
-            val listExpr = expression.arguments.getOrNull(0)
-            val arrayType = listExpr?.getType()?.asNonNull() as? ArrayType
+        if (expression is CallExpression &&
+            expression.func == ArrayLib.replace &&
+            expression.arguments.size == 3
+        ) {
+            val listExpr = expression.arguments[0]
+            val arrayType = listExpr.getType().asNonNull() as? ArrayType
 
             if (arrayType != null && arrayType.elementType.isRefCounted()) {
                 val elemType = arrayType.elementType
-                val insideArrayLibrary = currentFunction?.sourceAST?.simplePath == "array"
-                if (insideArrayLibrary && expression.func == ArrayLib.replace && expression.arguments.size == 3) {
-                    val itemExpr = expression.arguments[1]
-                    val indexExpr = expression.arguments[2]
+                val itemExpr = expression.arguments[1]
+                val indexExpr = expression.arguments[2]
 
-                    val stmts = mutableListOf<Statement>()
-                    val tempOld = LocalVariable("compiler@gc_old_item_${getUniqueName()}", elemType)
-                    val tempItem = LocalVariable("compiler@gc_new_item_${getUniqueName()}", elemType)
+                val stmts = mutableListOf<Statement>()
 
-                    stmts.add(VariableStatement(itemExpr, tempItem))
-                    stmts.add(VariableStatement(CallExpression(ArrayLib.itemAt, listOf(listExpr, indexExpr)), tempOld))
-                    if (!itemExpr.isReturningPlusOne()) {
-                        stmts.add(LocalVariableExpression(tempItem).asIncCall)
+                var spilledList: LocalVariable? = null
+                val effectiveListExpr = if (!listExpr.simple) {
+                    val tempList = LocalVariable("compiler@gc_list_${getUniqueName()}", listExpr.getType())
+                    spilledList = tempList
+                    stmts.add(VariableStatement(listExpr, tempList))
+                    if (!listExpr.isReturningPlusOne()) {
+                        stmts.add(LocalVariableExpression(tempList).asIncCall)
                     }
-                    stmts.add(ExpressionStatement(CallExpression(ArrayLib.replace, listOf(listExpr, LocalVariableExpression(tempItem), indexExpr))))
-                    getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
-
-                    return CompositeStatement(stmts)
+                    LocalVariableExpression(tempList)
+                } else {
+                    listExpr
                 }
+                val effectiveIndexExpr = if (!indexExpr.simple) {
+                    val tempIndex = LocalVariable("compiler@gc_index_${getUniqueName()}", indexExpr.getType())
+                    stmts.add(VariableStatement(indexExpr, tempIndex))
+                    LocalVariableExpression(tempIndex)
+                } else {
+                    indexExpr
+                }
+
+                val tempOld = LocalVariable("compiler@gc_old_item_${getUniqueName()}", elemType)
+                val tempItem = LocalVariable("compiler@gc_new_item_${getUniqueName()}", elemType)
+
+                stmts.add(VariableStatement(itemExpr, tempItem))
+                stmts.add(VariableStatement(CallExpression(ArrayLib.itemAt, listOf(effectiveListExpr, effectiveIndexExpr)), tempOld))
+                if (!itemExpr.isReturningPlusOne()) {
+                    stmts.add(LocalVariableExpression(tempItem).asIncCall)
+                }
+                stmts.add(ExpressionStatement(CallExpression(ArrayLib.replace, listOf(effectiveListExpr, LocalVariableExpression(tempItem), effectiveIndexExpr))))
+                getDecCall(elemType, LocalVariableExpression(tempOld))?.let { stmts.add(it) }
+
+                spilledList?.let { tempList ->
+                    getDecCall(tempList.type, LocalVariableExpression(tempList))?.let { stmts.add(it) }
+                }
+
+                return CompositeStatement(stmts)
             }
         }
 
