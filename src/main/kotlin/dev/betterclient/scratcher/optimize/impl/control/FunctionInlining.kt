@@ -35,7 +35,7 @@ object FunctionInlining : Optimization("Function inlining") {
         return modified
     }
 
-    private fun inline(func: Function, args: List<Expression>): Expression {
+    fun inline(func: Function, args: List<Expression>): Expression {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)

@@ -9,6 +9,8 @@ import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
 import dev.betterclient.scratcher.optimize.impl.control.RepeatToWhile
+import dev.betterclient.scratcher.optimize.impl.dynamic.DirectCallInline
+import dev.betterclient.scratcher.optimize.impl.dynamic.LambdaInlining
 import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyBooleanEquality
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyDoubleNegation
@@ -21,6 +23,8 @@ typealias TCallGraph = Map<Function, List<Function>>
 
 object Optimizations {
     private val optimizations = listOf(
+        DirectCallInline,
+        LambdaInlining,
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
