@@ -112,3 +112,22 @@ on GreenFlag {
 ```
 
 Nice! We have successfully made a fibonacci calculator in Scratcher!
+
+- Full code
+```
+import sensing::ask;
+import cast;
+import looks::say;
+
+on GreenFlag {
+    int number = cast::toInt(ask("Fibonnaci number?"));
+    int out = fib(number);
+    say("Fibonacci sequence's ${number}th element is ${out}!");
+}
+
+warp int fib(int n) {
+    return n if (n <= 1);
+    
+    return fib(n - 1) + fib(n - 2);
+}
+```
