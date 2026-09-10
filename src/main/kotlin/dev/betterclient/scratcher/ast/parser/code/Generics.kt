@@ -195,7 +195,8 @@ object Generics {
             val typeSuffix = bindings.values.joinToString("_") { it.toSafeString() }
             val instantiatedName = $$"$${template.name}$$$typeSuffix"
 
-            val resolvedFunc = sourceAST.functions.find { it.name == instantiatedName } ?: run {
+            val owner = template.sourceAST
+            val resolvedFunc = owner.functions.find { it.name == instantiatedName } ?: run {
                 val newParams = template.parameters.map {
                     Parameter(it.name, substituteType(context, it.type, bindings), false)
                 }.toMutableList()
@@ -208,7 +209,7 @@ object Generics {
                     export = template.export,
                     warp = template.warp,
                     operator = template.operator,
-                    sourceAST = sourceAST,
+                    sourceAST = owner,
                     typeBindings = bindings,
                     isReceiver = template.isReceiver,
                     private = template.private
@@ -216,7 +217,7 @@ object Generics {
 
                 if (!filter(candidate)) return@firstNotNullOfOrNull null
 
-                sourceAST.functions.add(candidate)
+                owner.functions.add(candidate)
                 compileTemplate(parser, candidate, template, bindings)
                 candidate
             }

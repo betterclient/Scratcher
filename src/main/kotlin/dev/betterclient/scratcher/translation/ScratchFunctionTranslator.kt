@@ -115,11 +115,7 @@ class ScratchFunctionTranslator(
                 UnaryOperator.NOT -> BoolOperatorExpressions.SNotExpression(translateExpr(expr.expression).asBool())
             }
             is TemporaryHeapGetExpression -> ListExpressions.ItemAtIndex(MemoryLib.heap, translateExpr(expr.index))
-            is ParameterExpression -> if (expr.parameter.type == PrimitiveType.Bool) SBoolParameterExpression(
-                scratch.args[original.parameters.indexOf(expr.parameter)]
-            ) else {
-                ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
-            }
+            is ParameterExpression -> ScratchStringParameterExpression(scratch.args[original.parameters.indexOf(expr.parameter)])
             is NullExpression -> "null".scratch
 
             is VariableExpression -> ListExpressions.Variable(lookupVar(expr.variable))

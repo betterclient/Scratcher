@@ -58,6 +58,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         currentTypeBindings = emptyMap()
 
         ast.functions.toList().forEach {
+            if (it.ctx == null) return@forEach
             currentFunction = it
             currentTypeBindings = it.typeBindings
             localVariables.clear()

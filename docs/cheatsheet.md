@@ -342,10 +342,10 @@ for(auto item in array) { ... }
 
 ### Imports
 
-- `import module`: Import stdlib module
-- `import module::*`: Import everything from stdlib module flattened
-- `import module::some`: Import some things from stdlib module flattened
-- `import module::{some, other}`: Import a list of things.
+- `import module;`: Import stdlib module
+- `import module::*;`: Import everything from stdlib module flattened
+- `import module::some;`: Import some things from stdlib module flattened
+- `import module::{some, other};`: Import a list of things.
 
 Or use `"file.sc"` to import from files instead of stdlib.
 
@@ -355,3 +355,30 @@ Primitive: void, int, str, char, float, bool, auto
 
 - Arrays: Type[]
 - Generics: Type<Type, Type>
+- Function reference: (args) -> return
+
+### Lambdas/Function references
+- Function references:
+```
+void hi() { ... }
+void funcWithReferenceInput(() -> void action) { ... }
+
+funcWithReferenceInput(&hi);
+```
+- Lambda:
+```
+int a = 0;
+funcWithReferenceInput(() -> {
+    ... 
+    a++;
+});
+//a is 1 here
+```
+Lambdas support variable captures and capture mutation. Any local variable outside a lambda can be affected by a lambda.
+
+## Other stuff
+- String interpolation: `"Hi: ${1 + 1}"`
+- If **statement** does not support braceless blocks.
+- No smart casting.
+- No short-circuiting.
+- No `continue`, `break`.
