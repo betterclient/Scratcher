@@ -23,7 +23,7 @@ object FunctionInlining : Optimization("Function inlining") {
         var modified = false
         visit(func, object : ASTVisitor() {
             override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
-                if (eligible.contains(func)) {
+                if (eligible.contains(func) && args.size == func.parameters.size) {
                     modified = true
                     val out = inline(func, args)
                     return out

@@ -126,9 +126,17 @@ object MemoryLib {
 
         for (struct in structs) {
             val name = "new${struct.sourceAST.simplePath}::${struct.name}"
+            val allocParams = if (CompilationConstants.REFCOUNT_GC && struct.parameters.firstOrNull()?.name == "compiler@refcount") {
+                struct.parameters.drop(1)
+            } else {
+                struct.parameters
+            }
             val existingFunc = lib.functions.find { it.name == name }
             if (existingFunc != null) {
-                if (existingFunc.parameters.size == struct.parameters.size) {
+                if (existingFunc.parameters.size == allocParams.size) {
+                    existingFunc.parameters.clear()
+                    existingFunc.parameters.addAll(allocParams.map { Parameter(it.name, it.type) })
+                    buildAllocBody(struct, existingFunc, allocParams)
                     struct.allocFunc = existingFunc
                     continue
                 } else {
@@ -139,7 +147,7 @@ object MemoryLib {
             struct.allocFunc = if (CompilationConstants.REFCOUNT_GC || !CompilationConstants.INLINE_STRUCT_INIT) {
                 Function(
                     name = name,
-                    parameters = struct.parameters.map { Parameter(it.name, it.type) }.toMutableList(),
+                    parameters = allocParams.map { Parameter(it.name, it.type) }.toMutableList(),
                     returnType = allocReturnType(struct),
                     export = false,
                     warp = true,
@@ -148,35 +156,7 @@ object MemoryLib {
                     private = false,
                     userAccessible = false
                 ).also { func ->
-                    val ptrVar = LocalVariable("compiler@ptr", struct.type)
-                    func.code.localVariables.add(ptrVar)
-
-                    val allocArgs = mutableListOf<Expression>(IntLiteral(java.math.BigInteger.valueOf(struct.sizeOnHeap.toLong())))
-                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                        allocArgs.add(StringLiteral(findGC(struct).toString()))
-                    }
-                    allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar))
-
-                    func.code.code.add(VariableStatement(null, ptrVar))
-                    func.code.code.add(TemporaryCallStatement(alloc, allocArgs))
-                    if (CompilationConstants.REFCOUNT_GC) {
-                        func.code.code.add(TemporaryHeapSetStatement(
-                            index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar)),
-                            data = IntLiteral(java.math.BigInteger.ONE)
-                        ))
-                    }
-
-                    struct.parameters.forEach { param ->
-                        val argExpr = ParameterExpression(func.parameters.find { it.name == param.name }!!)
-                        func.code.code.add(VariableAssignmentStatement(
-                            target = LocalVariableExpression(ptrVar),
-                            variable = param,
-                            struct = struct,
-                            assignment = argExpr
-                        ))
-                    }
-
-                    func.code.code.add(ReturnStatement(LocalVariableExpression(ptrVar)))
+                    buildAllocBody(struct, func, allocParams)
                     lib.functions.add(func)
                     struct.allocFunc = func
                 }
@@ -266,6 +246,41 @@ object MemoryLib {
                 ensureVariantAllocFunc(lib, sealedEnum, variantStruct)
             }
         }
+    }
+
+    private fun buildAllocBody(struct: Struct, func: Function, allocParams: List<Parameter>) {
+        func.code.code.clear()
+        func.code.localVariables.clear()
+        val ptrVar = LocalVariable("compiler@ptr", struct.type)
+        func.code.localVariables.add(ptrVar)
+
+        val allocArgs = mutableListOf<Expression>(IntLiteral(java.math.BigInteger.valueOf(struct.sizeOnHeap.toLong())))
+        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            allocArgs.add(StringLiteral(findGC(struct).toString()))
+        }
+        allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar))
+
+        func.code.code.add(VariableStatement(null, ptrVar))
+        func.code.code.add(TemporaryCallStatement(alloc, allocArgs))
+        if (CompilationConstants.REFCOUNT_GC) {
+            func.code.code.add(TemporaryHeapSetStatement(
+                index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar)),
+                data = IntLiteral(java.math.BigInteger.ONE)
+            ))
+        }
+
+        allocParams.forEach { allocParam ->
+            val structParam = struct.parameters.find { it.name == allocParam.name }!!
+            val argExpr = ParameterExpression(func.parameters.find { it.name == allocParam.name }!!)
+            func.code.code.add(VariableAssignmentStatement(
+                target = LocalVariableExpression(ptrVar),
+                variable = structParam,
+                struct = struct,
+                assignment = argExpr
+            ))
+        }
+
+        func.code.code.add(ReturnStatement(LocalVariableExpression(ptrVar)))
     }
 
     fun ensureVariantAllocFunc(lib: ASTFile, sealedEnum: SealedEnum, variantStruct: Struct): Function {
