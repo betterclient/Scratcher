@@ -70,3 +70,7 @@ warp <T> void LinkedList<T>.forEach((T) -> void action) {
         current = current!!.next;
     }
 }
+
+export int multiply(int num) {
+    return num * 3;
+}

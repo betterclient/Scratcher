@@ -189,7 +189,7 @@ object StandardLibASTGenerator {
             if (isRestricted(ast)) return@forEach
             println("Library: $name")
             ast.functions.forEach { func ->
-                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType} ${func.name} (${func.parameters.joinToString { "${it.type} ${it.name}" }})")
+                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType} ${func.name}(${func.parameters.joinToString { "${it.type} ${it.name}" }})")
             }
             if (name == "mem") {
                 println("   Function: warp free (AnyStruct val)")

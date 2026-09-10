@@ -27,7 +27,7 @@ object SensingLib {
         compileInline(
             library = lib,
             name = "getDistanceToMouse",
-            returnType = PrimitiveType.Str
+            returnType = PrimitiveType.Float
         ) { _ ->
             SensingExpressions.SenseExpression(SensingExpressions.SensingData.DistanceToMouse)
         }

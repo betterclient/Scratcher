@@ -99,4 +99,4 @@ int[] myNewArray = myList.toArray();
 
 ## Exercises
 - Take an array of 10 numbers, convert it to a `List`, filter out all odd numbers, and double the remaining ones.
-- Learn about [operator overloading](operator_overloading.md) to make your own lists as powerful as these.
+- Learn about [function modifiers](function_modifiers.md) to make your own lists as powerful as these.
