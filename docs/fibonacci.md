@@ -62,7 +62,7 @@ This calculates `fib(n - 1)`, the last number of the sequence and then calculate
 
 Fib now compiles! But there's still 2 huge problems:
 - We do not have a base case, so it runs forever!
-  - It runs without screen refresh disabled, making it very slow.
+- It runs without screen refresh disabled, making it very slow.
 
 ### 5: Add a base case
 Right now, when you call `fib`, it runs forever until you run out of memory. To prevent this, you need a `base case`.
@@ -131,3 +131,7 @@ warp int fib(int n) {
     return fib(n - 1) + fib(n - 2);
 }
 ```
+
+## Exercises
+- Try to make a program to calculate a [factorial](https://en.wikipedia.org/wiki/Factorial)!
+- Learn about [conditions](conditions.md)

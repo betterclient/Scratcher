@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PlaceholderType
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.SealedEnum
 import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.SimpleType
@@ -90,8 +91,13 @@ object Generics {
         if (paramType is ArrayType && providedType is ArrayType) {
             return deduceTypeArgs(paramType.elementType, providedType.elementType, typeParams, bindings)
         }
-        if (paramType is NullableType && providedType is NullableType) {
-            return deduceTypeArgs(paramType.inner, providedType.inner, typeParams, bindings)
+        if (paramType is NullableType) {
+            if (providedType == PrimitiveType.Null) {
+                return true
+            }
+            if (providedType is NullableType) {
+                return deduceTypeArgs(paramType.inner, providedType.inner, typeParams, bindings)
+            }
         }
         if (paramType is FunctionType && providedType is FunctionType) {
             if (paramType.parameterTypes.size != providedType.parameterTypes.size) return false

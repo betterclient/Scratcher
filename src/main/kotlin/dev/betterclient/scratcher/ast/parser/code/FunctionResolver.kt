@@ -156,6 +156,8 @@ class FunctionResolver(
             val flatSource = ast.flatImportNames[funcName]
             if (flatSource != null) {
                 resolvedFunc = flatSource.functions.find {
+                    it.name == funcName && matchesArgumentsExactly(expectedArgListTypes, it.parameters.map { par -> par.type })
+                } ?: flatSource.functions.find {
                     it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
                 }
             }
@@ -163,6 +165,8 @@ class FunctionResolver(
             if (resolvedFunc == null) {
                 for (wildcardAst in ast.wildcardImportSources) {
                     resolvedFunc = wildcardAst.functions.find {
+                        it.name == funcName && matchesArgumentsExactly(expectedArgListTypes, it.parameters.map { par -> par.type })
+                    } ?: wildcardAst.functions.find {
                         it.name == funcName && matchesArguments(expectedArgListTypes, it.parameters.map { par -> par.type })
                     }
                     if (resolvedFunc != null) break

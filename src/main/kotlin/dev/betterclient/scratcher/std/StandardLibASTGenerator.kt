@@ -218,6 +218,13 @@ object UtilsLib {
             OperatorExpressions.Random(it[0], it[1])
         }
 
+        compileInline(lib, "random", parameters = mutableListOf(
+            Parameter("from", PrimitiveType.Integer),
+            Parameter("to", PrimitiveType.Integer),
+        ), returnType = PrimitiveType.Integer) {
+            OperatorExpressions.Random(it[0], it[1])
+        }
+
         compileInline(lib, "wait", parameters = mutableListOf(
             Parameter("seconds", PrimitiveType.Float)
         )) {
