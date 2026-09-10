@@ -77,6 +77,8 @@ fun main() {
     if (CompilationConstants.REFCOUNT_GC) {
         reachableFunctions.addAll(RefCountGC.instrument(context, listOf(topLevelInit)))
     }
+
+    Desugaring.apply(mutableListOf(topLevelInit), context)
     Optimizations.apply(mutableListOf(topLevelInit), context, print = false) //optimize the top level init
 
     GCLib.generate(reachableTopLevelVariables.keys.toList()) { variable ->
