@@ -219,7 +219,12 @@ class InlineSingleUseAnalysis {
             is CompositeStatement -> {
                 stmt.statements.forEach { analyzeStatement(it) }
             }
-            is ExpressionStatement -> exprVisitor.visit(stmt.expression)
+            is ExpressionStatement -> {
+                exprVisitor.visit(stmt.expression)
+                if (stmt.expression is CallExpression || stmt.expression is DynamicCallExpression) {
+                    activeVars.clear()
+                }
+            }
             is ReturnStatement -> stmt.expression?.let { exprVisitor.visit(it) }
             is TLVariableAssignmentStatement -> {
                 invalidateGlobalDependents(stmt.variable)

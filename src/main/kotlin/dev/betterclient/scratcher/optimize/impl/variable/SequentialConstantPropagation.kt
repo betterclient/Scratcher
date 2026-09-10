@@ -57,6 +57,23 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
 
                 return WhenExpression(processedSubject, processedBranches)
             }
+
+            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+                val visitedArgs = args.map { propagate(it) }
+                knownValues.clear()
+                return CallExpression(func, visitedArgs)
+            }
+
+            override fun visitDynamicCallExpression(
+                function: Expression,
+                args: List<Expression>,
+                type: FunctionType
+            ): Expression {
+                val fn = propagate(function)
+                val visitedArgs = args.map { propagate(it) }
+                knownValues.clear()
+                return DynamicCallExpression(type, fn, visitedArgs)
+            }
         }
 
         fun propagate(expr: Expression): Expression = expressionVisitor.visit(expr)
@@ -90,7 +107,13 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
 
         fun processStatement(statement: Statement): Statement? {
             return when (statement) {
-                is ExpressionStatement -> ExpressionStatement(propagate(statement.expression))
+                is ExpressionStatement -> {
+                    val expr = propagate(statement.expression)
+                    if (hasCallsOrLambdas(expr)) {
+                        knownValues.clear()
+                    }
+                    ExpressionStatement(expr)
+                }
 
                 is VariableStatement -> {
                     val propagatedDefault = statement.defaultValue?.let { propagate(it) }
@@ -226,6 +249,23 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
 
         private fun Expression.isConstant(): Boolean {
             return this is Literal
+        }
+    }
+
+    private fun hasCallsOrLambdas(expr: Expression): Boolean {
+        return when (expr) {
+            is CallExpression, is DynamicCallExpression, is LambdaExpression -> true
+            is BinaryExpression -> hasCallsOrLambdas(expr.left) || hasCallsOrLambdas(expr.right)
+            is UnaryExpression -> hasCallsOrLambdas(expr.expression)
+            is ConcatExpression -> hasCallsOrLambdas(expr.left) || hasCallsOrLambdas(expr.right)
+            is MemberExpression -> hasCallsOrLambdas(expr.expression)
+            is SafeDotExpression -> hasCallsOrLambdas(expr.target)
+            is NonNullAssertExpression -> hasCallsOrLambdas(expr.expression)
+            is NonNullOrElseExpression -> hasCallsOrLambdas(expr.operand1) || hasCallsOrLambdas(expr.operand2)
+            is StatementExpression -> expr.statements.any { stmt ->
+                stmt is ExpressionStatement && hasCallsOrLambdas(stmt.expression)
+            } || hasCallsOrLambdas(expr.expression)
+            else -> false
         }
     }
 }

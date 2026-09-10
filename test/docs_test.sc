@@ -2,25 +2,23 @@ import sensing::ask;
 import cast;
 import looks::say;
 import utils::random;
+import list::*;
+import array::*;
 
 on GreenFlag {
-    LinkedList<int> myList = newLinkedList(5);
+    List<int> myList = newList();
 
-    repeat(15) {
-        myList.add(random(1, 150));
-    }
-
-    Node<int>? current = myList.first;
-    int currentBiggest = myList.first.value; // Also safer if values could be negative!
-
-    while(current != null) {
-        if(current!!.value > currentBiggest) {
-            currentBiggest = current!!.value;
-        }
-        current = current!!.next;
-    }
-
-    say("The biggest value in our linked list is ${currentBiggest}");
+    List<int> newList = myList
+        .map(
+            (int item) -> item * 2
+        )
+        .filter(
+            (int item) -> item > 2
+        )
+        .take(5)
+        .flatMap(
+            (int item) -> arrayOf(5, (int index) -> index * 5 + item).toList()
+        );
 }
 
 struct Node<T>(
@@ -62,4 +60,13 @@ warp <T> int LinkedList<T>.length() {
     }
 
     return length;
+}
+
+warp <T> void LinkedList<T>.forEach((T) -> void action) {
+    Node<T>? current = this.first;
+
+    while(current != null) {
+        action(current!!.value);
+        current = current!!.next;
+    }
 }
