@@ -324,3 +324,14 @@ warp <T> List<T> T[].toList() {
     out.addAll(this);
     return out;
 }
+
+warp <T> str List<T>.joinToString(str delimeter, (T) -> str toString) {
+    return "" if(isEmpty());
+    str out = toString(this[0]);
+    int index = 1;
+    repeat(this.length - 1) {
+        out = "${out}${delimeter}${toString(this[index])}";
+        index++;
+    }
+    return out;
+}

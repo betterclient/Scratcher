@@ -19,7 +19,10 @@ If you already have your objects:
 ```
 int[] myArray = arrayOf(1, 2);
 ```
-**Note**: This only works upto 2 elements.
+**Note**: This only works upto 2 elements. For bigger arrays, use the `array expr`:
+```
+int[] myArray = [1, 2, 3, 4, 5, 6, 7];
+```
 - Loop through every object in an array:
 ```
 for(auto object in myArray) {

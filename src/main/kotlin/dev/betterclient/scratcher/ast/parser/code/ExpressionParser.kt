@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.std.lib.ArrayLib
 
 class ExpressionParser(
     val parser: Stage1Parser,
@@ -137,10 +138,69 @@ class ExpressionParser(
             }
             is ScratcherLangParser.CheckSealedEnumTypeExprContext -> parseIsExpr(ctx)
             is ScratcherLangParser.CastSealedEnumExprContext -> parseCastExpr(ctx)
+            is ScratcherLangParser.NewArrayExprContext -> parseArrayExpr(ctx, expectedType)
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
 
         return StringBoxing.autoConvert(expr, expectedType)
+    }
+
+    private fun parseArrayExpr(ctx: ScratcherLangParser.NewArrayExprContext, expectedType: Type?): Expression {
+        val expectedElemType = when (val exp = expectedType?.asNonNull()) {
+            is ArrayType -> exp.elementType
+            else -> null
+        }
+
+        val elements = ctx.expression().map { parseExpression(it, expectedElemType) }
+
+        val actualElemType = when {
+            elements.isNotEmpty() -> {
+                val inferred = elements.map { ExpressionTypes.getExpressionType(it) }.reduce { left, right ->
+                    unifyTypes(left, right)
+                        ?: throw GeneralCompilerException("Cannot unify element types in array literal at ${ctx.position}")
+                }
+                if (expectedElemType != null && expectedElemType.isAssignable(inferred)) {
+                    expectedElemType
+                } else {
+                    inferred
+                }
+            }
+            expectedElemType != null -> expectedElemType
+            else -> throw GeneralCompilerException("Cannot determine type for empty array literal [] at ${ctx.position}. Please specify an explicit type.")
+        }
+        val type = ArrayType(actualElemType)
+
+        val outVar = LocalVariable("array_expr_out_${getUniqueName()}", type)
+        val prepend = mutableListOf<Statement>()
+
+        val allocCall = CallExpression(
+            func = ArrayLib.newArray,
+            arguments = listOf(
+                TypeLiteral(actualElemType),
+                IntLiteral(elements.size.toBigInteger())
+            )
+        )
+        prepend.add(VariableStatement(allocCall, outVar))
+
+        elements.forEachIndexed { index, elem ->
+            prepend.add(
+                ExpressionStatement(
+                    CallExpression(
+                        func = ArrayLib.replace,
+                        arguments = listOf(
+                            LocalVariableExpression(outVar),
+                            StringBoxing.autoConvert(elem, actualElemType),
+                            IntLiteral(index.toBigInteger())
+                        )
+                    )
+                )
+            )
+        }
+
+        return StatementExpression(
+            statements = prepend,
+            expression = LocalVariableExpression(outVar)
+        )
     }
 
     private fun parseDynamicCall(

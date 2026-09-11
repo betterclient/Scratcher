@@ -6,7 +6,7 @@ import list::*;
 import array::*;
 
 on GreenFlag {
-    List<int> myList = newList();
+    List<int> myList = [6, 7, 6, 6, 7, 6, 7, 6, 7, 6, 7].toList();
 
     List<int> newList = myList
         .map(

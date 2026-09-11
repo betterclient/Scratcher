@@ -25,16 +25,11 @@ warp <T> T[] arrayOf(int size, (int) -> T init) {
 }
 
 warp <T> T[] arrayOf(T first) {
-    T[] out = self::newArray(1);
-    self::replace(out, first, 0);
-    return out;
+    return [first];
 }
 
 warp <T> T[] arrayOf(T first, T second) {
-    T[] out = self::newArray(2);
-    self::replace(out, first, 0);
-    self::replace(out, second, 1);
-    return out;
+    return [first, second];
 }
 
 //ops

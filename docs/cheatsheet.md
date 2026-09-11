@@ -135,7 +135,9 @@
 - `<T> List<T> T[].toList()`
 
 ### `array`
-**Note**: Arrays are 0-indexed.
+**Notes**: 
+- Arrays are 0-indexed.
+- Create big arrays using the syntax `[obj, obj, obj ...]`
 - `<T> T?[] arrayOfNulls(int size)`
 - `<T> T[] arrayOf(int size, (int) -> T init)`
 - `<T> T[] arrayOf(T first)`
