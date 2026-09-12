@@ -79,7 +79,7 @@ object MemoryLib {
             }
 
             control.ifThen(
-                (heap.length - freeList.length) gt 199999.sc
+                (heap.length - freeList.length + actualSize) gt 199999.sc
             ) {
                 call(ExceptionLib.panic, "Scratcher runtime error: Out of memory!".sc)
             }
