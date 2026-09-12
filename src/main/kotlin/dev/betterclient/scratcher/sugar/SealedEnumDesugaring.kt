@@ -26,7 +26,7 @@ object SealedEnumDesugaring : CompilerSugar() {
                 return BinaryExpression(tagHeap, BinaryOperator.EQUAL, IntLiteral(tag.toBigInteger()))
             }
 
-            override fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression {
+            override fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int, safe: Boolean): Expression {
                 val visitedExpr = visit(expr)
                 val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
                 val ptrOffset = tagOffset + 1
@@ -38,6 +38,32 @@ object SealedEnumDesugaring : CompilerSugar() {
                 val tagExpression = TemporaryHeapGetExpression(
                     BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger()))
                 )
+
+                if (safe) {
+                    val outValue = LocalVariable("sealedEnumCast@${getUniqueName()}", targetVariant.type.asNullable())
+
+                    return StatementExpression(
+                        statements = listOf(
+                            VariableStatement(visitedExpr, enumValue),
+                            VariableStatement(NullExpression, outValue),
+                            IfStatement(
+                                condition = BinaryExpression(
+                                    tagExpression,
+                                    BinaryOperator.EQUAL,
+                                    IntLiteral(tag.toBigInteger())
+                                ),
+                                thenBlock = CodeBlock().also {
+                                    it.code.add(
+                                        LocalVariableAssignmentStatement(outValue, TemporaryHeapGetExpression(
+                                            BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger()))
+                                        ))
+                                    )
+                                }
+                            )
+                        ),
+                        expression = LocalVariableExpression(outValue)
+                    )
+                }
 
                 return StatementExpression(
                     statements = listOf(

@@ -122,7 +122,8 @@ data class SealedEnumCastExpression(
     val expr: Expression,
     val targetVariant: Struct,
     val sealedEnum: SealedEnum,
-    val tag: Int
+    val tag: Int,
+    val safe: Boolean
 ) : Expression()
 
 data class SealedEnumConstructionExpression(

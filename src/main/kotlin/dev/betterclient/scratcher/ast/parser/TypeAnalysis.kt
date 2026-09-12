@@ -312,7 +312,10 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (expectedSealed != expr.sealedEnum.type) {
                     throw TypeAnalysisException("AS cast left type $leftType does not match sealed enum ${expr.sealedEnum.type}")
                 }
-                expr.targetVariant.type
+                expr.targetVariant.type.let {
+                    if (expr.safe) it.asNullable()
+                    else it
+                }
             }
             is SealedEnumConstructionExpression -> {
                 expr.arguments.forEachIndexed { index, expression ->

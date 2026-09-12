@@ -136,7 +136,7 @@ interface BaseExpressionVisitor {
     fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression = StatementExpression(statements, expression)
     fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>): Expression = LambdaExpression(arguments, (this as ASTVisitor).visitCodeBlock(block), captured)
     fun visitCheckSealedEnumTypeExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression = CheckSealedEnumTypeExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag)
-    fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression = SealedEnumCastExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag)
+    fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int, safe: Boolean): Expression = SealedEnumCastExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag, safe)
     fun visitSealedEnumConstructionExpression(sealedEnum: SealedEnum, targetVariant: Struct, args: List<Expression>): Expression = SealedEnumConstructionExpression(sealedEnum, targetVariant, args.map { (this as ASTVisitor).visit(it) })
 
     fun visitExpr(expression: Expression) {}
@@ -214,7 +214,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         }
         is LambdaExpression -> this.visitLambdaExpression(expression.block, expression.parameters, expression.capturedVariables)
         is CheckSealedEnumTypeExpression -> this.visitCheckSealedEnumTypeExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag)
-        is SealedEnumCastExpression -> this.visitSealedEnumCastExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag)
+        is SealedEnumCastExpression -> this.visitSealedEnumCastExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag, expression.safe)
         is SealedEnumConstructionExpression -> this.visitSealedEnumConstructionExpression(expression.sealedEnum, expression.targetVariant, expression.arguments.map { visit(it) })
     }
     afterVisit(expression, result)

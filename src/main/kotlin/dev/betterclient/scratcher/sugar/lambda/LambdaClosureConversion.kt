@@ -164,7 +164,7 @@ class LambdaClosureConversion(
                 val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
                     val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
                     if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
-                })
+                }, safe = false)
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
                 val boxStruct = boxFor(variable)
                 return MemberExpression(boxExpr, boxStruct.parameters.first(), boxStruct)
@@ -189,7 +189,7 @@ class LambdaClosureConversion(
                 val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
                     val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
                     if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
-                })
+                }, safe = false)
                 val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
                 val boxStruct = boxFor(variable)
                 return VariableAssignmentStatement(

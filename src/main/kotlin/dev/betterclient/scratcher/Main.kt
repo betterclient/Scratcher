@@ -30,7 +30,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("test/docs_test.sc"))
+    val (ast, context) = compile(File("test/sealed_enum.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }

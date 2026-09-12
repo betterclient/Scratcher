@@ -11,6 +11,7 @@ struct Holder(int x);
 auto a = Holder(1515);
 
 on GreenFlag {
+    say("meow ${(tryGet() as? Result.Success)?.out?.x}");
     when(tryGet()) {
         Result.Success suc -> {
             say("Success! ${suc.out.x}");

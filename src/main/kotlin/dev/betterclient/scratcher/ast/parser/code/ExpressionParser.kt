@@ -652,6 +652,7 @@ class ExpressionParser(
                         targetVariant = variant,
                         sealedEnum = sealed,
                         tag = effectiveTag,
+                        safe = false
                     ), castedObj))
 
                     parser.localVariables.add(castedObj)
@@ -994,6 +995,7 @@ class ExpressionParser(
     }
 
     private fun parseCastExpr(ctx: ScratcherLangParser.CastSealedEnumExprContext): Expression {
+        val safe = ctx.NULLABLE() != null
         val left = parseExpression(ctx.expression())
         val leftType = ExpressionTypes.getExpressionType(left)
         val leftSealedType = leftType.asNonNull() as? SealedEnumType
@@ -1002,7 +1004,7 @@ class ExpressionParser(
             if (inferred != null) {
                 val (sealed, variant, tag) = inferred
                 val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-                return SealedEnumCastExpression(left, variant, sealed, effectiveTag)
+                return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe)
             }
         }
         val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
@@ -1018,7 +1020,7 @@ class ExpressionParser(
                 throw TypeAnalysisException("AS cast left type $leftType is not ${sealed.type} at ${ctx.position}")
             }
         }
-        return SealedEnumCastExpression(left, variant, sealed, effectiveTag)
+        return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe)
     }
 
     private fun tryResolveIsAsFromLeft(leftSealedType: SealedEnumType, targetTypeCtx: ScratcherLangParser.TypeContext): Triple<SealedEnum, Struct, Int>? {

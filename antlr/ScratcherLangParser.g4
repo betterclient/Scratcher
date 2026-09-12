@@ -178,7 +178,7 @@ expression
     | lambdaDecl ARROW lambdaBlock                      # lambdaExpr
     | THIS                                              # thisExpr
     | expression IS type                                # checkSealedEnumTypeExpr
-    | expression AS type                                # castSealedEnumExpr
+    | expression AS NULLABLE? type                      # castSealedEnumExpr
     | LBRACK (expression (COMMA expression)*)? RBRACK   # newArrayExpr
     ;
 
