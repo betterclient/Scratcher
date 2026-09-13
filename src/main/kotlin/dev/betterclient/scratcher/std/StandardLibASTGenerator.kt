@@ -234,8 +234,38 @@ object StandardLibASTGenerator {
     private fun Type.toGoodString(): String = when (this) {
         is NullableType -> "${inner.toGoodString()}?"
         is PrimitiveType -> toString()
-        is SimpleType -> if (sourceAST == compilerLib && name == "StringBox") "str" else name.substringBefore("@")
-        is SealedEnumType -> name.substringBefore("@")
+        is SimpleType -> {
+            if (sourceAST == compilerLib && name == "StringBox") "str"
+            else {
+                val base = name.substringBefore("@")
+                if (!name.contains("@")) base
+                else {
+                    val struct = sourceAST.structs.find { it.name == name }
+                    val bindings = struct?.typeBindings
+                    if (bindings.isNullOrEmpty()) base
+                    else {
+                        val template = sourceAST.structTemplates.find { it.name == base }
+                        val ordered = template?.typeParameters
+                            ?.mapNotNull { bindings[it] }
+                            ?.takeIf { it.size == bindings.size }
+                            ?: bindings.values.toList()
+                        "$base<${ordered.joinToString(", ") { it.toGoodString() }}>"
+                    }
+                }
+            }
+        }
+        is SealedEnumType -> {
+            val base = name.substringBefore("@")
+            if (typeBindings.isEmpty()) base
+            else {
+                val template = sourceAST.sealedEnumTemplates.find { it.name == base }
+                val ordered = template?.typeParameters
+                    ?.mapNotNull { typeBindings[it] }
+                    ?.takeIf { it.size == typeBindings.size }
+                    ?: typeBindings.values.toList()
+                "$base<${ordered.joinToString(", ") { it.toGoodString() }}>"
+            }
+        }
         is ArrayType -> "${elementType.toGoodString()}[]"
         is FunctionType -> "(${parameterTypes.joinToString(", ") { it.toGoodString() }}) -> ${returnType.toGoodString()}"
         is PlaceholderType -> name
