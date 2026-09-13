@@ -2,11 +2,18 @@ package dev.betterclient.scratcher.std
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
+import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
+import dev.betterclient.scratcher.ast.PlaceholderType
 import dev.betterclient.scratcher.ast.StandardLibASTFunction
 import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.SealedEnumType
+import dev.betterclient.scratcher.ast.SimpleType
+import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.ASTReader
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
@@ -188,14 +195,50 @@ object StandardLibASTGenerator {
         lib.forEach { (name, ast) ->
             if (isRestricted(ast)) return@forEach
             println("Library: $name")
-            ast.functions.forEach { func ->
-                println("   Function: ${if (func is InlineStandardLibFunction) "inlined " else ""}${if(func.warp) "warp " else ""}${func.returnType} ${func.name}(${func.parameters.joinToString { "${it.type} ${it.name}" }})")
+            (ast.functions + ast.templates).forEach { func ->
+                if (!func.userAccessible) return@forEach
+                if (func.typeBindings.isNotEmpty()) return@forEach
+                if (func.private) return@forEach
+
+                println("   Function: ${func.toGoodString()}")
             }
             if (name == "mem") {
                 println("   Function: warp free (AnyStruct val)")
             }
         }
         exitProcess(0)
+    }
+
+    private fun Function.toGoodString(): String {
+        val upToName = "${
+            if (this is InlineStandardLibFunction) "inlined " else ""
+        }${
+            if (this.warp) "warp " else ""
+        }${
+            if (this.typeParameters.isNotEmpty()) {
+                "<${this.typeParameters.joinToString(", ")}> "
+            } else ""
+        }${this.returnType.toGoodString()} ${
+            if(this.isReceiver) {
+                "${this.parameters[0].type.toGoodString()}."
+            } else ""
+        }${this.name}"
+
+        val pars = (if (this.isReceiver) {
+            this.parameters.subList(1, this.parameters.size)
+        } else this.parameters).joinToString(", ") { "${it.type.toGoodString()} ${it.name}" }
+
+        return "$upToName($pars)"
+    }
+
+    private fun Type.toGoodString(): String = when (this) {
+        is NullableType -> "${inner.toGoodString()}?"
+        is PrimitiveType -> toString()
+        is SimpleType -> if (sourceAST == compilerLib && name == "StringBox") "str" else name.substringBefore("@")
+        is SealedEnumType -> name.substringBefore("@")
+        is ArrayType -> "${elementType.toGoodString()}[]"
+        is FunctionType -> "(${parameterTypes.joinToString(", ") { it.toGoodString() }}) -> ${returnType.toGoodString()}"
+        is PlaceholderType -> name
     }
 
     fun generateFrom(startAST: ASTFile) {
