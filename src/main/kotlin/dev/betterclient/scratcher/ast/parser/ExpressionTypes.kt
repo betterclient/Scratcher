@@ -46,6 +46,8 @@ object ExpressionTypes {
             is CheckSealedEnumTypeExpression -> PrimitiveType.Bool
             is SealedEnumCastExpression -> expr.targetVariant.type
             is SealedEnumConstructionExpression -> expr.sealedEnum.type
+            is TemporaryHeapGetExpression -> PrimitiveType.Integer
+            is TemporaryLocalVariableIndexExpression -> PrimitiveType.Integer
             is TemporaryExpression -> throw UnreachableException()
         }
     }

@@ -848,20 +848,43 @@ class ExpressionParser(
     }
 
     private fun tryResolveSealedVariantConstruction(memberCtx: ScratcherLangParser.MemberExprContext, expectedType: Type? = null, argTypes: List<Type>? = null): Pair<SealedEnum, Struct>? {
-        val leftCtx = memberCtx.expression() as? ScratcherLangParser.IdExprContext ?: return null
-        if (resolvesAsVariable(leftCtx.text)) return null
-
-        val sealedBaseName = leftCtx.text.substringBefore("@").substringBefore("<")
+        val leftCtx = memberCtx.expression()
+        val sealedBaseName: String
+        val qualifiedSealed: SealedEnum?
+        val qualifiedTemplate: SealedEnum?
+        when (leftCtx) {
+            is ScratcherLangParser.IdExprContext -> {
+                if (resolvesAsVariable(leftCtx.text)) return null
+                sealedBaseName = leftCtx.text.substringBefore("@").substringBefore("<")
+                qualifiedSealed = null
+                qualifiedTemplate = null
+            }
+            is ScratcherLangParser.ScopeExprContext -> {
+                val importName = leftCtx.IDENTIFIER(0)?.text ?: return null
+                val sealedName = leftCtx.IDENTIFIER(1)?.text ?: return null
+                val imported = ast.imports[importName] ?: return null
+                sealedBaseName = sealedName.substringBefore("@").substringBefore("<")
+                qualifiedSealed = imported.sealedEnums.find { it.name == sealedBaseName }
+                    ?.also { requireSealedVisible(it) }
+                qualifiedTemplate = imported.sealedEnumTemplates.find { it.name == sealedBaseName }
+                    ?.also { requireSealedVisible(it) }
+            }
+            else -> return null
+        }
         val variantShort = memberCtx.IDENTIFIER().text
 
-        val concreteSealed = findSealedEnumByName(sealedBaseName)
+        val concreteSealed = if (qualifiedSealed != null || qualifiedTemplate != null) {
+            qualifiedSealed
+        } else {
+            findSealedEnumByName(sealedBaseName)
+        }
         if (concreteSealed != null && concreteSealed.typeParameters.isEmpty()) {
             val variant = concreteSealed.types.find { it.name.substringAfter(".") == variantShort } ?: return null
             return Pair(concreteSealed, variant)
         }
 
-        val template = findSealedTemplateByName(sealedBaseName) ?: run {
-            val exact = findSealedEnumByName(sealedBaseName) ?: return null
+        val template = qualifiedTemplate ?: (if (qualifiedSealed == null) findSealedTemplateByName(sealedBaseName) else null) ?: run {
+            val exact = qualifiedSealed ?: findSealedEnumByName(sealedBaseName) ?: return null
             val variant = exact.types.find { it.name.substringAfter(".") == variantShort } ?: return null
             return Pair(exact, variant)
         }
