@@ -45,6 +45,8 @@ object StandardLibASTGenerator {
         ArrayLib.init(arrayInternalLib, editor)
         array
         list.value
+        ExtensionsInternalLib.init(extensionsInternalLib)
+        extensionsLib
 
         this.editor = editor
 
@@ -154,8 +156,14 @@ object StandardLibASTGenerator {
         out
     }
 
+    val compactIntList by lazy {
+        compile("/compact_int_list.sc", "compact_int_list").also {
+            lib["compact_list"] = it
+        }
+    }
+
     val rawLibs by lazy {
-        listOf(typeChecker, triangle)
+        listOf(typeChecker, triangle, compactIntList)
     }
 
     fun isRestricted(library: ASTFile): Boolean {
@@ -185,6 +193,7 @@ object StandardLibASTGenerator {
             source = String(StandardLibASTGenerator::class.java.getResourceAsStream(file).use { it!!.readBytes() }),
             fullPath = path
         ).read()
+        MemoryLib.initMem(memoryLib, ast)
         Stage1Parser(context, ast).parse()
         if (path == GC_LIB_NAME) TypeAnalysis(context, ast).run() //yea
 

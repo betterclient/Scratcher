@@ -7,7 +7,7 @@ object CompilationConstants {
     const val NON_MINIFICATION_LENGTH = 20 //randomized string length, only relevant if OBFUSCATION_MINIFICATION is false
 
     //standard library functions
-    const val PRINT_STDLIB = true //print the stdlib function structures and exit
+    const val PRINT_STDLIB = false //print the stdlib function structures and exit
     const val INLINE_STRUCT_INIT = false //have the struct initialization as inline, ignored(set to false) if refcount gc is enabled
 
     //garbage collector settings
