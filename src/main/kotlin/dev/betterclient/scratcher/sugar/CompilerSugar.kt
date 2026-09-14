@@ -17,6 +17,7 @@ object Desugaring {
         LambdaDesugaring,
         SealedEnumDesugaring,
         DynamicDispatchHandler,
+        ShortCircuit
     )
 
     fun apply(functions: MutableList<Function>, context: CompilationContext) {

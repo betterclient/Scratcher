@@ -24,4 +24,7 @@ object CompilationConstants {
     const val DISABLE_TYPE_CHECKER = false //disable the runtime type checker
 
     const val DISABLE_OPTIMIZATIONS = false //disable optimizations to make performance worse for debugging
+
+    //experimental
+    const val SHORT_CIRCUITS = true //experimental short circuit support via desugar pass
 }

@@ -382,5 +382,5 @@ Lambdas support variable captures and capture mutation. Any local variable outsi
 - String interpolation: `"Hi: ${1 + 1}"`
 - If **statement** does not support braceless blocks.
 - No smart casting.
-- No short-circuiting.
+- No short-circuiting unless enabled in options.
 - No `continue`, `break`.

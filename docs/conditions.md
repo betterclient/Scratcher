@@ -11,6 +11,7 @@ if(condition) {
 The code inside the statement will only be executed if the condition evaluates to `true`.
 
 **Very important**: Unlike other languages, scratcher's `&&` operator is not short-circuiting. This means both sides of the operator will execute no matter what.
+- Scratcher now includes an experimental short-circuiting mode. 
 
 ## if else
 The if else statement is also a very simple condition:
