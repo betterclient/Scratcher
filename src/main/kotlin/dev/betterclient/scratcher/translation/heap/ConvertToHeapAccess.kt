@@ -3,11 +3,10 @@ package dev.betterclient.scratcher.translation.heap
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.gc.GCInfo
-import dev.betterclient.scratcher.gc.StackGCInfo
-import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.translation.visitor.RemoveEmptyAllocations
 
 class ConvertToHeapAccess(
     val functions: List<Function>
@@ -42,26 +41,23 @@ class ConvertToHeapAccess(
             HeapConversion(function, function) { newFuncs[it]!! }.run()
         }
 
+        newFuncs.forEach { (function, locals) ->
+            RemoveEmptyAllocations(function, locals.size).run()
+        }
+
+        for (function in newFuncs.keys) {
+            HeapConversion(function, function) { newFuncs[it]!! }.run()
+        }
+        newFuncs.keys.forEach { function ->
+            visit(function, object : ASTVisitor() {
+                override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+                    return if (defaultValue == null) null else super.visitVariableStatement(defaultValue, variable)
+                }
+            })
+        }
+
         return newFuncs.mapValues { (_, data) ->
             data.size to data.gcInfo
         }
-    }
-
-    private fun countLocals(function: Function): Pair<List<LocalVariable>, GCInfo> {
-        val out = countInternalLocals(function)
-        return out to StackGCInfo(out.map {
-            it.type
-        }, function).also { addGC(it) }
-    }
-
-    private fun countInternalLocals(func: Function): List<LocalVariable> {
-        val vars = mutableListOf<LocalVariable>()
-        visit(func, object : ASTVisitor() {
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
-                vars.add(variable)
-                return super.visitVariableStatement(defaultValue, variable)
-            }
-        })
-        return vars.distinct()
     }
 }
