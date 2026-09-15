@@ -55,7 +55,8 @@ object SealedEnumDesugaring : CompilerSugar() {
                                 thenBlock = CodeBlock().also {
                                     it.code.add(
                                         LocalVariableAssignmentStatement(outValue, TemporaryHeapGetExpression(
-                                            BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger()))
+                                            BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
+                                            targetVariant.type
                                         ))
                                     )
                                 }
@@ -91,7 +92,8 @@ object SealedEnumDesugaring : CompilerSugar() {
                         )
                     ),
                     expression = TemporaryHeapGetExpression(
-                        BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger()))
+                        BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
+                        targetVariant.type
                     )
                 )
             }

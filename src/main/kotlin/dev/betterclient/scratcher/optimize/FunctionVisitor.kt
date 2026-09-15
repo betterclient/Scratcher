@@ -124,7 +124,7 @@ interface BaseExpressionVisitor {
     fun visitCharLiteral(value: Char): Expression = CharLiteral(value)
     fun visitNullExpression(): Expression = NullExpression
     fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression = TemporaryLocalVariableIndexExpression(variable)
-    fun visitTemporaryHeapGetExpression(index: Expression): Expression = TemporaryHeapGetExpression(index)
+    fun visitTemporaryHeapGetExpression(index: Expression, type: Type? = null): Expression = TemporaryHeapGetExpression(index, type)
     fun visitTemporaryScratchExpr(inputExprs: List<Expression>, expression: (List<ScratchExpression>) -> ScratchExpression): Expression = TemporaryScratchExpr(inputExprs, expression)
     fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression = EnumLiteral(enum, value, ordinal)
     fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression = WhenExpression(subject, branches)
@@ -185,7 +185,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is NonNullAssertExpression -> this.visitNonNullAssertExpression(visit(expression.expression))
         is SafeDotExpression -> this.visitSafeDotExpression(visit(expression.target), expression.member, expression.struct)
         is ParameterExpression -> this.visitParameterExpression(expression.parameter)
-        is TemporaryHeapGetExpression -> this.visitTemporaryHeapGetExpression(visit(expression.index))
+        is TemporaryHeapGetExpression -> this.visitTemporaryHeapGetExpression(visit(expression.index), expression.type)
         is TemporaryLocalVariableIndexExpression -> this.visitTemporaryLocalVariableIndexExpression(expression.variable)
         is TemporaryScratchExpr -> this.visitTemporaryScratchExpr(expression.inputExprs.map { visit(it) }, expression.expression)
         is UnaryExpression -> this.visitUnaryExpression(expression.operator, visit(expression.expression))

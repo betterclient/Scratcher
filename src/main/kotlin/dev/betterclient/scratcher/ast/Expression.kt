@@ -151,6 +151,7 @@ data class TemporaryLocalVariableIndexExpression(
 
 data class TemporaryHeapGetExpression(
     val index: Expression,
+    val type: Type? = null,
 ) : TemporaryExpression()
 
 data class TemporaryScratchExpr(

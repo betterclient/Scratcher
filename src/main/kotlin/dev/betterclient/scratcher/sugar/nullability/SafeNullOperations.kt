@@ -36,27 +36,31 @@ object SafeNullOperations : CompilerSugar() {
     ) {
         visit(func, object : ASTVisitor() {
             override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
-                val variable = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
-                if (ExpressionTypes.getExpressionType(target) !is NullableType)
+                val targetType = ExpressionTypes.getExpressionType(target)
+                if (targetType !is NullableType)
                     return MemberExpression(target, member, struct)
+
+                val targetVar = LocalVariable("safedot@target@${getUniqueName()}", targetType)
+                val resultVar = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
 
                 return StatementExpression(
                     statements = listOf(
-                        VariableStatement(target, variable),
+                        VariableStatement(target, targetVar),
+                        VariableStatement(NullExpression, resultVar),
                         IfStatement(
                             condition = BinaryExpression(
                                 left = NullExpression,
-                                right = LocalVariableExpression(variable),
+                                right = LocalVariableExpression(targetVar),
                                 operator = BinaryOperator.NOT_EQUAL
                             ),
                             thenBlock = CodeBlock().also {
                                 //target != null
                                 it.code.add(
                                     LocalVariableAssignmentStatement(
-                                        variable = variable,
+                                        variable = resultVar,
                                         assignment = StringBoxing.autoConvert(
                                             expr = MemberExpression(
-                                                expression = LocalVariableExpression(variable),
+                                                expression = LocalVariableExpression(targetVar),
                                                 member = member,
                                                 struct = struct
                                             ),
@@ -67,7 +71,7 @@ object SafeNullOperations : CompilerSugar() {
                             }
                         )
                     ),
-                    expression = LocalVariableExpression(variable)
+                    expression = LocalVariableExpression(resultVar)
                 )
             }
 

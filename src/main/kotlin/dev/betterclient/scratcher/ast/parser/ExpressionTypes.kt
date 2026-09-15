@@ -44,9 +44,9 @@ object ExpressionTypes {
             is StatementExpression -> getExpressionType(expr.expression)
             is LambdaExpression -> parseLambdaType(expr)
             is CheckSealedEnumTypeExpression -> PrimitiveType.Bool
-            is SealedEnumCastExpression -> expr.targetVariant.type
+            is SealedEnumCastExpression -> expr.targetVariant.type.let { if (expr.safe) it.asNullable() else it }
             is SealedEnumConstructionExpression -> expr.sealedEnum.type
-            is TemporaryHeapGetExpression -> PrimitiveType.Integer
+            is TemporaryHeapGetExpression -> expr.type ?: PrimitiveType.Integer
             is TemporaryLocalVariableIndexExpression -> PrimitiveType.Integer
             is TemporaryExpression -> throw UnreachableException()
         }

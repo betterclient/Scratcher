@@ -12,14 +12,14 @@ auto a = Holder(1515);
 
 on GreenFlag {
     say("meow ${(tryGet() as? Result.Success)?.out?.x}");
-    when(tryGet()) {
+    /*when(tryGet()) {
         Result.Success suc -> {
             say("Success! ${suc.out.x}");
         }
         Result.Failure fail -> {
             say("Error message: ${fail.error}");
         }
-    }
+    }*/
 }
 
 warp Result<Holder, str> tryGet() {
