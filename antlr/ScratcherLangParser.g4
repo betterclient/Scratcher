@@ -128,7 +128,12 @@ returnStmt
     ;
 
 ifStmt
-    : IF LPAREN expression RPAREN block (ELSE (ifStmt | block))?
+    : IF LPAREN expression RPAREN stmtBlock (ELSE (ifStmt | stmtBlock))?
+    ;
+
+stmtBlock
+    : statement
+    | block
     ;
 
 whileStmt

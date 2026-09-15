@@ -60,9 +60,7 @@ warp void render(TriangleRenderMode mode, List<Triangle<float>?> triangles) {
     a.x1++;
     auto amountRendered = 0;
 
-    if(triangles.contains(a)) {
-        looks::say("hiiiiiii");
-    }
+    if(triangles.contains(a)) looks::say("hiiiiiii");
 
     triangles.forEach((Triangle<float>? t) -> {
         t?.x1?.let((float x1) -> {

@@ -96,9 +96,17 @@ class StatementParser(
         return buildAssignment(variableExpr, op, assignmentExpr)
     }
 
+    private fun parseStmtBlock(statementBlockContext: ScratcherLangParser.StmtBlockContext, code: CodeBlock) {
+        if(statementBlockContext.block() != null) {
+            parseBlock(code, statementBlockContext.block()!!)
+        } else {
+            code.code.add(parseStatement(statementBlockContext.statement()!!))
+        }
+    }
+
     private fun parseIfStatement(child: ScratcherLangParser.IfStmtContext): Statement {
         val cond = exprParser.parseExpression(child.expression())
-        val thenBlock = CodeBlock().also { parseBlock(it, child.block(0)!!) }
+        val thenBlock = CodeBlock().also { parseStmtBlock(child.stmtBlock(0)!!, it) }
 
         return if (child.ELSE() != null) {
             val elseBlock = if (child.ifStmt() != null) {
@@ -109,7 +117,7 @@ class StatementParser(
                     it.code.add(nestedIf)
                 }
             } else {
-                CodeBlock().also { parseBlock(it, child.block(1)!!) }
+                CodeBlock().also { parseStmtBlock(child.stmtBlock(1)!!, it) }
             }
             IfElseStatement(cond, thenBlock, elseBlock)
         } else {
