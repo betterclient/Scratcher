@@ -93,7 +93,20 @@ data class SimpleType(
     override val isPrimitive: Boolean get() = false
 
     override fun isAssignable(other: Type): Boolean {
-        return this == other.asNonNull()
+        val dest = other.asNonNull()
+        if (this == dest) return true
+        if (dest !is SimpleType) return false
+
+        val srcStruct = this.sourceAST.structs.find { it.type == this } ?: return false
+        val destStruct = dest.sourceAST.structs.find { it.type == dest } ?: return false
+        if (srcStruct.name.substringBefore("@") != destStruct.name.substringBefore("@")) return false
+        if (srcStruct.sourceAST != destStruct.sourceAST) return false
+        if (srcStruct.typeBindings.size != destStruct.typeBindings.size) return false
+        if (srcStruct.typeBindings.isEmpty()) return false
+        return srcStruct.typeBindings.all { (k, srcArg) ->
+            val destArg = destStruct.typeBindings[k] ?: return@all false
+            srcArg.isAssignable(destArg)
+        }
     }
 
     override fun toString(): String {
@@ -113,7 +126,7 @@ data class ArrayType(
         if (this == other) return true
 
         val baseOther = other.asNonNull() as? ArrayType ?: return false
-        return this.elementType == baseOther.elementType
+        return this.elementType.isAssignable(baseOther.elementType)
     }
 
     override fun toString(): String {

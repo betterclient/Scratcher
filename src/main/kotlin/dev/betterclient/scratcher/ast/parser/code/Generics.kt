@@ -20,6 +20,7 @@ import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.figureOutType
+import dev.betterclient.scratcher.ast.unifyTypes
 import dev.betterclient.scratcher.gc.SealedEnumGCInfo
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
@@ -83,7 +84,13 @@ object Generics {
         if (paramType is PlaceholderType && typeParams.contains(paramType.name)) {
             val existing = bindings[paramType.name]
             if (existing != null) {
-                return providedType.isAssignable(existing)
+                if (providedType.isAssignable(existing)) return true
+                val unified = unifyTypes(existing, providedType)
+                if (unified != null) {
+                    bindings[paramType.name] = unified
+                    return true
+                }
+                return false
             }
             bindings[paramType.name] = providedType
             return true
@@ -145,10 +152,10 @@ object Generics {
             val sealedName = paramType.name.substringBefore("@")
             val sealed = paramType.sourceAST.sealedEnums.find { it.name == sealedName && it.typeBindings == paramType.typeBindings }
                 ?: paramType.sourceAST.imports.values.flatMap { it.sealedEnums }.find { it.name == sealedName && it.typeBindings == paramType.typeBindings }
-                ?: return paramType == providedType
+                ?: return providedType.isAssignable(paramType)
             return sealed.types.any { it.type == providedType }
         }
-        return paramType == providedType
+        return providedType.isAssignable(paramType)
     }
 
     fun tryResolve(
