@@ -39,10 +39,18 @@ statement
     | forStmt
     | whenStmt
     | exprStmt
+    | loopControlStmt
     ;
 
 whenStmt
     : whenExpression SEMI?
+    ;
+
+loopControlStmt
+    : CONTINUE SEMI                                            # continueStmt
+    | CONTINUE IF (LBRACE expression RBRACE | expression) SEMI # continueIfStmt
+    | BREAK SEMI                                               # breakStmt
+    | BREAK IF (LBRACE expression RBRACE | expression) SEMI    # breakIfStmt
     ;
 
 tlVarDecl

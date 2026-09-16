@@ -57,6 +57,9 @@ data class RepeatStatement(
     val block: CodeBlock
 ) : Statement()
 
+class BreakStatement : Statement()
+class ContinueStatement : Statement()
+
 //ONLY USE FOR LOWERING PHASE
 sealed class TemporaryStatement : Statement()
 

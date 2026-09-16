@@ -53,6 +53,10 @@ on GreenFlag {
         render(mode?: TriangleRenderMode.OFF, triangles);
         counter::update();
         looks::say("FPS: ${counter::get()}");
+
+        if(counter::get() > 15) {
+            break;
+        }
     }
 }
 

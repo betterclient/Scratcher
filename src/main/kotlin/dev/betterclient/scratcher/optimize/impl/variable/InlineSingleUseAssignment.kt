@@ -240,6 +240,8 @@ class InlineSingleUseAnalysis {
                 exprVisitor.visit(stmt.data)
             }
             is TemporaryScratchStmt -> stmt.inputExprs.forEach { exprVisitor.visit(it) }
+            is BreakStatement -> {}
+            is ContinueStatement -> {}
         }
     }
 
@@ -319,6 +321,9 @@ class InlineSingleUseAnalysis {
             is TemporaryHeapSetStatement -> stmt.index.dependsOn(variables) || stmt.data.dependsOn(variables)
             is TemporaryScratchStmt -> stmt.inputExprs.any { it.dependsOn(variables) }
             is CompositeStatement -> stmt.statements.any { stmtDependsOn(it, variables) }
+
+            is BreakStatement -> false
+            is ContinueStatement -> false
         }
     }
 
@@ -370,6 +375,8 @@ class InlineSingleUseAnalysis {
             is TemporaryScratchStmt -> stmt.inputExprs.forEach { visitExpr(modified, it) }
             is CompositeStatement -> stmt.statements.forEach { visitStmt(modified, it) }
             is ReturnStatement -> stmt.expression?.let { visitExpr(modified, it) }
+            is BreakStatement -> {}
+            is ContinueStatement -> {}
         }
     }
 

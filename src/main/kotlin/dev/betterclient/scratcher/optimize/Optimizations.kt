@@ -8,7 +8,6 @@ import dev.betterclient.scratcher.optimize.impl.*
 import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
-import dev.betterclient.scratcher.optimize.impl.control.RepeatToWhile
 import dev.betterclient.scratcher.optimize.impl.dynamic.DirectCallInline
 import dev.betterclient.scratcher.optimize.impl.dynamic.LambdaInlining
 import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
@@ -28,7 +27,6 @@ object Optimizations {
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
-        RepeatToWhile,
         DeadCodeElimination,
         InlineSingleUseAssignment,
         SequentialConstantPropagation,

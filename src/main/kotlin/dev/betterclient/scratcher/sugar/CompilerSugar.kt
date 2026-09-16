@@ -7,16 +7,25 @@ import dev.betterclient.scratcher.optimize.generateCallGraph
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.dispatch.DynamicDispatchHandler
 import dev.betterclient.scratcher.sugar.lambda.LambdaDesugaring
+import dev.betterclient.scratcher.sugar.loop.ContinueAndBreakDesugaring
+import dev.betterclient.scratcher.sugar.loop.RepeatToWhile
 import dev.betterclient.scratcher.sugar.nullability.SafeNullOperations
+import dev.betterclient.scratcher.sugar.other.SealedEnumDesugaring
+import dev.betterclient.scratcher.sugar.other.ShortCircuit
 import dev.betterclient.scratcher.sugar.`when`.WhenDesugaring
 
 object Desugaring {
     private val sugar = listOf(
+        RepeatToWhile,
+        ContinueAndBreakDesugaring,
+
         SafeNullOperations,
         WhenDesugaring,
         LambdaDesugaring,
+
         SealedEnumDesugaring,
         DynamicDispatchHandler,
+
         ShortCircuit
     )
 

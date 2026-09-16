@@ -222,6 +222,9 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     val stmts = statement.statements.mapNotNull { processStatement(it) }
                     CompositeStatement(stmts)
                 }
+
+                is BreakStatement -> BreakStatement()
+                is ContinueStatement -> ContinueStatement()
             }
         }
 

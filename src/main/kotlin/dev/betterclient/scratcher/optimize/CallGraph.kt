@@ -70,6 +70,8 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
                 is VariableAssignmentStatement -> generate(stmt.assignment, out)
                 is VariableStatement -> stmt.defaultValue?.let { generate(it, out) }
 
+                is ContinueStatement -> {}
+                is BreakStatement -> {}
                 is TemporaryStatement -> {}
             }
         }

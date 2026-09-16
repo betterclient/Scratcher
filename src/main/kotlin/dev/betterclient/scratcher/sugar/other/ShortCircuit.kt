@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.sugar
+package dev.betterclient.scratcher.sugar.other
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.simple
+import dev.betterclient.scratcher.sugar.CompilerSugar
 
 object ShortCircuit : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {

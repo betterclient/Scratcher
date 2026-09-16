@@ -91,8 +91,7 @@ class ScratchFunctionTranslator(
                 translateExpr(stmt.assignment)
             )
 
-            is VariableAssignmentStatement -> throw UnreachableException()
-            is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement -> throw UnreachableException()
+            is VariableAssignmentStatement, is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement, is BreakStatement, is ContinueStatement -> throw UnreachableException()
         }
         return listOf(single)
     }

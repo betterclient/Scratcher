@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.sugar
+package dev.betterclient.scratcher.sugar.other
 
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import dev.betterclient.scratcher.sugar.CompilerSugar
 
 object SealedEnumDesugaring : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {

@@ -41,7 +41,7 @@ private warp <T> Node<T> last(LinkedList<T> list) {
 }
 ```
 - With this, we get our first look into the `while` statement, the `while` statement repeats a block of code while the condition given is `true`.
-- We mark this function `private` because only we need to use this function.
+- We mark this function `private` because only **we** need to use this function.
 
 We can make this function even better to use by making it a `receiver function`:
 - Receiver functions are special functions that take in a value, using the `.` syntax.

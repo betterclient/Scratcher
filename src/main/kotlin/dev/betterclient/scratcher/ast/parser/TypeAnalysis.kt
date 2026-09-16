@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
 
 class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
+    private var loopDepth = 0
     fun run() {
         ast.completedTypeAnalysis = true
         ast.imports.forEach { (_, ast) ->
@@ -100,6 +101,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             is IfElseStatement -> {
                 doesBlockGuaranteeReturn(statement.thenBlock.code) && doesBlockGuaranteeReturn(statement.elseBlock.code)
             }
+            is ContinueStatement -> true
+            is BreakStatement -> true
             else -> false
         }
     }
@@ -132,7 +135,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
                 is RepeatStatement -> {
                     checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")
+                    loopDepth++
                     checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
+                    loopDepth--
                 }
                 is TLVariableAssignmentStatement -> {
                     checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Top level variable assignment type is not correct")
@@ -148,7 +153,9 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
                 is WhileStatement -> {
                     checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition")
+                    loopDepth++
                     checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
+                    loopDepth--
                 }
                 is ReturnStatement -> {
                     val retType = expectedReturnType ?: function?.returnType
@@ -165,6 +172,16 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                         } else if (retType != null) {
                             checkType(retType, exprType, "Return statement type")
                         }
+                    }
+                }
+                is BreakStatement -> {
+                    if (loopDepth <= 0) {
+                        throw TypeAnalysisException("Break statement outside of a loop!")
+                    }
+                }
+                is ContinueStatement -> {
+                    if (loopDepth <= 0) {
+                        throw TypeAnalysisException("Continue statement outside of a loop!")
                     }
                 }
                 is TemporaryStatement -> {}

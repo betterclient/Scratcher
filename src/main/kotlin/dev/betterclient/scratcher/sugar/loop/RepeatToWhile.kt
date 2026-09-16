@@ -1,4 +1,4 @@
-package dev.betterclient.scratcher.optimize.impl.control
+package dev.betterclient.scratcher.sugar.loop
 
 import dev.betterclient.scratcher.ast.BinaryExpression
 import dev.betterclient.scratcher.ast.BinaryOperator
@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
@@ -15,24 +16,21 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.sugar.CompilerSugar
 import java.math.BigInteger
 
-object RepeatToWhile : Optimization("Convert repeat statements to while") {
+object RepeatToWhile : CompilerSugar() {
     private var counterIndex = 0
 
     override fun apply(
         func: Function,
         graph: TCallGraph,
         context: CompilationContext
-    ): Boolean {
-        var modified = false
-
+    ) {
         visit(func, object : ASTVisitor() {
             override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement {
                 val outerBlock = currentBlock ?: throw GeneralCompilerException("currentBlock is null") //should be unreachable
@@ -66,12 +64,8 @@ object RepeatToWhile : Optimization("Convert repeat statements to while") {
 
                 val whileStmt = WhileStatement(condition, visitedBlock)
 
-                modified = true
-
                 return CompositeStatement(listOf(initStmt, whileStmt))
             }
         })
-
-        return modified
     }
 }

@@ -101,6 +101,8 @@ interface BaseStatementVisitor {
     fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? = TemporaryCallStatement(func, args)
     fun visitTemporaryHeapSetStatement(index: Expression, data: Expression): Statement? = TemporaryHeapSetStatement(index, data)
     fun visitTemporaryScratchStmt(inputExprs: List<Expression>, stmt: (List<ScratchExpression>) -> List<ScratchStatement>): Statement? = TemporaryScratchStmt(inputExprs, stmt)
+    fun visitBreakStatement(): Statement? = BreakStatement()
+    fun visitContinueStatement(): Statement? = ContinueStatement()
 
     fun visitStatement(statement: Statement) {}
 }
@@ -238,5 +240,7 @@ fun ASTVisitor.visit(statement: Statement): Statement? {
         is TemporaryHeapSetStatement -> this.visitTemporaryHeapSetStatement(visit(statement.index), visit(statement.data))
         is TemporaryScratchStmt -> this.visitTemporaryScratchStmt(statement.inputExprs.map { visit(it) }, statement.stmt)
         is CompositeStatement -> CompositeStatement(statement.statements.mapNotNull { visit(it) })
+        is BreakStatement -> this.visitBreakStatement()
+        is ContinueStatement -> this.visitContinueStatement()
     }
 }

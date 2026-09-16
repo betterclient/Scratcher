@@ -331,6 +331,16 @@ while(condition) {
 for(auto item in list) { ... }
 for(auto item in array) { ... } 
 ```
+- Loops support break/continue
+```
+while(condition) {
+    ...
+    if(condition) break;
+    //simpler
+    break if condition;
+    ...
+}
+```
 
 ### Nullability
 - `T?`: Nullable type
@@ -382,4 +392,3 @@ Lambdas support variable captures and capture mutation. Any local variable outsi
 - String interpolation: `"Hi: ${1 + 1}"`
 - No smart casting.
 - No short-circuiting unless enabled in options.
-- No `continue`, `break`.

@@ -75,6 +75,29 @@ class StatementParser(
             is ScratcherLangParser.WhenStmtContext -> {
                 ExpressionStatement(exprParser.parseWhenExpr(child.whenExpression()))
             }
+            is ScratcherLangParser.LoopControlStmtContext -> {
+                when(child) {
+                    is ScratcherLangParser.ContinueStmtContext -> {
+                        ContinueStatement()
+                    }
+                    is ScratcherLangParser.BreakStmtContext -> {
+                        BreakStatement()
+                    }
+                    is ScratcherLangParser.BreakIfStmtContext -> {
+                        IfStatement(
+                            condition = exprParser.parseExpression(child.expression()!!),
+                            thenBlock = CodeBlock().also { it.code.add(BreakStatement()) }
+                        )
+                    }
+                    is ScratcherLangParser.ContinueIfStmtContext -> {
+                        IfStatement(
+                            condition = exprParser.parseExpression(child.expression()!!),
+                            thenBlock = CodeBlock().also { it.code.add(ContinueStatement()) }
+                        )
+                    }
+                    else -> throw NotImplementedException("Unknown loop control statement ${child.text}")
+                }
+            }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
     }
