@@ -54,7 +54,7 @@ object RepeatToWhile : CompilerSugar() {
                     )
                 )
 
-                visitedBlock.code.add(decrementStmt)
+                visitedBlock.code.add(0, decrementStmt)
 
                 val condition = BinaryExpression(
                     LocalVariableExpression(counterVar),

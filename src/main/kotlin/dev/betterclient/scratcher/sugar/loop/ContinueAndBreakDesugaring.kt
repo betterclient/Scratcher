@@ -6,17 +6,22 @@ import dev.betterclient.scratcher.ast.BooleanLiteral
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.CompositeStatement
 import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.ExpressionStatement
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.IfElseStatement
 import dev.betterclient.scratcher.ast.IfStatement
+import dev.betterclient.scratcher.ast.LambdaExpression
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableAssignmentStatement
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.StatementExpression
 import dev.betterclient.scratcher.ast.UnaryExpression
 import dev.betterclient.scratcher.ast.UnaryOperator
 import dev.betterclient.scratcher.ast.VariableStatement
+import dev.betterclient.scratcher.ast.WhenBranch
+import dev.betterclient.scratcher.ast.WhenExpression
 import dev.betterclient.scratcher.ast.WhileStatement
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
@@ -89,6 +94,20 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
                     BooleanLiteral(true)
                 )
             }
+
+            override fun visitLambdaExpression(
+                block: CodeBlock,
+                arguments: List<LocalVariable>,
+                captured: MutableSet<LocalVariable>
+            ): Expression {
+                val enclosingStates = loopState.toList()
+                loopState.clear()
+                return try {
+                    LambdaExpression(arguments, visitCodeBlock(block), captured)
+                } finally {
+                    loopState.addAll(enclosingStates)
+                }
+            }
         })
     }
 
@@ -105,6 +124,7 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
 
         for (stmt in statements) {
             val processedStmt = when (stmt) {
+                is ExpressionStatement -> ExpressionStatement(processExpression(stmt.expression, skipVar))
                 is IfStatement -> IfStatement(
                     stmt.condition,
                     CodeBlock(wrap(stmt.thenBlock.code, skipVar).toMutableList())
@@ -140,10 +160,31 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
         return rewrittenStatements
     }
 
+    private fun processExpression(expression: Expression, skipVar: LocalVariable): Expression {
+        return when (expression) {
+            is WhenExpression -> WhenExpression(
+                expression.subject,
+                expression.branches.map { branch ->
+                    WhenBranch(
+                        branch.cond,
+                        CodeBlock(wrap(branch.block.code, skipVar).toMutableList()),
+                        branch.isElse
+                    )
+                }
+            )
+            is StatementExpression -> StatementExpression(
+                wrap(expression.statements, skipVar),
+                processExpression(expression.expression, skipVar)
+            )
+            else -> expression
+        }
+    }
+
     private fun containsSkipVarSet(statement: Statement, skipVar: LocalVariable): Boolean {
         return when (statement) {
             is LocalVariableAssignmentStatement -> statement.variable == skipVar
             is VariableStatement -> statement.variable == skipVar
+            is ExpressionStatement -> containsSkipVarSet(statement.expression, skipVar)
             is IfStatement -> containsSkipVarSet(statement.thenBlock, skipVar)
             is IfElseStatement -> containsSkipVarSet(statement.thenBlock, skipVar) || containsSkipVarSet(statement.elseBlock, skipVar)
             is CompositeStatement -> statement.statements.any { containsSkipVarSet(it, skipVar) }
@@ -153,5 +194,14 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
 
     private fun containsSkipVarSet(block: CodeBlock, skipVar: LocalVariable): Boolean {
         return block.code.any { containsSkipVarSet(it, skipVar) }
+    }
+
+    private fun containsSkipVarSet(expression: Expression, skipVar: LocalVariable): Boolean {
+        return when (expression) {
+            is WhenExpression -> expression.branches.any { containsSkipVarSet(it.block, skipVar) }
+            is StatementExpression -> expression.statements.any { containsSkipVarSet(it, skipVar) }
+                || containsSkipVarSet(expression.expression, skipVar)
+            else -> false
+        }
     }
 }

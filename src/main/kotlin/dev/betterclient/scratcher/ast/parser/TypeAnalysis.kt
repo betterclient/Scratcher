@@ -477,33 +477,39 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         function: Function?,
         expr: LambdaExpression
     ): Type {
-        val returnStatements = collectReturnStatements(expr.block.code)
-        val returnTypes = returnStatements.map { stmt ->
-            if (stmt.expression != null) {
-                getActualTypeOrThrow(stmt.expression, function)
-            } else {
-                PrimitiveType.Void
+        val enclosingLoopDepth = loopDepth
+        loopDepth = 0
+        return try {
+            val returnStatements = collectReturnStatements(expr.block.code)
+            val returnTypes = returnStatements.map { stmt ->
+                if (stmt.expression != null) {
+                    getActualTypeOrThrow(stmt.expression, function)
+                } else {
+                    PrimitiveType.Void
+                }
             }
+
+            var returnType = returnTypes.reduceOrNull { left, right ->
+                unifyTypes(left, right) ?: throw TypeAnalysisException("Cannot unify $left and $right, lambda return type unknown")
+            } ?: PrimitiveType.Void
+            if (returnType == PrimitiveType.Null) {
+                returnType = PrimitiveType.Void
+            }
+
+            checkCodeBlock(function, expr.block.code, expectedReturnType = returnType)
+
+            if (returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(expr.block.code)) {
+                throw TypeAnalysisException("Lambda with return type $returnType does not have a guaranteed return")
+            }
+            pruneUnreachableCode(expr.block.code)
+
+            FunctionType(
+                expr.parameters.map { it.type },
+                returnType
+            )
+        } finally {
+            loopDepth = enclosingLoopDepth
         }
-
-        var returnType = returnTypes.reduceOrNull { left, right ->
-            unifyTypes(left, right) ?: throw TypeAnalysisException("Cannot unify $left and $right, lambda return type unknown")
-        } ?: PrimitiveType.Void
-        if (returnType == PrimitiveType.Null) {
-            returnType = PrimitiveType.Void
-        }
-
-        checkCodeBlock(function, expr.block.code, expectedReturnType = returnType)
-
-        if (returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(expr.block.code)) {
-            throw TypeAnalysisException("Lambda with return type $returnType does not have a guaranteed return")
-        }
-        pruneUnreachableCode(expr.block.code)
-
-        return FunctionType(
-            expr.parameters.map { it.type },
-            returnType
-        )
     }
 
     private fun collectReturnStatements(code: List<Statement>): List<ReturnStatement> {
