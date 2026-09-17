@@ -293,7 +293,7 @@ object MemoryLib {
         sealedEnum.allocFuncs[variantStruct]?.let { return it }
 
         val tag = sealedEnum.types.indexOf(variantStruct)
-        val name = "new${sealedEnum.sourceAST.simplePath}::${sealedEnum.name}.${variantStruct.name.substringAfter(".")}"
+        val name = "new${sealedEnum.sourceAST.simplePath}::${sealedEnum.name}.${variantStruct.name.substringAfter(".")}@sealed"
 
         val func = Function(
             name = name,

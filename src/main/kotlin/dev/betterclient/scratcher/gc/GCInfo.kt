@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.ArrayType
+import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.SealedEnum
 import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.SimpleType
@@ -38,6 +39,10 @@ private fun Type.isEnumType(): Boolean {
 }
 
 private fun Type.gcFieldDescriptor(): String {
+    val boxed = (this as? NullableType)?.inner
+    if (boxed is SimpleType && boxed.name == "StringBox" && boxed.sourceAST.simplePath == "compiler") {
+        return findGC(boxed).toString()
+    }
     val nonNull = asNonNull()
     if (nonNull.isPrimitive || nonNull is FunctionType || nonNull.isEnumType()) return "p"
     if (nonNull is ArrayType) {
@@ -67,6 +72,10 @@ fun findGC(struct: Struct): Int {
 }
 
 fun findGC(type: Type): Int {
+    val inner = (type as? NullableType)?.inner
+    if (inner is SimpleType && inner.name == "StringBox" && inner.sourceAST.simplePath == "compiler") {
+        return gcNames.find { it is StructGCInfo && it.struct.name == "StringBox" }?.name ?: -999
+    }
     val nonNullType = type.asNonNull()
     if (nonNullType.isPrimitive || nonNullType is FunctionType || nonNullType.isEnumType()) return 0
 

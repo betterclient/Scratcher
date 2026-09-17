@@ -49,15 +49,23 @@ warp int sweep() {
     int index = 1;
     int blockStart = -1;
     int blockSize = 0;
+    int fp = 1;
+    int fl = self::lengthOfFreeList();
 
     repeat(self::getHeapSize()) {
-        if(!isMarked(index)) {
+        while(fp <= fl && cast::toIntOrDefault(self::getFreeList(fp), -1) < index) {
+            fp++;
+        }
+        if(!isMarked(index) && !(fp <= fl && cast::toIntOrDefault(self::getFreeList(fp), -1) == index)) {
             if (blockStart == -1) {
                 blockStart = index;
             }
             blockSize++;
             freed++;
         } else {
+            if (fp <= fl && cast::toIntOrDefault(self::getFreeList(fp), -1) == index) {
+                fp++;
+            }
             if (blockSize > 0) {
                 self::freeHeapBlock(blockStart, blockSize);
                 blockStart = -1;

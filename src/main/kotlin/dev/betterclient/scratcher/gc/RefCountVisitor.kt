@@ -10,7 +10,6 @@ import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
-import java.math.BigInteger
 
 class RefCountVisitor(
     val structDecs: Map<Struct, Function>,
@@ -277,9 +276,7 @@ class RefCountVisitor(
                 currentFunction.name.startsWith("new") &&
                 expression is LocalVariableExpression
         if (expression != null && expression.getType().isRefCounted()) {
-            if (currentFunction?.userAccessible == false && currentFunction.name.startsWith("new")) {
-
-            } else {
+            if (!(currentFunction?.userAccessible == false && currentFunction.name.startsWith("new"))) {
                 if (expression !is LocalVariableExpression) {
                     val tempRet = LocalVariable("compiler@gc_ret_${getUniqueName()}", expression.getType())
                     stmts.add(VariableStatement(expression, tempRet))
@@ -289,6 +286,15 @@ class RefCountVisitor(
                     stmts.add(returnExpr.asIncCall)
                 }
             }
+        }
+        else if (expression != null &&
+            expression !is LocalVariableExpression &&
+            expression !is NullExpression &&
+            currentFunction?.returnType != PrimitiveType.Void
+        ) {
+            val tempRet = LocalVariable("compiler@gc_ret_${getUniqueName()}", expression.getType())
+            stmts.add(VariableStatement(expression, tempRet))
+            returnExpr = LocalVariableExpression(tempRet)
         }
 
         for (condTempsLevel in whileCondTempsStack) {
@@ -408,7 +414,9 @@ class RefCountVisitor(
             return true
         }
         if (this is NonNullAssertExpression) {
-            return this.expression.isReturningPlusOne()
+            return this.expression.isReturningPlusOne() &&
+                this.expression !is LocalVariableExpression &&
+                this.expression !is ParameterExpression
         }
         return false
     }

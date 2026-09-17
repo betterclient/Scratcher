@@ -81,8 +81,8 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
                 val state = loopState.last()
                 state.hasSkipVar = true
                 return CompositeStatement(listOf(
-                    LocalVariableAssignmentStatement(state.skipVar, BooleanLiteral(true)),
-                    LocalVariableAssignmentStatement(state.doneVar, BooleanLiteral(true))
+                    LocalVariableAssignmentStatement(state.doneVar, BooleanLiteral(true)),
+                    LocalVariableAssignmentStatement(state.skipVar, BooleanLiteral(true))
                 ))
             }
 
