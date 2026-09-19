@@ -12,9 +12,7 @@ object StringBoxing {
     fun autoConvert(expr: Expression, expectedType: Type?): Expression {
         if (expectedType == null) return expr
 
-        return unboxIfNeeded(expr, expectedType).let {
-            boxIfNeeded(it, expectedType)
-        }
+        return boxIfNeeded(expr, expectedType)
     }
 
     fun boxIfNeeded(expr: Expression, expectedType: Type?): Expression {
@@ -37,7 +35,6 @@ object StringBoxing {
             exprType is NullableType &&
             exprType.asNonNull().toString() == "str") {
 
-            val strField = stringBoxStruct.parameters.first { it.name == "str" }
             val temp = LocalVariable("unbox@${getUniqueName()}", exprType)
             val boxRef = LocalVariableExpression(temp)
 
@@ -53,7 +50,7 @@ object StringBoxing {
                     WhenBranch(
                         cond = BooleanLiteral(true),
                         block = CodeBlock().also {
-                            it.code.add(ExpressionStatement(MemberExpression(boxRef, strField, stringBoxStruct)))
+                            it.code.add(ExpressionStatement(NonNullAssertExpression(boxRef)))
                         },
                         isElse = true
                     )

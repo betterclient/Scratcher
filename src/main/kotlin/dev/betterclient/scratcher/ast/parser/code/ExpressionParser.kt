@@ -200,7 +200,7 @@ class ExpressionParser(
                     unifyTypes(left, right)
                         ?: throw GeneralCompilerException("Cannot unify element types in array literal at ${ctx.position}")
                 }
-                if (expectedElemType != null && expectedElemType.isAssignable(inferred)) {
+                if (expectedElemType != null && inferred.isAssignable(expectedElemType)) {
                     expectedElemType
                 } else {
                     inferred

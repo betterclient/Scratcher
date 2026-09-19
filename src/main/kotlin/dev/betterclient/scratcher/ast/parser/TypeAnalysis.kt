@@ -506,10 +506,15 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
 
             BinaryOperator.STRICT_EQUAL,
             BinaryOperator.STRICT_NOT_EQUAL -> {
-                val allowed = listOf(PrimitiveType.Str, PrimitiveType.Char)
-                if (leftType !in allowed || rightType !in allowed) {
-                    throw TypeAnalysisException("Strict equals is only between strings/chars, found $leftType === $rightType")
-                } else PrimitiveType.Bool
+                if (leftType.asNonNull() == rightType.asNonNull() ||
+                    (isNumeric(leftType) && isNumeric(rightType)) ||
+                    (leftType is NullableType && rightType == PrimitiveType.Null) ||
+                    (rightType is NullableType && leftType == PrimitiveType.Null)
+                ) {
+                    PrimitiveType.Bool
+                } else {
+                    throw TypeAnalysisException("Cannot compare $leftType and $rightType for equality")
+                }
             }
 
             BinaryOperator.AND,

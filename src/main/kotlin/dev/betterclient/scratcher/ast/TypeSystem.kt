@@ -24,7 +24,7 @@ data class NullableType(
         val otherInner = other.asNonNull()
         if ((targetInner == PrimitiveType.Str || targetInner.toString() == "str") &&
             (otherInner == PrimitiveType.Str || otherInner.toString() == "str")) {
-            return true
+            return other is NullableType
         }
         return other is NullableType && this.inner.isAssignable(other.inner)
     }
