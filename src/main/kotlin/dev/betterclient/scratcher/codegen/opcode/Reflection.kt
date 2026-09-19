@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.opcode
 
+import dev.betterclient.scratcher.codegen.wrapper.ScratchBoolean
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
@@ -62,6 +63,19 @@ class XPositionOfOpcode(val spriteName: ScratchValue) : ScratchOpcode() {
                 it.put(spriteName.value!!.id)
                 it.put(menu.id)
             } else spriteName.toOperand())
+        })
+    }
+}
+
+class IsTurboWarpOpcode : ScratchOpcode() {
+    override val asValue = ScratchBoolean(this)
+    override val opcode = "argument_reporter_boolean"
+
+    override fun toJSON(base: JSONObject) {
+        base.put("inputs", JSONObject())
+        //"fields":{"VALUE":["is TurboWarp?",null]}
+        base.put("fields", JSONObject().apply {
+            put("VALUE", JSONArray(listOf("is TurboWarp?", JSONObject.NULL)))
         })
     }
 }

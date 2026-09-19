@@ -18,6 +18,7 @@
 - `bool isOnline()`
 - `bool isMousePressed()`
 - `bool isKeyPressed(str key)`
+- `bool isTurbowarp()`
 
 ### `math`
 - `int abs(int number)`

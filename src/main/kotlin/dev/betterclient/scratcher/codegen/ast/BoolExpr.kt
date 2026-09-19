@@ -130,4 +130,10 @@ object SensingBoolExpressions {
             return IsOnlineOpcode().asValue
         }
     }
+
+    class IsTurboWarpExpression : ScratchBoolExpression() {
+        override fun lower(): ScratchValue {
+            return IsTurboWarpOpcode().asValue
+        }
+    }
 }

@@ -104,5 +104,14 @@ object SensingLib {
         ) { args ->
             SensingBoolExpressions.KeyPressedExpression(args[0])
         }
+
+        compileInline(
+            library = lib,
+            name = "isTurbowarp",
+            parameters = mutableListOf(),
+            returnType = PrimitiveType.Bool
+        ) { _ ->
+            SensingBoolExpressions.IsTurboWarpExpression()
+        }
     }
 }
