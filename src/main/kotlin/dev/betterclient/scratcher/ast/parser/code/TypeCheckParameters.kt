@@ -25,6 +25,7 @@ object TypeCheckParameters {
         if (ast.path == "gc_impl") return
         if (ast.path == "array") return
         if (ast.path == "list") return
+        if (ast.path == "strict_equals") return
 
         for (parameter in parameters) {
             when (parameter.type) {

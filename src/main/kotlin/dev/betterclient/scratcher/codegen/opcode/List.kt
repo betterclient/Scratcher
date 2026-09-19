@@ -177,6 +177,21 @@ class ContainsItemInListOpcode(
     }
 }
 
+class ListContentsOpcode(
+    val list: ScratchList
+) : ScratchOpcode() {
+    override val asValue = ScratchString(this)
+    override val opcode = "data_listcontents"
+
+    override fun toJSON(base: JSONObject) {
+        base.put("inputs", JSONObject())
+        base.put("fields", JSONObject().put("LIST", JSONArray(listOf(
+            list.name,
+            list.id
+        ))))
+    }
+}
+
 class ClearListOpcode(
     val list: ScratchList
 ) : ScratchOpcode() {

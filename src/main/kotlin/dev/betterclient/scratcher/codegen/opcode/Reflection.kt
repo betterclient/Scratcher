@@ -39,3 +39,29 @@ class ReadVariable(val name: ScratchValue) : ScratchOpcode() {
         base.put("fields", JSONObject())
     }
 }
+
+class XPositionOfOpcode(val spriteName: ScratchValue) : ScratchOpcode() {
+    override val asValue = ScratchString(this)
+    override val opcode = "sensing_of"
+    val menu = SensingOfObjectMenuOpcode()
+
+    init {
+        takeOwnership(listOfNotNull(menu, spriteName.value))
+    }
+
+    override fun toJSON(base: JSONObject) {
+        base.put("fields", JSONObject().apply {
+            put("PROPERTY", JSONArray().let {
+                it.put("x position")
+                it.put(JSONObject.NULL)
+            })
+        })
+        base.put("inputs", JSONObject().apply {
+            put("OBJECT", if (spriteName.value != null) JSONArray().let {
+                it.put(3)
+                it.put(spriteName.value!!.id)
+                it.put(menu.id)
+            } else spriteName.toOperand())
+        })
+    }
+}

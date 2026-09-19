@@ -1,5 +1,6 @@
 import array;
 import extensions_internal as self;
+import case_sensitive_equals as uppercase_helper;
 import except::panic;
 
 //general
@@ -30,10 +31,27 @@ warp int str.length() {
 }
 
 warp char str.charAt(int index) {
-    return self::charAt(this, index);
+    return self::charAt(this, index + 1);
 }
 
 warp bool str.contains(str other) {
+    return true if(other.length() == 0);
+    return false if(other.length() > length());
+
+    int maxStart = length() - other.length();
+    int i = 0;
+
+    repeat(maxStart + 1) {
+        if(substring(i, i + other.length()) === other) {
+            return true;
+        }
+        i++;
+    }
+
+    return false;
+}
+
+warp bool str.containsIgnoreCase(str other) {
     return self::contains(this, other);
 }
 
@@ -60,10 +78,8 @@ warp str str.substringInclusive(int fromInclusive, int toInclusive) {
 }
 
 warp bool str.startsWith(str prefix) {
-    if(prefix.length() > length()) {
-        return false;
-    }
-    return substring(0, prefix.length()) == prefix;
+    return false if(prefix.length() > length());
+    return substring(0, prefix.length()) === prefix;
 }
 
 warp bool str.endsWith(str suffix) {
@@ -71,18 +87,22 @@ warp bool str.endsWith(str suffix) {
     if(offset < 0) {
         return false;
     }
-    return substring(offset, length()) == suffix;
+    return substring(offset, length()) === suffix;
 }
 
 warp int str.indexOf(char target) {
     int index = 0;
     repeat(length()) {
-        if(charAt(index) == target) {
+        if(charAt(index) === target) {
             return index;
         }
         index++;
     }
     return -1;
+}
+
+warp bool char.isUppercase() {
+    return uppercase_helper::isUppercase(this);
 }
 
 //arrays

@@ -103,7 +103,7 @@ warp void markType(int addr, str type) {
 
     mark(addr);
 
-    return if(type.contains("n"));
+    return if(type.containsIgnoreCase("n"));
     return if(type == "p");
 
     if(type == "?") {
@@ -115,7 +115,7 @@ warp void markType(int addr, str type) {
 
     return if(cast::toStr(self::getHeap(addr)) == "null");
 
-    if(type.contains("l")) {
+    if(type.containsIgnoreCase("l")) {
         markList(self::getHeap(addr), type);
     } else {
         markStruct(self::getHeap(addr), type);
@@ -135,7 +135,7 @@ warp void markList(int addr, str type) {
 
     //substring(1, length)
     //^^^ remove first letter
-    int index = 2;
+    int index = 1;
     str out = "";
     repeat(type.length() - 1) {
         out = out.concat(type.charAt(index));
@@ -214,7 +214,7 @@ warp void markTopLevels() {
         str obj = self::getReflect(index);
         if(index % 2 == 0) {
             int addr = self::reflect(obj);
-            if(currentType.contains("l")) {
+            if(currentType.containsIgnoreCase("l")) {
                 markList(addr, currentType);
             } else {
                 markStruct(addr, currentType);

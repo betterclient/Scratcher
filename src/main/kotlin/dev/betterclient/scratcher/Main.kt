@@ -29,7 +29,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("test/static_list.sc"))
+    val (ast, context) = compile(File("test/docs_test.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }

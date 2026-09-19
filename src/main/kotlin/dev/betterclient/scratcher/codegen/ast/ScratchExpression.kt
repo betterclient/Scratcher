@@ -21,6 +21,7 @@ import dev.betterclient.scratcher.codegen.opcode.JoinOpcode
 import dev.betterclient.scratcher.codegen.opcode.LengthOfListOpcode
 import dev.betterclient.scratcher.codegen.opcode.LengthOpcode
 import dev.betterclient.scratcher.codegen.opcode.LetterOfOpcode
+import dev.betterclient.scratcher.codegen.opcode.ListContentsOpcode
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.codegen.opcode.MathOpOpcode
 import dev.betterclient.scratcher.codegen.opcode.ModOpcode
@@ -32,6 +33,7 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.SubtractOpcode
 import dev.betterclient.scratcher.codegen.opcode.UsernameOpcode
+import dev.betterclient.scratcher.codegen.opcode.XPositionOfOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchValue
@@ -132,6 +134,7 @@ object SensingExpressions {
         class CalendarData(val data: CalendarMenu) : SensingData({ CurrentCalendar(data) })
         object DaysSince2000 : SensingData(::DaysSince2000Opcode)
         object Username : SensingData(::UsernameOpcode)
+        class XPositionOf(val data: ScratchExpression) : SensingData({ XPositionOfOpcode(data.lower()) })
     }
 
     class SenseExpression(val data: SensingData) : ScratchExpression() {
@@ -162,6 +165,10 @@ object ListExpressions {
 
     class ContainsItemInList(val list: ScratchList, val item: ScratchExpression) : ScratchBoolExpression() {
         override fun lower() = ContainsItemInListOpcode(list, item.lower()).asValue
+    }
+
+    class ListContents(val list: ScratchList) : ScratchExpression() {
+        override fun lower() = ListContentsOpcode(list).asValue
     }
 
     class Variable(val variable: ScratchVariable) : ScratchExpression() {

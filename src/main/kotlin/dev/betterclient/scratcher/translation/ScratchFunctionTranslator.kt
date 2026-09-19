@@ -261,6 +261,8 @@ class ScratchFunctionTranslator(
                 operand2 = translateExpr(expr.right).asBool(),
                 operator = SBoolOperator.OR
             )
+
+            BinaryOperator.STRICT_EQUAL, BinaryOperator.STRICT_NOT_EQUAL -> throw UnreachableException()
         }
     }
 

@@ -208,6 +208,18 @@ sealed interface DSLListExprs {
             ListStatements.DeleteItem(this, index.lower())
         )
     }
+
+    fun ScratchList.indexOf(item: DSLExpression): DSLExpression {
+        return DSLFromCreator {
+            ListExpressions.IndexOfItemInList(this, item.lower())
+        }
+    }
+
+    fun ScratchList.asString(): DSLExpression {
+        return DSLFromCreator {
+            ListExpressions.ListContents(this)
+        }
+    }
 }
 
 @StandardLibraryScratchDSL

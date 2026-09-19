@@ -130,6 +130,8 @@ object ExpressionTypes {
             BinaryOperator.LESS_EQUAL,
             BinaryOperator.GREATER_EQUAL,
             BinaryOperator.EQUAL,
+            BinaryOperator.STRICT_EQUAL,
+            BinaryOperator.STRICT_NOT_EQUAL,
             BinaryOperator.NOT_EQUAL,
             BinaryOperator.AND,
             BinaryOperator.OR -> PrimitiveType.Bool

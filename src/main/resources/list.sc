@@ -92,7 +92,7 @@ warp <T> bool List<T>.remove(T item) {
     int foundIndex = -1;
 
     repeat(this.length) {
-        if(foundIndex == -1 && this.ptr[index] == item) {
+        if(foundIndex == -1 && this.ptr[index] === item) {
             foundIndex = index;
         }
         index++;
@@ -215,7 +215,7 @@ warp <T> bool List<T>.all((T) -> bool action) {
 
 warp <T> bool List<T>.contains(T item) {
     for(auto t in this) {
-        return true if(t == item);
+        return true if(t === item);
     }
     return false;
 }
@@ -223,7 +223,7 @@ warp <T> bool List<T>.contains(T item) {
 warp <T> int List<T>.indexOf(T item) {
     int index = 0;
     for(auto t in this) {
-        return index if(t == item);
+        return index if(t === item);
         index++;
     }
     return -1;

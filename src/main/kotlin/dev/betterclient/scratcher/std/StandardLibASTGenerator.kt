@@ -31,6 +31,7 @@ object StandardLibASTGenerator {
     const val GC_LIB_NAME = "gc_impl"
     private var editor: ScratchEditor? = null
     fun init(editor: ScratchEditor) {
+        CaseSensitiveLib.init(caseSensitiveLib, editor)
         ExceptionLib.init(exceptLib, editor)
         MemoryLib.init(memoryLib, editor)
         LooksLib.init(looksLib)
@@ -43,9 +44,11 @@ object StandardLibASTGenerator {
         UtilsLib.init(utilsLib)
         StringBoxing.init()
         ArrayLib.init(arrayInternalLib, editor)
+        ExtensionsInternalLib.init(extensionsInternalLib)
+        strict_equals
+
         array
         list.value
-        ExtensionsInternalLib.init(extensionsInternalLib)
         extensionsLib
 
         this.editor = editor
@@ -63,6 +66,7 @@ object StandardLibASTGenerator {
     val utilsLib = ASTFile("utils")
     val arrayInternalLib = ASTFile("array_internal")
 
+    val caseSensitiveLib = ASTFile("case_sensitive_equals")
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
     val dynamicDispatchLib = ASTFile("dynamic_dispatch")
@@ -99,7 +103,8 @@ object StandardLibASTGenerator {
         "gc_internal" to gcInternalsLib,
         "ref_count_gc" to refCountGC,
         "gc" to gcLib,
-        "lambda" to lambdaLib
+        "lambda" to lambdaLib,
+        "case_sensitive_equals" to caseSensitiveLib
     )
 
     val memLib = ASTFile("mem").also {
@@ -162,6 +167,15 @@ object StandardLibASTGenerator {
         }
     }
 
+    val strict_equals by lazy {
+        bypassRestrictions = true
+        val out = compile("/strict_equals.sc", "strict_equals").also {
+            lib["strict_equals"] = it
+        }
+        bypassRestrictions = false
+        out
+    }
+
     val rawLibs by lazy {
         listOf(typeChecker, triangle, compactIntList)
     }
@@ -179,7 +193,9 @@ object StandardLibASTGenerator {
                 library == refCountGC ||
                 library == lambdaLib ||
                 library == extensionsInternalLib ||
-                library == arrayInternalLib
+                library == arrayInternalLib ||
+                library == caseSensitiveLib ||
+                library.path == "strict_equals"
     }
 
     fun isStandardLib(function: Function): Boolean {

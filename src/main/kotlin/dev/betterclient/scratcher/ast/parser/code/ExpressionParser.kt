@@ -72,6 +72,7 @@ class ExpressionParser(
                 right = parseExpression(ctx.expression(1)!!)
             )
             is ScratcherLangParser.EqExprContext -> parseEqExpr(ctx)
+            is ScratcherLangParser.ExactEqualsExprContext -> parseExactEqualsExpr(ctx)
             is ScratcherLangParser.AndExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = BinaryOperator.AND,
@@ -147,6 +148,42 @@ class ExpressionParser(
         }
 
         return StringBoxing.autoConvert(expr, expectedType)
+    }
+
+    private fun parseExactEqualsExpr(ctx: ScratcherLangParser.ExactEqualsExprContext): Expression {
+        val isEq = ctx.EXACT_EQUALS() != null
+        val strictOp = if (isEq) BinaryOperator.STRICT_EQUAL else BinaryOperator.STRICT_NOT_EQUAL
+        val normalOp = if (isEq) BinaryOperator.EQUAL else BinaryOperator.NOT_EQUAL
+
+        val left = parseExpression(ctx.expression(0)!!)
+        val right = parseExpression(ctx.expression(1)!!)
+        val lt = ExpressionTypes.getExpressionType(left)
+        val rt = ExpressionTypes.getExpressionType(right)
+
+        val directComp = listOf(PrimitiveType.Str, PrimitiveType.Char)
+
+        if (lt.asNonNull() !in directComp && rt.asNonNull() !in directComp)
+            return BinaryExpression(left, normalOp, right)
+        if (lt.asNonNull() in directComp && rt.asNonNull() in directComp)
+            return BinaryExpression(left, strictOp, right)
+
+        val sb = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }
+            ?: return BinaryExpression(left, normalOp, right)
+
+        val lb = isStringBox(lt, sb)
+        val rb = isStringBox(rt, sb)
+
+        if (lb || rb) {
+            val boxExpr = if (lb) left else right
+            val strExpr = if (lb) right else left
+            return bindBoxOnce(boxExpr) { b ->
+                val u = unboxStringBox(b, sb)
+                if (isEq) and(neq(b, NullExpression), BinaryExpression(u, strictOp, strExpr))
+                else or(eq(b, NullExpression), BinaryExpression(u, strictOp, strExpr))
+            }
+        }
+
+        return BinaryExpression(left, normalOp, right)
     }
 
     private fun parseArrayExpr(ctx: ScratcherLangParser.NewArrayExprContext, expectedType: Type?): Expression {

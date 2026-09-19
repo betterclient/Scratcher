@@ -35,6 +35,8 @@ object ConstantFolding : Optimization("Constant Folding") {
                         BinaryOperator.GREATER_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_EQUAL)
                         BinaryOperator.EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.EQUAL)
                         BinaryOperator.NOT_EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.NOT_EQUAL)
+                        BinaryOperator.STRICT_EQUAL -> foldStrictEqual(left, right, false)
+                        BinaryOperator.STRICT_NOT_EQUAL -> foldStrictEqual(left, right, true)
                         BinaryOperator.AND -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.AND)
                         BinaryOperator.OR -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.OR)
                     }
@@ -60,8 +62,20 @@ object ConstantFolding : Optimization("Constant Folding") {
             }
 
             override fun visitConcatExpression(left: Expression, right: Expression): Expression {
-                val leftAsStr = (left as? StringLiteral)?.value
-                val rightAsStr = (right as? StringLiteral)?.value
+                fun Literal.toStr(): String? = when(this) {
+                    is BooleanLiteral -> this.value.toString()
+                    is CharLiteral -> this.value.toString()
+                    is FloatLiteral -> this.value.toString()
+                    is IntLiteral -> this.value.toString()
+                    is StringLiteral -> this.value
+                    NullExpression -> "null"
+                    is EnumLiteral -> null
+                    is FunctionLiteral -> null
+                    is TypeLiteral -> null
+                }
+
+                val leftAsStr = (left as? Literal)?.toStr()
+                val rightAsStr = (right as? Literal)?.toStr()
 
                 if (leftAsStr != null && rightAsStr != null) {
                     return StringLiteral(leftAsStr + rightAsStr)
@@ -102,7 +116,16 @@ object ConstantFolding : Optimization("Constant Folding") {
                 leftValue.compareTo(rightValue) == 0
             }
             left is StringLiteral && right is StringLiteral -> {
-                left.value == right.value
+                left.value.equals(right.value, ignoreCase = true)
+            }
+            left is StringLiteral && right is CharLiteral -> {
+                left.value.equals(right.value.toString(), ignoreCase = true)
+            }
+            left is CharLiteral && right is CharLiteral -> {
+                left.value.equals(right.value, ignoreCase = true)
+            }
+            left is CharLiteral && right is StringLiteral -> {
+                left.value.toString().equals(right.value, ignoreCase = true)
             }
             else -> {
                 left == right
@@ -170,5 +193,27 @@ object ConstantFolding : Optimization("Constant Folding") {
             BinaryOperator.OR -> leftValue || rightValue
             else -> throw UnreachableException()
         })
+    }
+
+    private fun foldStrictEqual(left: Literal, right: Literal, negate: Boolean): BooleanLiteral {
+        return BooleanLiteral(
+            when (left) {
+                is StringLiteral if right is StringLiteral -> {
+                    left.value == right.value
+                }
+                is StringLiteral if right is CharLiteral -> {
+                    left.value == right.value.toString()
+                }
+                is CharLiteral if right is CharLiteral -> {
+                    left.value == right.value
+                }
+                is CharLiteral if right is StringLiteral -> {
+                    left.value.toString() == right.value
+                }
+                else -> throw UnreachableException()
+            }.let {
+                if (negate) !it else it
+            }
+        )
     }
 }

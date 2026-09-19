@@ -184,6 +184,7 @@ expression
     | expression (PLUS | MINUS) expression              # addExpr
     | expression (LT | GT | LE | GE) expression         # relExpr
     | expression (EQ | NE) expression                   # eqExpr
+    | expression (EXACT_EQUALS | EXACT_NE) expression   # exactEqualsExpr
     | expression AND expression                         # andExpr
     | expression OR expression                          # orExpr
     | <assoc=right> expression ELVIS expression         # nonNullOrElse

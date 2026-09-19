@@ -52,7 +52,9 @@ enum class BinaryOperator(val symbol: String) {
     EQUAL("=="),
     NOT_EQUAL("!="),
     AND("&&"),
-    OR("||")
+    OR("||"),
+    STRICT_EQUAL("==="),
+    STRICT_NOT_EQUAL("!==")
 }
 
 data class BinaryExpression(

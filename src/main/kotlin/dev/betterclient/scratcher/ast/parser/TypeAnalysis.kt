@@ -504,6 +504,14 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
             }
 
+            BinaryOperator.STRICT_EQUAL,
+            BinaryOperator.STRICT_NOT_EQUAL -> {
+                val allowed = listOf(PrimitiveType.Str, PrimitiveType.Char)
+                if (leftType !in allowed || rightType !in allowed) {
+                    throw TypeAnalysisException("Strict equals is only between strings/chars, found $leftType === $rightType")
+                } else PrimitiveType.Bool
+            }
+
             BinaryOperator.AND,
             BinaryOperator.OR -> {
                 if (leftType == PrimitiveType.Bool && rightType == PrimitiveType.Bool) {

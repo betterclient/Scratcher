@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.codegen
 
 import dev.betterclient.scratcher.codegen.ast.ScratchASTEventListener
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
+import dev.betterclient.scratcher.codegen.ast.ScratchSprite
 import dev.betterclient.scratcher.codegen.ast.compile
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
@@ -76,6 +77,12 @@ value class ScratchEditor(private val editor: JSONEditor) {
         func.internal.first = compile(func.code)
         func.internal.parent.next = func.internal.first
         addFunction(func.internal)
+    }
+
+    fun addSprite(sprite: ScratchSprite) {
+        val targets = editor.project.getJSONArray("targets")
+        val layerOrder = targets.length()
+        targets.put(sprite.toJson(layerOrder))
     }
 
     fun addEventListener(listener: ScratchASTEventListener) {
