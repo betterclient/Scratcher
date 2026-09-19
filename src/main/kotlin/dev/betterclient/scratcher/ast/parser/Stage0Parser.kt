@@ -14,8 +14,8 @@ import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import org.antlr.v4.kotlinruntime.tree.TerminalNode
+import org.json.JSONArray
 import java.io.File
-import kotlin.collections.set
 
 class CompilationContext {
     fun generateGCNames() {
@@ -61,6 +61,45 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
     fun read(): ASTFile {
         val ast = ASTFile(fullPath)
         ctx.asts[fullPath] = ast
+
+        //get these out of the way
+        for (context in initialRead.topLevelElement().filter { it.tlListDecl() != null }) {
+            val list = context.tlListDecl()!!
+            val isPrivate = list.PRIVATE() != null
+            val staticList = TLStaticList(
+                name = list.IDENTIFIER().text,
+                sourceAST = ast,
+                private = isPrivate
+            )
+
+            list.plainStringLiteral()?.let {
+                val relPath = it.text.removeSurrounding("\"")
+                val currentFile = File(fullPath).absoluteFile
+                val jsonFile = File(currentFile.parentFile, relPath).canonicalFile
+
+                if (!jsonFile.exists()) {
+                    throw NotFoundException("JSON file not found at ${jsonFile.absolutePath}")
+                }
+
+                try {
+                    val jsonArray = JSONArray(jsonFile.readText())
+                    jsonArray.forEach { any ->
+                        staticList.scratchList.items.add(any.toString())
+                    }
+                    if (staticList.scratchList.items.size > 200_000) {
+                        println("WARN: ${ast.simplePath}::${staticList.name} contains more than 200k elements, you might not be able to add items to this list in vanilla scratch.")
+                    }
+                } catch (e: Exception) {
+                    throw GeneralCompilerException("Failed to parse JSON array from ${jsonFile.name}: ${e.message}")
+                }
+            }
+
+            ast.staticLists.find { it.name == staticList.name }?.let {
+                throw DuplicateDefinitionException("Duplicate static list definition ${ast.simplePath}::${it.name}")
+            }
+
+            ast.staticLists.add(staticList)
+        }
 
         //first read for types
         for (context in initialRead.topLevelElement().filter { it.structDecl() != null }) {
@@ -319,6 +358,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 if (ast.variables.find { it.name == astVariable.name } != null) {
                     throw DuplicateDefinitionException("Duplicate variable definition ${astVariable.name}")
                 }
+                if (ast.staticLists.find { it.name == astVariable.name } != null) {
+                    throw DuplicateDefinitionException("Top-level variable ${ast.simplePath}::${astVariable.name} conflicts with static list of the same name")
+                }
 
                 ast.variables.add(astVariable)
             } else if (context.eventDecl() != null) {
@@ -461,7 +503,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             source.enums.any { it.name == name && !it.private } ||
             source.sealedEnums.any { it.name == name && !it.private } ||
             source.sealedEnumTemplates.any { it.name == name && !it.private } ||
-            source.variables.any { it.name == name && !it.private }
+            source.variables.any { it.name == name && !it.private } ||
+            source.staticLists.any { it.name == name && !it.private }
 
         if (!found) {
             val available = (
@@ -472,7 +515,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 source.enums.filter { !it.private }.map { it.name } +
                 source.sealedEnums.filter { !it.private }.map { it.name } +
                 source.sealedEnumTemplates.filter { !it.private }.map { it.name } +
-                source.variables.filter { !it.private }.map { it.name }
+                source.variables.filter { !it.private }.map { it.name } +
+                source.staticLists.filter { it.name == name && !it.private }
             ).distinct().take(10).joinToString(", ")
             throw NotFoundException(
                 "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +

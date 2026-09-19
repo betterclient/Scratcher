@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
 import dev.betterclient.scratcher.ast.Statement
+import dev.betterclient.scratcher.ast.TLStaticList
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
@@ -14,12 +15,13 @@ import dev.betterclient.scratcher.optimize.visit
 
 class FunctionReachability(val entrypoints: List<ASTEventListener>) {
 
-    fun run(startAST: ASTFile): Pair<MutableList<Function>, Map<TLVariable, Expression?>> {
+    fun run(startAST: ASTFile): Triple<MutableList<Function>, Map<TLVariable, Expression?>, List<TLStaticList>> {
         val visitedFunctions = mutableSetOf<Function>()
         val visitedVariables = mutableSetOf<TLVariable>()
 
         val functionQueue = ArrayDeque<Function>()
         val variableQueue = ArrayDeque<TLVariable>()
+        val reachableLists = mutableListOf<TLStaticList>()
 
         fun enqueueFunction(func: Function) {
             if (func is InlineStandardLibFunction) return
@@ -60,6 +62,59 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                 enqueueVariable(variable)
                 return super.visitVariableExpression(variable, sourceAST)
             }
+
+            override fun visitStaticListAddStatement(list: TLStaticList, item: Expression): Statement? {
+                reachableLists.add(list)
+                return super.visitStaticListAddStatement(list, item)
+            }
+
+            override fun visitStaticListClearStatement(list: TLStaticList): Statement? {
+                reachableLists.add(list)
+                return super.visitStaticListClearStatement(list)
+            }
+
+            override fun visitStaticListContainsExpression(list: TLStaticList, item: Expression): Expression {
+                reachableLists.add(list)
+                return super.visitStaticListContainsExpression(list, item)
+            }
+
+            override fun visitStaticListInsertStatement(
+                list: TLStaticList,
+                index: Expression,
+                value: Expression
+            ): Statement? {
+                reachableLists.add(list)
+                return super.visitStaticListInsertStatement(list, index, value)
+            }
+
+            override fun visitStaticListItemExpression(list: TLStaticList, item: Expression): Expression {
+                reachableLists.add(list)
+                return super.visitStaticListItemExpression(list, item)
+            }
+
+            override fun visitStaticListItemIndexExpression(list: TLStaticList, item: Expression): Expression {
+                reachableLists.add(list)
+                return super.visitStaticListItemIndexExpression(list, item)
+            }
+
+            override fun visitStaticListLengthExpression(list: TLStaticList): Expression {
+                reachableLists.add(list)
+                return super.visitStaticListLengthExpression(list)
+            }
+
+            override fun visitStaticListRemoveStatement(list: TLStaticList, index: Expression): Statement? {
+                reachableLists.add(list)
+                return super.visitStaticListRemoveStatement(list, index)
+            }
+
+            override fun visitStaticListSetStatement(
+                list: TLStaticList,
+                index: Expression,
+                item: Expression
+            ): Statement? {
+                reachableLists.add(list)
+                return super.visitStaticListSetStatement(list, index, item)
+            }
         }
 
         entrypoints.forEach { entrypoint ->
@@ -94,6 +149,6 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
             }
         }
 
-        return visitedFunctions.toMutableList() to visitedVariables.associateWith { it.defaultValue }
+        return Triple(visitedFunctions.toMutableList(), visitedVariables.associateWith { it.defaultValue }, reachableLists.distinct())
     }
 }

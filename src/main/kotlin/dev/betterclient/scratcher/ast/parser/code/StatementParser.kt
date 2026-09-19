@@ -27,7 +27,7 @@ class StatementParser(
 
                 if (resolvedType == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${parser.currentFunction?.name}")
                 val variable = LocalVariable(name, resolvedType)
-                if (variable.type == PrimitiveType.Void) throw VoidVariableException("Variable ${ast.simplePath}::${parser.currentFunction?.name}::${variable.name} is type void.")
+                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) throw VoidVariableException("Variable ${ast.simplePath}::${parser.currentFunction?.name}::${variable.name} is type void.")
                 if (parser.localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${parser.currentFunction?.name}")
                 parser.localVariables.add(variable)
                 VariableStatement(value, variable)
@@ -37,6 +37,12 @@ class StatementParser(
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
+                if (list is StaticListExpression) {
+                    return ExpressionStatement(
+                        parser.functionResolver.resolveStaticListFunction(list, "set", listOf(index, item))
+                    )
+                }
+
                 val type = ExpressionTypes.getExpressionType(list)
                 val call = parser.functionResolver.resolveReceiverFunction(list, "set", listOf(index, item), filter = { it.operator })
                     ?: throw NotFoundException("Cannot resolve $type.set(${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")

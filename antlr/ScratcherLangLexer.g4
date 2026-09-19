@@ -22,6 +22,7 @@ IS : 'is';
 WHEN   : 'when';
 BREAK : 'break';
 CONTINUE : 'continue';
+STATIC : 'static';
 
 INT_TYPE   : 'int';
 FLOAT_TYPE : 'float';

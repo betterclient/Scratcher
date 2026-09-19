@@ -91,6 +91,26 @@ class ScratchFunctionTranslator(
                 translateExpr(stmt.assignment)
             )
 
+            is StaticListSetStatement -> ListStatements.ReplaceItem(
+                list = stmt.list.scratchList,
+                item = translateExpr(stmt.value),
+                index = translateExpr(stmt.index)
+            )
+            is StaticListAddStatement -> ListStatements.AddToList(
+                list = stmt.list.scratchList,
+                item = translateExpr(stmt.item),
+            )
+            is StaticListInsertStatement -> ListStatements.InsertItem(
+                list = stmt.list.scratchList,
+                index = translateExpr(stmt.index),
+                item = translateExpr(stmt.value)
+            )
+            is StaticListClearStatement -> ListStatements.ClearList(stmt.list.scratchList)
+            is StaticListRemoveStatement -> ListStatements.DeleteItem(
+                list = stmt.list.scratchList,
+                index = translateExpr(stmt.index)
+            )
+
             is VariableAssignmentStatement, is VariableStatement, is LocalVariableAssignmentStatement, is ExpressionStatement, is CompositeStatement, is BreakStatement, is ContinueStatement -> throw UnreachableException()
         }
         return listOf(single)
@@ -130,6 +150,21 @@ class ScratchFunctionTranslator(
                 val args = expr.inputExprs.map { translateExpr(it) }
                 expr.expression(args)
             }
+            is StaticListItemExpression -> ListExpressions.ItemAtIndex(
+                list = expr.list.scratchList,
+                index = translateExpr(expr.index)
+            )
+            is StaticListLengthExpression -> ListExpressions.LengthOfList(
+                list = expr.list.scratchList
+            )
+            is StaticListContainsExpression -> ListExpressions.ContainsItemInList(
+                list = expr.list.scratchList,
+                item = translateExpr(expr.item)
+            )
+            is StaticListItemIndexExpression -> ListExpressions.IndexOfItemInList(
+                list = expr.list.scratchList,
+                item = translateExpr(expr.item)
+            )
 
             is CallExpression,
             is LambdaExpression,
@@ -149,6 +184,7 @@ class ScratchFunctionTranslator(
             is CheckSealedEnumTypeExpression,
             is SealedEnumCastExpression,
             is SealedEnumConstructionExpression,
+            is StaticListExpression,
             is NonNullAssertExpression -> throw UnreachableException("$expr")
         }
     }

@@ -69,10 +69,25 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
                 is TLVariableAssignmentStatement -> generate(stmt.assignment, out)
                 is VariableAssignmentStatement -> generate(stmt.assignment, out)
                 is VariableStatement -> stmt.defaultValue?.let { generate(it, out) }
+                is StaticListSetStatement -> {
+                    generate(stmt.index, out)
+                    generate(stmt.value, out)
+                }
+                is StaticListAddStatement -> {
+                    generate(stmt.item, out)
+                }
+                is StaticListInsertStatement -> {
+                    generate(stmt.index, out)
+                    generate(stmt.value, out)
+                }
+                is StaticListRemoveStatement -> {
+                    generate(stmt.index, out)
+                }
 
                 is ContinueStatement -> {}
                 is BreakStatement -> {}
                 is TemporaryStatement -> {}
+                is StaticListClearStatement -> {}
             }
         }
     }
@@ -138,11 +153,16 @@ class CallGraph(val context: CallGraphContext, val ast: ASTFile) {
             is SealedEnumConstructionExpression -> {
                 expr.arguments.forEach { generate(it, out) }
             }
+            is StaticListItemExpression -> generate(expr.index, out)
+            is StaticListContainsExpression -> generate(expr.item, out)
+            is StaticListItemIndexExpression -> generate(expr.item, out)
             is Literal -> {}
             is LocalVariableExpression -> {}
             is ParameterExpression -> {}
             is VariableExpression -> {}
             is TemporaryExpression -> {}
+            is StaticListExpression -> {}
+            is StaticListLengthExpression -> {}
         }
     }
 }

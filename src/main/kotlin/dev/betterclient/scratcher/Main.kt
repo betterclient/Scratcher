@@ -29,7 +29,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("test/helloworld.sc"))
+    val (ast, context) = compile(File("test/static_list.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }
@@ -58,18 +58,19 @@ fun main() {
     if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Exports")
-    val (postReachableFuncs, reachableTopLevelVariables) = FunctionReachability(reachableEntrypoints).run(ast)
+    val (postReachableFuncs, reachableTopLevelVariables, reachableLists) = FunctionReachability(reachableEntrypoints).run(ast)
     reachableFunctions.clear()
     reachableFunctions.addAll(postReachableFuncs)
     TranslateExports(reachableFunctions, reachableEntrypoints).run()
 
     println("Top level variables")
+    reachableLists.forEach { editor.addList(it.scratchList) }
     reachableTopLevelVariables.forEach { (variable, _) -> variable.defaultValue = null }
 
     val topLevelTranslator = TopLevelVariableTranslator()
     val scratchTopLevels = mutableMapOf<TLVariable, ScratchVariable>()
 
-    val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables)
+    val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables, reachableLists)
     reachableFunctions.add(topLevelInit)
 
     StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)

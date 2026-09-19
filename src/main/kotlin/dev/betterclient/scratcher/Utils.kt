@@ -87,4 +87,10 @@ internal val Expression.simple: Boolean
         is CheckSealedEnumTypeExpression -> this.expr.simple
         is SealedEnumCastExpression -> this.safe && this.expr.simple
         is SealedEnumConstructionExpression -> false
+
+        is StaticListExpression -> false
+        is StaticListLengthExpression -> true
+        is StaticListItemExpression -> this.index.simple
+        is StaticListContainsExpression -> this.item.simple
+        is StaticListItemIndexExpression -> this.item.simple
     }

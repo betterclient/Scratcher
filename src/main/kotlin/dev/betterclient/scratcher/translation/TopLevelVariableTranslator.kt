@@ -15,7 +15,7 @@ class TopLevelVariableTranslator {
         return ScratchVariable(obfuscate("${variable.sourceAST.simplePath}::${variable.name}"))
     }
 
-    fun createFunction(vars: Map<TLVariable, Expression?>): Function {
+    fun createFunction(vars: Map<TLVariable, Expression?>, reachableLists: List<TLStaticList>): Function {
         val func = Function(
             name = "initTopLevel",
             returnType = PrimitiveType.Void,
@@ -45,6 +45,11 @@ class TopLevelVariableTranslator {
                     TLVariableAssignmentStatement(variable, variable.sourceAST, value)
                 )
             }
+        }
+
+        reachableLists.forEach {
+            if (it.scratchList.items.isEmpty())
+                func.code.code.add(StaticListClearStatement(it))
         }
 
         return func

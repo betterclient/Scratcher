@@ -132,6 +132,29 @@ data class SealedEnumConstructionExpression(
     val arguments: List<Expression>
 ) : Expression()
 
+data class StaticListItemExpression(
+    val list: TLStaticList,
+    val index: Expression
+) : Expression()
+
+data class StaticListLengthExpression(
+    val list: TLStaticList
+) : Expression()
+
+data class StaticListExpression(
+    val list: TLStaticList
+) : Expression()
+
+data class StaticListContainsExpression(
+    val list: TLStaticList,
+    val item: Expression
+) : Expression()
+
+data class StaticListItemIndexExpression(
+    val list: TLStaticList,
+    val item: Expression
+) : Expression()
+
 sealed class Literal : Expression()
 data class IntLiteral(val value: BigInteger) : Literal()
 data class FloatLiteral(val value: BigDecimal) : Literal()

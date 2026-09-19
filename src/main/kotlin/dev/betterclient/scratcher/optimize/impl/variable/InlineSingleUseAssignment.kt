@@ -240,8 +240,23 @@ class InlineSingleUseAnalysis {
                 exprVisitor.visit(stmt.data)
             }
             is TemporaryScratchStmt -> stmt.inputExprs.forEach { exprVisitor.visit(it) }
+            is StaticListSetStatement -> {
+                exprVisitor.visit(stmt.index)
+                exprVisitor.visit(stmt.value)
+            }
+            is StaticListAddStatement -> {
+                exprVisitor.visit(stmt.item)
+            }
+            is StaticListInsertStatement -> {
+                exprVisitor.visit(stmt.index)
+                exprVisitor.visit(stmt.value)
+            }
+            is StaticListRemoveStatement -> {
+                exprVisitor.visit(stmt.index)
+            }
             is BreakStatement -> {}
             is ContinueStatement -> {}
+            is StaticListClearStatement -> {}
         }
     }
 
@@ -297,6 +312,9 @@ class InlineSingleUseAnalysis {
             is NonNullOrElseExpression -> operand1.dependsOn(variable) || operand2.dependsOn(variable)
             is TemporaryHeapGetExpression -> index.dependsOn(variable)
             is TemporaryScratchExpr -> inputExprs.any { it.dependsOn(variable) }
+            is StaticListItemExpression -> index.dependsOn(variable)
+            is StaticListItemIndexExpression -> item.dependsOn(variable)
+            is StaticListContainsExpression -> item.dependsOn(variable)
             else -> false
         }
     }
@@ -321,9 +339,14 @@ class InlineSingleUseAnalysis {
             is TemporaryHeapSetStatement -> stmt.index.dependsOn(variables) || stmt.data.dependsOn(variables)
             is TemporaryScratchStmt -> stmt.inputExprs.any { it.dependsOn(variables) }
             is CompositeStatement -> stmt.statements.any { stmtDependsOn(it, variables) }
+            is StaticListSetStatement -> stmt.index.dependsOn(variables) || stmt.value.dependsOn(variables)
+            is StaticListAddStatement -> stmt.item.dependsOn(variables)
+            is StaticListInsertStatement -> stmt.index.dependsOn(variables) || stmt.value.dependsOn(variables)
+            is StaticListRemoveStatement -> stmt.index.dependsOn(variables)
 
             is BreakStatement -> false
             is ContinueStatement -> false
+            is StaticListClearStatement -> false
         }
     }
 
@@ -375,8 +398,20 @@ class InlineSingleUseAnalysis {
             is TemporaryScratchStmt -> stmt.inputExprs.forEach { visitExpr(modified, it) }
             is CompositeStatement -> stmt.statements.forEach { visitStmt(modified, it) }
             is ReturnStatement -> stmt.expression?.let { visitExpr(modified, it) }
+            is StaticListAddStatement -> visitExpr(modified, stmt.item)
+            is StaticListRemoveStatement -> visitExpr(modified, stmt.index)
+            is StaticListSetStatement -> {
+                visitExpr(modified, stmt.index)
+                visitExpr(modified, stmt.value)
+            }
+            is StaticListInsertStatement -> {
+                visitExpr(modified, stmt.index)
+                visitExpr(modified, stmt.value)
+            }
+
             is BreakStatement -> {}
             is ContinueStatement -> {}
+            is StaticListClearStatement -> {}
         }
     }
 

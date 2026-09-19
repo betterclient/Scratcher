@@ -99,6 +99,32 @@ auto addedTogether = list1 + list2;
 ```
 int[] myNewArray = myList.toArray();
 ```
+## Static lists
+- Static lists are collections that are stored outside the heap.
+- You use them when your app needs bigger lists without wasting heap
+```
+static str[] myList;
+```
+- Use indexing operators
+```
+myList[1] = ...;
+say("${myList[1]}");
+```
+- Operations on the list:
+```
+list.add("hi");
+list.get(15); //or use the indexing operator
+list.set(15, "hi"); //or use the indexing operator
+list.clear();
+list.length();
+list.insert(5, "hi");
+list.indexOf("hi");
+list.remove(5);
+```
+Notes:
+- Static lists MUST be globals as they map directly to normal scratch lists.
+- Static lists DO NOT support being passed around. They must be static.
+- Static lists are 1-indexed. All other lists in scratcher are 0-indexed.
 
 ## Exercises
 - Take an array of 10 numbers, convert it to a `List`, filter out all odd numbers, and double the remaining ones.

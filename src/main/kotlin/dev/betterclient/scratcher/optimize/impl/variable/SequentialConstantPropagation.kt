@@ -105,7 +105,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
             }
         }
 
-        fun processStatement(statement: Statement): Statement? {
+        fun processStatement(statement: Statement): Statement {
             return when (statement) {
                 is ExpressionStatement -> {
                     val expr = propagate(statement.expression)
@@ -219,12 +219,26 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                 )
 
                 is CompositeStatement -> {
-                    val stmts = statement.statements.mapNotNull { processStatement(it) }
+                    val stmts = statement.statements.map { processStatement(it) }
                     CompositeStatement(stmts)
                 }
 
+                is StaticListSetStatement -> StaticListSetStatement(
+                    statement.list, propagate(statement.index), propagate(statement.value)
+                )
+                is StaticListAddStatement -> StaticListAddStatement(
+                    statement.list, propagate(statement.item)
+                )
+                is StaticListInsertStatement -> StaticListInsertStatement(
+                    statement.list, propagate(statement.index), propagate(statement.value)
+                )
+                is StaticListRemoveStatement -> StaticListRemoveStatement(
+                    statement.list, propagate(statement.index)
+                )
+
                 is BreakStatement -> BreakStatement()
                 is ContinueStatement -> ContinueStatement()
+                is StaticListClearStatement -> StaticListClearStatement(statement.list)
             }
         }
 

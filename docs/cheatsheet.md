@@ -201,6 +201,16 @@ Result<int, str> a = Result.Failure("hello world!");
 a is Result.Success
 (a as Result.Failure).error
 ```
+- Static lists
+```
+//only string is allowed
+static str[] myList;
+static str[] myList = "a.json"; //load data from a.json, which must contain a json array with strings
+
+//1-indexed unlike other collections
+myList[1] = "hi";
+myList.add("hello world");
+```
 
 ### Functions
 

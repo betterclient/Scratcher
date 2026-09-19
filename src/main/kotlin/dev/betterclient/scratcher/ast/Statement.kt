@@ -60,6 +60,32 @@ data class RepeatStatement(
 class BreakStatement : Statement()
 class ContinueStatement : Statement()
 
+data class StaticListSetStatement(
+    val list: TLStaticList,
+    val index: Expression,
+    val value: Expression
+) : Statement()
+
+data class StaticListAddStatement(
+    val list: TLStaticList,
+    val item: Expression
+) : Statement()
+
+data class StaticListRemoveStatement(
+    val list: TLStaticList,
+    val index: Expression
+) : Statement()
+
+data class StaticListClearStatement(
+    val list: TLStaticList
+) : Statement()
+
+data class StaticListInsertStatement(
+    val list: TLStaticList,
+    val index: Expression,
+    val value: Expression
+) : Statement()
+
 //ONLY USE FOR LOWERING PHASE
 sealed class TemporaryStatement : Statement()
 

@@ -1,7 +1,7 @@
 package dev.betterclient.scratcher.optimize.impl.expr
 
-import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.optimize.ASTVisitor
@@ -93,6 +93,11 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
             is CheckSealedEnumTypeExpression -> hasSideEffects(expr.expr)
             is SealedEnumCastExpression -> hasSideEffects(expr.expr)
             is SealedEnumConstructionExpression -> true
+            is StaticListExpression -> false
+            is StaticListItemExpression -> hasSideEffects(expr.index)
+            is StaticListLengthExpression -> false
+            is StaticListContainsExpression -> hasSideEffects(expr.item)
+            is StaticListItemIndexExpression -> hasSideEffects(expr.item)
         }
     }
 }

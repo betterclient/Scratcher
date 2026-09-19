@@ -83,6 +83,8 @@ sealed interface PrimitiveType : Type {
     object Null : PrimitiveType { override fun toString() = "null" }
     object Auto : PrimitiveType { override fun toString() = "auto" }
 
+    object StaticList : PrimitiveType { override fun toString() = "StaticList" }
+
     override fun toSafeString() = toString()
 }
 

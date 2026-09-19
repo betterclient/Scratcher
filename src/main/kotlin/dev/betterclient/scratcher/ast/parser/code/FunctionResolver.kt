@@ -13,11 +13,25 @@ import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.IntLiteral
 import dev.betterclient.scratcher.ast.LocalVariableExpression
 import dev.betterclient.scratcher.ast.NotFoundException
+import dev.betterclient.scratcher.ast.NullExpression
 import dev.betterclient.scratcher.ast.ParameterExpression
+import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.SimpleType
+import dev.betterclient.scratcher.ast.StatementExpression
+import dev.betterclient.scratcher.ast.StaticListAddStatement
+import dev.betterclient.scratcher.ast.StaticListClearStatement
+import dev.betterclient.scratcher.ast.StaticListContainsExpression
+import dev.betterclient.scratcher.ast.StaticListExpression
+import dev.betterclient.scratcher.ast.StaticListInsertStatement
+import dev.betterclient.scratcher.ast.StaticListItemExpression
+import dev.betterclient.scratcher.ast.StaticListItemIndexExpression
+import dev.betterclient.scratcher.ast.StaticListLengthExpression
+import dev.betterclient.scratcher.ast.StaticListRemoveStatement
+import dev.betterclient.scratcher.ast.StaticListSetStatement
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.ast.TypeLiteral
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import java.math.BigInteger
@@ -426,5 +440,84 @@ class FunctionResolver(
         }
 
         return null
+    }
+
+    fun resolveStaticListFunction(list: StaticListExpression, methodName: String, args: List<Expression>): Expression {
+        return when (methodName) {
+            "add" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
+                StatementExpression(
+                    statements = listOf(
+                        StaticListAddStatement(
+                            list = list.list,
+                            item = args[0]
+                        )
+                    ),
+                    expression = NullExpression
+                )
+            }
+
+            "get" if args.size == 1 && args[0].type == PrimitiveType.Integer -> {
+                StaticListItemExpression(list.list, args[0])
+            }
+
+            "set" if args.size == 2 && args[0].type == PrimitiveType.Integer && args[1].type == PrimitiveType.Str -> {
+                StatementExpression(
+                    statements = listOf(
+                        StaticListSetStatement(
+                            list = list.list,
+                            value = args[1],
+                            index = args[0]
+                        )
+                    ),
+                    expression = NullExpression
+                )
+            }
+
+            "clear" if args.isEmpty() -> {
+                StatementExpression(
+                    statements = listOf(StaticListClearStatement(list.list)),
+                    expression = NullExpression
+                )
+            }
+
+            "length" if args.isEmpty() -> {
+                StaticListLengthExpression(list.list)
+            }
+
+            "insert" if args.size == 2 && args[0].type == PrimitiveType.Integer && args[1].type == PrimitiveType.Str -> {
+                StatementExpression(
+                    statements = listOf(
+                        StaticListInsertStatement(
+                            list = list.list,
+                            value = args[1],
+                            index = args[0]
+                        )
+                    ),
+                    expression = NullExpression
+                )
+            }
+
+            "contains" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
+                StaticListContainsExpression(list.list, args[0])
+            }
+
+            "indexOf" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
+                StaticListItemIndexExpression(list.list, args[0])
+            }
+
+            "remove" if args.size == 1 && args[0].type == PrimitiveType.Integer -> {
+                StatementExpression(
+                    statements = listOf(
+                        StaticListRemoveStatement(
+                            list = list.list,
+                            index = args[0]
+                        )
+                    ),
+                    expression = NullExpression
+                )
+            }
+
+            else -> throw NotFoundException("No method $methodName that can operate on static lists.")
+        }
     }
 }

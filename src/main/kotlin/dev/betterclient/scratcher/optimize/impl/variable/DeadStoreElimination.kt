@@ -80,6 +80,11 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
             is CheckSealedEnumTypeExpression -> hasSideEffects(expr.expr)
             is SealedEnumCastExpression -> hasSideEffects(expr.expr)
             is SealedEnumConstructionExpression -> true
+            is StaticListExpression -> false
+            is StaticListItemExpression -> hasSideEffects(expr.index)
+            is StaticListLengthExpression -> false
+            is StaticListContainsExpression -> hasSideEffects(expr.item)
+            is StaticListItemIndexExpression -> hasSideEffects(expr.item)
         }
     }
 }

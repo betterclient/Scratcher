@@ -103,6 +103,11 @@ interface BaseStatementVisitor {
     fun visitTemporaryScratchStmt(inputExprs: List<Expression>, stmt: (List<ScratchExpression>) -> List<ScratchStatement>): Statement? = TemporaryScratchStmt(inputExprs, stmt)
     fun visitBreakStatement(): Statement? = BreakStatement()
     fun visitContinueStatement(): Statement? = ContinueStatement()
+    fun visitStaticListSetStatement(list: TLStaticList, index: Expression, item: Expression): Statement? = StaticListSetStatement(list, index, item)
+    fun visitStaticListAddStatement(list: TLStaticList, item: Expression): Statement? = StaticListAddStatement(list, item)
+    fun visitStaticListRemoveStatement(list: TLStaticList, index: Expression): Statement? = StaticListRemoveStatement(list, index)
+    fun visitStaticListClearStatement(list: TLStaticList): Statement? = StaticListClearStatement(list)
+    fun visitStaticListInsertStatement(list: TLStaticList, index: Expression, value: Expression): Statement? = StaticListInsertStatement(list, index, value)
 
     fun visitStatement(statement: Statement) {}
 }
@@ -140,6 +145,11 @@ interface BaseExpressionVisitor {
     fun visitCheckSealedEnumTypeExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression = CheckSealedEnumTypeExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag)
     fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int, safe: Boolean): Expression = SealedEnumCastExpression((this as ASTVisitor).visit(expr), targetVariant, sealedEnum, tag, safe)
     fun visitSealedEnumConstructionExpression(sealedEnum: SealedEnum, targetVariant: Struct, args: List<Expression>): Expression = SealedEnumConstructionExpression(sealedEnum, targetVariant, args.map { (this as ASTVisitor).visit(it) })
+    fun visitStaticListExpression(list: TLStaticList): Expression = StaticListExpression(list)
+    fun visitStaticListItemExpression(list: TLStaticList, item: Expression): Expression = StaticListItemExpression(list, item)
+    fun visitStaticListLengthExpression(list: TLStaticList): Expression = StaticListLengthExpression(list)
+    fun visitStaticListContainsExpression(list: TLStaticList, item: Expression): Expression = StaticListContainsExpression(list, item)
+    fun visitStaticListItemIndexExpression(list: TLStaticList, item: Expression): Expression = StaticListItemIndexExpression(list, item)
 
     fun visitExpr(expression: Expression) {}
 }
@@ -218,6 +228,11 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is CheckSealedEnumTypeExpression -> this.visitCheckSealedEnumTypeExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag)
         is SealedEnumCastExpression -> this.visitSealedEnumCastExpression(this.visit(expression.expr), expression.targetVariant, expression.sealedEnum, expression.tag, expression.safe)
         is SealedEnumConstructionExpression -> this.visitSealedEnumConstructionExpression(expression.sealedEnum, expression.targetVariant, expression.arguments.map { visit(it) })
+        is StaticListExpression -> this.visitStaticListExpression(expression.list)
+        is StaticListLengthExpression -> this.visitStaticListLengthExpression(expression.list)
+        is StaticListItemExpression -> this.visitStaticListItemExpression(expression.list, visit(expression.index))
+        is StaticListContainsExpression -> this.visitStaticListContainsExpression(expression.list, visit(expression.item))
+        is StaticListItemIndexExpression -> this.visitStaticListItemIndexExpression(expression.list, visit(expression.item))
     }
     afterVisit(expression, result)
     return result
@@ -242,5 +257,10 @@ fun ASTVisitor.visit(statement: Statement): Statement? {
         is CompositeStatement -> CompositeStatement(statement.statements.mapNotNull { visit(it) })
         is BreakStatement -> this.visitBreakStatement()
         is ContinueStatement -> this.visitContinueStatement()
+        is StaticListSetStatement -> this.visitStaticListSetStatement(statement.list, visit(statement.index), visit(statement.value))
+        is StaticListAddStatement -> this.visitStaticListAddStatement(statement.list, visit(statement.item))
+        is StaticListRemoveStatement -> this.visitStaticListRemoveStatement(statement.list, visit(statement.index))
+        is StaticListClearStatement -> this.visitStaticListClearStatement(statement.list)
+        is StaticListInsertStatement -> this.visitStaticListInsertStatement(statement.list, visit(statement.index), visit(statement.value))
     }
 }

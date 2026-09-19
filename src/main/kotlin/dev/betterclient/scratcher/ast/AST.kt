@@ -4,6 +4,8 @@ import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.opcode.EventListener
+import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.obfuscate
 import java.io.File
 
 class ASTFile(
@@ -19,6 +21,7 @@ class ASTFile(
     val structTemplates: MutableList<Struct> = mutableListOf(),
     val sealedEnums: MutableList<SealedEnum> = mutableListOf(),
     val sealedEnumTemplates: MutableList<SealedEnum> = mutableListOf(),
+    val staticLists: MutableList<TLStaticList> = mutableListOf(),
 ) {
     val flatImportNames: MutableMap<String, ASTFile> = mutableMapOf()
     val wildcardImportSources: MutableList<ASTFile> = mutableListOf()
@@ -153,6 +156,13 @@ class SealedEnum(
     val allocFuncs: MutableMap<Struct, Function> = mutableMapOf()
     var parseInfo: ScratcherLangParser.SealedEnumDeclContext? = null
 }
+
+class TLStaticList(
+    val name: String,
+    val sourceAST: ASTFile,
+    val private: Boolean,
+    val scratchList: ScratchList = ScratchList(obfuscate("${sourceAST.simplePath}::$name"))
+)
 
 data class ExpressionLowerResult(
     val expression: Expression?,

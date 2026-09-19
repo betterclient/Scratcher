@@ -20,6 +20,7 @@ imported
 
 topLevelElement
     : tlVarDecl
+    | tlListDecl
     | funcDecl
     | structDecl
     | eventDecl
@@ -55,6 +56,10 @@ loopControlStmt
 
 tlVarDecl
     : PRIVATE? (isConst=CONST)? (AUTO | type) IDENTIFIER (ASSIGN expression)? SEMI
+    ;
+
+tlListDecl
+    : PRIVATE? STATIC STR_TYPE LBRACK RBRACK IDENTIFIER (ASSIGN plainStringLiteral)? SEMI
     ;
 
 varDecl

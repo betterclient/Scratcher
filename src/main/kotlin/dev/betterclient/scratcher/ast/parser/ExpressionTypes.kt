@@ -7,6 +7,9 @@ import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ArrayLib
 
 object ExpressionTypes {
+    val Expression.type: Type
+        get() = getExpressionType(this)
+
     fun getExpressionType(expr: Expression): Type {
         return when(expr) {
             is BinaryExpression -> figureOutBinaryExprReturn(expr)
@@ -48,6 +51,12 @@ object ExpressionTypes {
             is SealedEnumConstructionExpression -> expr.sealedEnum.type
             is TemporaryHeapGetExpression -> expr.type ?: PrimitiveType.Integer
             is TemporaryLocalVariableIndexExpression -> PrimitiveType.Integer
+            is StaticListItemExpression -> PrimitiveType.Str
+            is StaticListLengthExpression -> PrimitiveType.Integer
+            is StaticListExpression -> PrimitiveType.StaticList
+            is StaticListContainsExpression -> PrimitiveType.Bool
+            is StaticListItemIndexExpression -> PrimitiveType.Integer
+
             is TemporaryExpression -> throw UnreachableException()
         }
     }

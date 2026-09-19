@@ -113,6 +113,10 @@ class ExpressionParser(
                 val list = parseExpression(ctx.expression(0)!!)
                 val index = parseExpression(ctx.expression(1)!!)
                 val type = ExpressionTypes.getExpressionType(list)
+                if (list is StaticListExpression) {
+                    return parser.functionResolver.resolveStaticListFunction(list, "get", listOf(index))
+                }
+
                 parser.functionResolver.resolveReceiverFunction(list, "get", listOf(index), filter = { it.operator })
                     ?: throw NotFoundException("Cannot resolve get for $type")
             }
@@ -251,6 +255,10 @@ class ExpressionParser(
 
             val receiverExpr = parseExpression(innerExpr.expression())
             val methodName = innerExpr.IDENTIFIER().text
+
+            if (receiverExpr is StaticListExpression) {
+                return parser.functionResolver.resolveStaticListFunction(receiverExpr, methodName, args)
+            }
 
             val callExpr = parser.functionResolver.resolveReceiverFunction(
                 receiverExpr = receiverExpr,
@@ -748,6 +756,11 @@ class ExpressionParser(
         val importedAST = ast.imports[import]
             ?: throw NotFoundException("Import \"$import\" not found for ${ctx.text}")
 
+        importedAST.staticLists.find { it.name == variable }?.let {
+            if (it.private && importedAST != ast) throw NotFoundException("Static list $variable is private and cannot be accessed from ${ast.simplePath}")
+            return StaticListExpression(it)
+        }
+
         val tlVar = importedAST.variables.find { it.name == variable }
             ?: throw NotFoundException("${ctx.text} not found")
 
@@ -770,16 +783,33 @@ class ExpressionParser(
             return ParameterExpression(parameterFinding)
         }
 
+        ast.staticLists.find { it.name == text }?.let { return StaticListExpression(it) }
         ast.variables.find { it.name == text }?.let { return VariableExpression(it, ast) }
 
         val flatSource = ast.flatImportNames[text]
         if (flatSource != null) {
+            flatSource.staticLists.find { it.name == text }?.let {
+                if (it.private && flatSource != ast) {
+                    throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
+                }
+                return StaticListExpression(it)
+            }
             val importedVar = flatSource.variables.find { it.name == text }
             if (importedVar != null) {
                 if (importedVar.private && flatSource != ast) {
                     throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
                 }
                 return VariableExpression(importedVar, flatSource)
+            }
+        }
+
+        for (wildcardAst in ast.wildcardImportSources) {
+            val privateMatch = wildcardAst.staticLists.find { it.name == text && it.private }
+            if (privateMatch != null && wildcardAst != ast) {
+                throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
+            }
+            wildcardAst.staticLists.find { it.name == text && !it.private }?.let {
+                return StaticListExpression(it)
             }
         }
 

@@ -40,7 +40,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it, null)
-                if (variable.type == PrimitiveType.Void) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
+                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
                 if (!actualType.isAssignable(variable.type)) throw TypeAnalysisException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
             }
         }
@@ -183,6 +183,25 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     if (loopDepth <= 0) {
                         throw TypeAnalysisException("Continue statement outside of a loop!")
                     }
+                }
+                is StaticListSetStatement -> {
+                    val index = getActualTypeOrThrow(statement.index, function)
+                    checkType(PrimitiveType.Integer, index, "Static list add index type is not correct")
+                    val item = getActualTypeOrThrow(statement.value, function)
+                    checkType(PrimitiveType.Str, item, "Static list add item type is not correct")
+                }
+                is StaticListAddStatement -> {
+                    checkType(PrimitiveType.Str, getActualTypeOrThrow(statement.item, function), "Static list add type is not correct")
+                }
+                is StaticListClearStatement -> {}
+                is StaticListInsertStatement -> {
+                    val index = getActualTypeOrThrow(statement.index, function)
+                    checkType(PrimitiveType.Integer, index, "Static list insert index type is not correct")
+                    val item = getActualTypeOrThrow(statement.value, function)
+                    checkType(PrimitiveType.Str, item, "Static list insert item type is not correct")
+                }
+                is StaticListRemoveStatement -> {
+                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.index, function), "Static list remove type is not correct")
                 }
                 is TemporaryStatement -> {}
             }
@@ -342,6 +361,33 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
 
                 expr.sealedEnum.type
+            }
+
+            is StaticListExpression -> PrimitiveType.StaticList
+            is StaticListItemExpression -> {
+                checkType(
+                    expected = PrimitiveType.Integer,
+                    found = getActualTypeOrThrow(expr.index, function),
+                    errorMessage = "Static list item expression index type not correct."
+                )
+                PrimitiveType.Str
+            }
+            is StaticListLengthExpression -> PrimitiveType.Integer
+            is StaticListContainsExpression -> {
+                checkType(
+                    expected = PrimitiveType.Str,
+                    found = getActualTypeOrThrow(expr.item, function),
+                    errorMessage = "Static list contains item type not correct."
+                )
+                PrimitiveType.Bool
+            }
+            is StaticListItemIndexExpression -> {
+                checkType(
+                    expected = PrimitiveType.Str,
+                    found = getActualTypeOrThrow(expr.item, function),
+                    errorMessage = "Static list item index type not correct."
+                )
+                PrimitiveType.Integer
             }
 
             is TemporaryExpression -> throw UnreachableException()
