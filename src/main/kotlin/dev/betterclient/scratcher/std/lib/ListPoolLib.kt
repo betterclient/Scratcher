@@ -240,7 +240,7 @@ object ListPoolLib {
         lib.functions.add(Function(
             name = "free",
             sourceAST = lib,
-            private = false,
+            private = CompilationConstants.REFCOUNT_GC, //refcount GC auto frees the list
             userAccessible = true,
             warp = true,
             operator = false,

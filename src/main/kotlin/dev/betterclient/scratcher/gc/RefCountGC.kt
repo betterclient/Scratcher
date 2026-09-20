@@ -151,6 +151,16 @@ object RefCountGC {
                     IntLiteral(struct.sizeOnHeap.toBigInteger())
                 }
 
+                //list pool destructor
+                if (struct.sourceAST == StandardLibASTGenerator.listPoolLib) {
+                    it.code.add(ExpressionStatement(
+                        CallExpression(
+                            func = StandardLibASTGenerator.listPoolLib.functions.find { func -> func.name == "free" }!!,
+                            arguments = listOf(ParameterExpression(ptrArg))
+                        )
+                    ))
+                }
+
                 it.code.add(ExpressionStatement(
                     CallExpression(
                         func = MemoryLib.free,
