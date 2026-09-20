@@ -79,6 +79,10 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
             is TemporaryScratchExpr -> false
             is CheckSealedEnumTypeExpression -> false
             is SealedEnumCastExpression -> false
+            is StaticListItemExpression -> false
+            is StaticListContainsExpression -> false
+            is StaticListItemIndexExpression -> false
+            is StaticListLengthExpression -> false
             else -> true
         }
     }

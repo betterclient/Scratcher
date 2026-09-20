@@ -125,6 +125,42 @@ Notes:
 - Static lists MUST be globals as they map directly to normal scratch lists.
 - Static lists DO NOT support being passed around. They must be static.
 - Static lists are 1-indexed. All other lists in scratcher are 0-indexed.
+## Pooled lists
+- Pooled lists are a pool of static lists automatically managed by the compiler.
+- You can use them by importing the `list_pool` library.
+```
+import list_pool::*;
+```
+- Unlike static lists, they can be created at any time
+```
+PooledList myList = allocate(); //will panic if the pool is empty
+PooledList? myList = allocateOrNull();
+```
+- Your pooled list instance will be assigned one of the static lists in the pool.
+- You must free them when done and return them to the pool.
+```
+myList.free();
+```
+- They support the same operations as static lists:
+```
+list.add("hi");
+list.get(15); //or use the indexing operator
+list.set(15, "hi"); //or use the indexing operator
+list.clear();
+list.length();
+list.insert(5, "hi");
+list.indexOf("hi");
+list.remove(5);
+```
+- Unlike static lists, these can be passed around as you wish.
+```
+myFunc(myList);
+
+void myFunc(PooledList a) {
+    ...
+}
+```
+- Pooled lists are 0-indexed.
 
 ## Exercises
 - Take an array of 10 numbers, convert it to a `List`, filter out all odd numbers, and double the remaining ones.

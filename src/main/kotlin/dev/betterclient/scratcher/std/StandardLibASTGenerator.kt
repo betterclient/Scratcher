@@ -53,6 +53,7 @@ object StandardLibASTGenerator {
 
         this.editor = editor
 
+        ListPoolLib.init(listPoolLib)
         rawLibs
     }
 
@@ -64,9 +65,10 @@ object StandardLibASTGenerator {
     val penLib = ASTFile("pen")
     val motionLib = ASTFile("motion")
     val utilsLib = ASTFile("utils")
-    val arrayInternalLib = ASTFile("array_internal")
+    val listPoolLib = ASTFile("list_pool")
 
     val caseSensitiveLib = ASTFile("case_sensitive_equals")
+    val arrayInternalLib = ASTFile("array_internal")
     val memoryLib = ASTFile("memory")
     val globalPromotionLib = ASTFile("global_promotions")
     val dynamicDispatchLib = ASTFile("dynamic_dispatch")
@@ -93,6 +95,7 @@ object StandardLibASTGenerator {
         "utils" to utilsLib,
         "array_internal" to arrayInternalLib,
         "list" to listFakeLib,
+        "list_pool" to listPoolLib,
         "extensions" to extensionsFakeLib, //this will get removed after first pass
 
         //not allowed
@@ -296,7 +299,7 @@ object StandardLibASTGenerator {
         is PlaceholderType -> name
     }
 
-    fun generateFrom(startAST: ASTFile) {
+    fun generateFrom(context: CompilationContext, startAST: ASTFile) {
         MemoryLib.initMem(memLib, startAST) //generate alloc(struct)
         ExtensionsInternalLib.init(extensionsInternalLib)
         extensionsLib
@@ -304,6 +307,7 @@ object StandardLibASTGenerator {
         GCLib.init(gcInternalsLib)
         gc
         GCLib.initCaller(gc, gcLib)
+        listPoolLib.structs.forEach { context.types.add(it.type) }
     }
 }
 

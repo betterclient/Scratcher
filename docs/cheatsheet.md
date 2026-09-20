@@ -166,10 +166,47 @@
 - `<T, R> R[] T[].map((T) -> R action)`
 - `<T> void T[].forEach((T) -> void action)`
 
+### `list_pool`
+**Notes**: The pool is configurable. 
+You must free an allocated list. 
+Pooled lists are 0-indexed.
+- `PooledList allocate()`
+- `PooledList? allocateOrNull()`
+- `void PooledList.add(str item)`
+- `void PooledList.clear()`
+- `str PooledList.get(int index)`
+- `int PooledList.length()`
+- `void PooledList.set(int index, str value)`
+- `void PooledList.removeAt(int index)`
+- `void PooledList.insert(int index, str item)`
+- `bool PooledList.contains(str item)`
+- `int PooledList.indexOf(str item)`
+- `void PooledList.free()`
+
 ### `triangle`
 - `void fill(float x1, float y1, float x2, float y2, float x3, float y3, float color, float resolution)`
 - `void outline(float x1, float y1, float x2, float y2, float x3, float y3, float color, float resolution)`
 - `float rgb(float r, float g, float b)`
+
+### `compact_list`
+**Note**: Compact lists are 0 indexed.
+- `IntList newIntList()`
+- `IntList List<int>.toCompact()`
+- `List<int> IntList.fromCompact()`
+- `void IntList.add(int item)`
+- `int IntList.removeAt(int index)`
+- `bool IntList.remove(int item)`
+- `int IntList.length()`
+- `bool IntList.isEmpty()`
+- `bool IntList.isNotEmpty()`
+- `int IntList.get(int index)`
+- `void IntList.set(int index, int item)`
+- `int IntList.indexOf(int item)`
+- `bool IntList.contains(int item)`
+- `int? IntList.firstOrNull()`
+- `int? IntList.lastOrNull()`
+- `void IntList.forEach((int) -> void action)`
+- `IntList IntList.map((int) -> int action)`
 
 ## Syntax
 

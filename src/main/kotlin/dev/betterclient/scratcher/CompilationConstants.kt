@@ -9,6 +9,7 @@ object CompilationConstants {
     //standard library functions
     const val PRINT_STDLIB = false //print the stdlib function structures and exit
     const val INLINE_STRUCT_INIT = false //have the struct initialization as inline, ignored(set to false) if refcount gc is enabled
+    const val LIST_POOL_SIZE = 10 //size of the list_pool, total amounts of times you can call allocate without having to free
 
     //garbage collector settings
     //you can enable both collectors if you want

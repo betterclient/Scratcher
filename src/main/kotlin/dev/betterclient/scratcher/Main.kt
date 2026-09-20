@@ -148,7 +148,7 @@ fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
     println("Initial parse")
     val ast = ASTReader(context, sourceFile.readText(), sourceFile.absolutePath).read()
     context.generateGCNames()
-    StandardLibASTGenerator.generateFrom(ast)
+    StandardLibASTGenerator.generateFrom(context, ast)
     println("Code parse")
     Stage1Parser(context, ast).parse()
     println("Static Type Checking")
