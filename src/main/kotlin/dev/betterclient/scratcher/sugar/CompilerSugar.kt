@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.sugar.dispatch.DynamicDispatchHandler
 import dev.betterclient.scratcher.sugar.lambda.LambdaDesugaring
 import dev.betterclient.scratcher.sugar.loop.ContinueAndBreakDesugaring
 import dev.betterclient.scratcher.sugar.loop.RepeatToWhile
+import dev.betterclient.scratcher.sugar.loop.WhileConditionSafety
 import dev.betterclient.scratcher.sugar.nullability.SafeNullOperations
 import dev.betterclient.scratcher.sugar.other.CaseSensitiveEquals
 import dev.betterclient.scratcher.sugar.other.SealedEnumDesugaring
@@ -21,6 +22,7 @@ object Desugaring {
 
         RepeatToWhile,
         ContinueAndBreakDesugaring,
+        WhileConditionSafety,
 
         SafeNullOperations,
         WhenDesugaring,

@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 
@@ -40,20 +39,6 @@ class CallExpressionLowering(
         }
 
         return ReturnStatement(null)
-    }
-
-    override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
-        fun flatten(statement: Statement): List<Statement> {
-            return when (statement) {
-                is CompositeStatement -> statement.statements.flatMap { flatten(it) }
-                else -> listOf(statement)
-            }
-        }
-
-        val updates = conditionPrepended.flatMap { flatten(it) }.filter { it !is VariableStatement }
-        block.code.addAll(updates)
-
-        return super.visitWhileStatement(condition, block)
     }
 
     override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
@@ -101,19 +86,11 @@ class CallExpressionLowering(
         }
 
         addStatements(prepend)
-        if (isInWhileCondition) {
-            conditionPrepended.addAll(prepend)
-        }
         return expr?: NullExpression
     }
 
     override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
         addStatements(statements)
-
-        if (isInWhileCondition) {
-            conditionPrepended.addAll(statements)
-        }
-
         return expression
     }
 
@@ -146,26 +123,12 @@ class CallExpressionLowering(
     private var currentRootExpression: Expression? = null
     private val rootCallFlags = mutableListOf<Boolean>()
 
-    //calling function inside while condition
-    private var isInWhileCondition = false
-    private val conditionPrepended = mutableListOf<Statement>()
-
     override fun visitStatement(statement: Statement) {
         currentRootExpression = if (statement is ExpressionStatement) {
             statement.expression
         } else {
             null
         }
-
-        if (statement is WhileStatement) {
-            isInWhileCondition = true
-            conditionPrepended.clear()
-        }
-    }
-
-    override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
-        isInWhileCondition = false
-        return super.shouldVisitCodeBlock(block)
     }
 
     override fun visitExpr(expression: Expression) {
