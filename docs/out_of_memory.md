@@ -107,3 +107,4 @@ a.insert(5, "hi");
 //this will give the list back to the pool so it can be allocated again
 a.free();
 ```
+- You can now ignore free-ing the list if you have the `ARC` collector enabled, the GC will automatically free it.

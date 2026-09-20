@@ -181,7 +181,7 @@ Pooled lists are 0-indexed.
 - `void PooledList.insert(int index, str item)`
 - `bool PooledList.contains(str item)`
 - `int PooledList.indexOf(str item)`
-- `void PooledList.free()`
+- `void PooledList.free()` **Note**: When the refcount GC is enabled, this function is private.
 
 ### `triangle`
 - `void fill(float x1, float y1, float x2, float y2, float x3, float y3, float color, float resolution)`
