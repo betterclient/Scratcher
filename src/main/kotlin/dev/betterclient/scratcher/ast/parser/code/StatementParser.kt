@@ -61,8 +61,41 @@ class StatementParser(
             }
             is ScratcherLangParser.RepeatStmtContext -> {
                 val amount = exprParser.parseExpression(child.expression())
-                val repeatBlock = CodeBlock().also { parseBlock(it, child.block()) }
-                RepeatStatement(amount, repeatBlock)
+                if (child.indexedBlock().block() != null) {
+                    val repeatBlock = CodeBlock().also { parseBlock(it, child.indexedBlock().block()!!) }
+                    RepeatStatement(amount, repeatBlock)
+                } else {
+                    val block = child.indexedBlock()
+                    val indexVar = LocalVariable(block.IDENTIFIER()!!.text, PrimitiveType.Integer)
+                    if (parser.localVariables.find { it.name == indexVar.name } != null) {
+                        throw DuplicateDefinitionException("Variable ${indexVar.name} already exists in ${ast.simplePath}::${parser.currentFunction?.name}")
+                    }
+                    val amountVar = LocalVariable("repeat_stmt_amount_${getUniqueName()}", PrimitiveType.Integer)
+                    CompositeStatement(listOf(
+                        VariableStatement(IntLiteral((-1).toBigInteger()), indexVar),
+                        VariableStatement(amount, amountVar),
+                        WhileStatement(
+                            condition = BinaryExpression(
+                                left = BinaryExpression(
+                                    left = LocalVariableExpression(indexVar),
+                                    right = IntLiteral(BigInteger.ONE),
+                                    operator = BinaryOperator.ADD,
+                                ),
+                                right = LocalVariableExpression(amountVar),
+                                operator = BinaryOperator.LESS_THAN
+                            ),
+                            block = CodeBlock().also { blc ->
+                                blc.code.add(LocalVariableAssignmentStatement(indexVar, BinaryExpression(
+                                    left = LocalVariableExpression(indexVar),
+                                    right = IntLiteral(BigInteger.ONE),
+                                    operator = BinaryOperator.ADD,
+                                )))
+
+                                parseIndexedBlock(block, indexVar, blc)
+                            }
+                        )
+                    ))
+                }
             }
             is ScratcherLangParser.ReturnIfStmtContext -> {
                 val returnExpr = if (child.expression().size == 2) exprParser.parseExpression(child.expression(0)!!) else null
@@ -106,6 +139,35 @@ class StatementParser(
             }
             else -> throw NotImplementedException("Unknown statement type: ${child?.text}")
         }
+    }
+
+    private fun parseIndexedBlock(
+        block: ScratcherLangParser.IndexedBlockContext,
+        indexVar: LocalVariable,
+        blc: CodeBlock,
+        injectVariables: List<LocalVariable> = listOf()
+    ) {
+        val prevLocalVariables = parser.localVariables.toList()
+        parser.localVariables.add(indexVar)
+        parser.localVariables.addAll(injectVariables)
+        val startIndex = parser.localVariables.size
+
+        block.statement().map { parseStatement(it) }.forEach {
+            blc.code.add(it)
+        }
+        block.returnStmt()?.let {
+            blc.code.add(ReturnStatement(it.expression()?.let { expr ->
+                val parsed = exprParser.parseExpression(expr, parser.currentFunction?.returnType)
+                StringBoxing.autoConvert(parsed, parser.currentFunction?.returnType)
+            }))
+        }
+
+        blc.localVariables.add(indexVar)
+        blc.localVariables.addAll(injectVariables)
+        blc.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
+
+        parser.localVariables.clear()
+        parser.localVariables.addAll(prevLocalVariables)
     }
 
     private fun parseAssignStatement(child: ScratcherLangParser.AssignStmtContext): Statement {
@@ -188,7 +250,7 @@ class StatementParser(
                 parser.localVariables.add(listVar)
                 parser.localVariables.add(indexVariable)
                 it.code.add(VariableStatement(list, listVar))
-                it.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), indexVariable))
+                it.code.add(VariableStatement(IntLiteral((-1).toBigInteger()), indexVariable))
                 it.code.add(VariableStatement(null, variable))
                 it.code.add(
                     RepeatStatement(
@@ -197,15 +259,6 @@ class StatementParser(
                             arguments = listOf(LocalVariableExpression(listVar))
                         ),
                         block = CodeBlock().also { inner ->
-                            parseBlock(inner, child.block(), injectVariables = listOf(variable))
-                            inner.code.add(
-                                0, LocalVariableAssignmentStatement(
-                                    variable, CallExpression(
-                                        func = ArrayLib.itemAt,
-                                        listOf(LocalVariableExpression(listVar), LocalVariableExpression(indexVariable))
-                                    )
-                                )
-                            )
                             inner.code.add(
                                 LocalVariableAssignmentStatement(
                                     indexVariable, BinaryExpression(
@@ -215,6 +268,26 @@ class StatementParser(
                                     )
                                 )
                             )
+
+                            inner.code.add(
+                                LocalVariableAssignmentStatement(
+                                    variable, CallExpression(
+                                        func = ArrayLib.itemAt,
+                                        listOf(LocalVariableExpression(listVar), LocalVariableExpression(indexVariable))
+                                    )
+                                )
+                            )
+
+                            if (child.indexedBlock().block() != null) {
+                                parseBlock(inner, child.indexedBlock().block()!!, injectVariables = listOf(variable))
+                            } else {
+                                val indexVar0 = LocalVariable(child.indexedBlock().IDENTIFIER()!!.text, PrimitiveType.Integer)
+                                inner.code.add(
+                                    VariableStatement(LocalVariableExpression(indexVariable), indexVar0)
+                                )
+
+                                parseIndexedBlock(child.indexedBlock(), indexVar0, inner, injectVariables = listOf(variable))
+                            }
                         }
                     ))
                 it.localVariables.addAll(parser.localVariables)
@@ -246,7 +319,7 @@ class StatementParser(
         val listVar = LocalVariable("list@for@list", listStruct.type)
 
         return IfStatement(BooleanLiteral(true), CodeBlock().also {
-            it.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), indexVar))
+            it.code.add(VariableStatement(IntLiteral((-1).toBigInteger()), indexVar))
             it.code.add(VariableStatement(null, currentObjVar))
             it.code.add(VariableStatement(list, listVar))
             it.code.add(RepeatStatement(
@@ -256,6 +329,15 @@ class StatementParser(
                     struct = listStruct
                 ),
                 block = CodeBlock().also { block ->
+                    block.code.add(LocalVariableAssignmentStatement(
+                        variable = indexVar,
+                        assignment = BinaryExpression(
+                            left = LocalVariableExpression(indexVar),
+                            right = IntLiteral(BigInteger.ONE),
+                            operator = BinaryOperator.ADD
+                        )
+                    ))
+
                     block.code.add(LocalVariableAssignmentStatement(
                         variable = currentObjVar,
                         assignment = CallExpression(
@@ -273,16 +355,16 @@ class StatementParser(
                         }
                     ))
 
-                    parseBlock(block, child.block(), injectVariables = listOf(currentObjVar))
-
-                    block.code.add(LocalVariableAssignmentStatement(
-                        variable = indexVar,
-                        assignment = BinaryExpression(
-                            left = LocalVariableExpression(indexVar),
-                            right = IntLiteral(BigInteger.ONE),
-                            operator = BinaryOperator.ADD
+                    if (child.indexedBlock().block() != null) {
+                        parseBlock(block, child.indexedBlock().block()!!, injectVariables = listOf(currentObjVar))
+                    } else {
+                        val variable = LocalVariable(child.indexedBlock().IDENTIFIER()!!.text, PrimitiveType.Integer)
+                        block.code.add(
+                            VariableStatement(LocalVariableExpression(indexVar), variable)
                         )
-                    ))
+
+                        parseIndexedBlock(child.indexedBlock(), variable, block, injectVariables = listOf(currentObjVar))
+                    }
                 }
             ))
         })

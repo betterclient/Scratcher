@@ -90,11 +90,9 @@ warp void markRoot(int addr) {
 
     int start = self::getFieldsStart(name);
     int count = self::getFieldsCount(name);
-    int typeIndex = 0;
-    repeat(count) {
+    repeat(count) { typeIndex ->
         str type = self::getFieldType(start + typeIndex);
         markType(addr + typeIndex, type);
-        typeIndex++;
     }
 }
 
@@ -146,15 +144,13 @@ warp void markList(int addr, str type) {
     //now we gotta go to the dataPtr in the heap
     int data = self::getListDataPtr(addr);
 
-    index = 0;
-    repeat(capacity) {
+    repeat(capacity) { i ->
         //now recurse!!
         if(out != "p" && out != "0" && out.length() > 0) {
-            markType(data + index, out);
+            markType(data + i, out);
         }
 
-        mark(data + index);
-        index++;
+        mark(data + i);
     }
 }
 
@@ -166,8 +162,7 @@ warp void markStruct(int addr, str type) {
 
     int start = self::getFieldsStart(type);
     int count = self::getFieldsCount(type);
-    int typeIndex = 0;
-    repeat(count) {
+    repeat(count) { typeIndex ->
         int actualAddr = addr + typeIndex;
         str fieldType = self::getFieldType(start + typeIndex);
         if(fieldType == "p" || fieldType == "0") {
@@ -175,7 +170,6 @@ warp void markStruct(int addr, str type) {
         } else {
             markType(actualAddr, fieldType);
         }
-        typeIndex++;
     }
 }
 

@@ -39,13 +39,11 @@ warp bool str.contains(str other) {
     return false if(other.length() > length());
 
     int maxStart = length() - other.length();
-    int i = 0;
 
-    repeat(maxStart + 1) {
+    repeat(maxStart + 1) { i ->
         if(substring(i, i + other.length()) === other) {
             return true;
         }
-        i++;
     }
 
     return false;
@@ -91,12 +89,10 @@ warp bool str.endsWith(str suffix) {
 }
 
 warp int str.indexOf(char target) {
-    int index = 0;
-    repeat(length()) {
+    repeat(length()) { index ->
         if(charAt(index) === target) {
             return index;
         }
-        index++;
     }
     return -1;
 }
@@ -111,11 +107,8 @@ warp <T> void T[].copyTo(T[] other) {
         panic("Extensions, copyTo: ${other.length()} < ${this.length()}");
     }
 
-    int index = 0;
-    for(T t in this) {
+    for(T t in this) { index ->
         other[index] = t;
-
-        index++;
     }
 }
 

@@ -112,6 +112,11 @@ block
     : LBRACE statement* returnStmt? RBRACE
     ;
 
+indexedBlock
+    : LBRACE IDENTIFIER ARROW statement* returnStmt? RBRACE
+    | block
+    ;
+
 exprStmt
     : expression SEMI
     ;
@@ -154,11 +159,11 @@ whileStmt
     ;
 
 repeatStmt
-    : REPEAT LPAREN expression RPAREN block
+    : REPEAT LPAREN expression RPAREN indexedBlock
     ;
 
 forStmt
-    : FOR LPAREN (AUTO | type) IDENTIFIER IN expression RPAREN block
+    : FOR LPAREN (AUTO | type) IDENTIFIER IN expression RPAREN indexedBlock
     ;
 
 eventDecl

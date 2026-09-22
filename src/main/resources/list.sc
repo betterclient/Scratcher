@@ -40,10 +40,8 @@ warp <T> void List<T>.reserve(int newCapacity) {
 
     auto newArray = arrayOfNulls(newCapacity);
     //copy over
-    int index = 0;
-    repeat(this.length) {
+    repeat(this.length) { index ->
         newArray[index] = this.ptr[index];
-        index++;
     }
 
     this.ptr = newArray;
@@ -88,14 +86,12 @@ warp <T> T List<T>.removeAt(int index) {
 }
 
 warp <T> bool List<T>.remove(T item) {
-    int index = 0;
     int foundIndex = -1;
 
-    repeat(this.length) {
+    repeat(this.length) { index ->
         if(foundIndex == -1 && this.ptr[index] === item) {
             foundIndex = index;
         }
-        index++;
     }
 
     if(foundIndex == -1) {
@@ -121,10 +117,8 @@ warp <T> void List<T>.forEach((T) -> void action) {
 }
 
 warp <T> void List<T>.forEachIndexed((int, T) -> void action) {
-    int index = 0;
-    for(auto t in this) {
+    for(auto t in this) { index ->
         action(index, t);
-        index++;
     }
 }
 
@@ -140,20 +134,15 @@ warp <T, R> List<R> List<T>.map((T) -> R action) {
 warp <T, R> List<R> List<T>.map((int, T) -> R action) {
     List<R> out = newList();
     out.reserve(this.length);
-    int index = 0;
-    for(auto t in this) {
+    for(auto t in this) { index ->
         out.add(action(index, t));
-        index++;
     }
     return out;
 }
 
 warp <T> void List<T>.replaceAll((T) -> T action) {
-    int index = 0;
-    for(auto t in this) {
+    for(auto t in this) { index ->
         this[index] = action(t);
-
-        index++;
     }
 }
 
@@ -221,10 +210,8 @@ warp <T> bool List<T>.contains(T item) {
 }
 
 warp <T> int List<T>.indexOf(T item) {
-    int index = 0;
-    for(auto t in this) {
+    for(auto t in this) { index ->
         return index if(t === item);
-        index++;
     }
     return -1;
 }
