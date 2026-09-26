@@ -4,11 +4,11 @@ import utils::*;
 import sensing;
 import math;
 
-enum AIDifficulty(EASY, MEDIUM, IMPOSSIBLE);
+enum BotDifficulty(EASY, MEDIUM, IMPOSSIBLE);
 
 sealed enum GameMode {
     Human, //human vs human
-    AI(AIDifficulty diff) //AI with difficulty
+    Bot(BotDifficulty diff) //bot with difficulty
 }
 
 sealed enum Screen {
@@ -126,19 +126,19 @@ warp void updateKeys(Screen.Game game) {
                 }
             }
         }
-        GameMode.AI ai -> {
-            updateAI(game, ai.diff);
+        GameMode.Bot bot -> {
+            updateBot(game, bot.diff);
         }
     }
 }
 
-warp void updateAI(Screen.Game game, AIDifficulty diff) {
+warp void updateBot(Screen.Game game, BotDifficulty diff) {
     when(diff) {
-        AIDifficulty.IMPOSSIBLE -> {
+        BotDifficulty.IMPOSSIBLE -> {
             //as the name implies, this is impossible to beat.
             game.rightPadY = math::round(game.ballY);
         }
-        AIDifficulty.EASY -> {
+        BotDifficulty.EASY -> {
             if (game.ballVelX > 0 && game.ballX > 0) {
                 if (game.ballY > game.rightPadY + 25) {
                     game.rightPadY += 4;
@@ -147,7 +147,7 @@ warp void updateAI(Screen.Game game, AIDifficulty diff) {
                 }
             }
         }
-        AIDifficulty.MEDIUM -> {
+        BotDifficulty.MEDIUM -> {
             if (game.ballVelX > 0) {
                 if (game.ballY > game.rightPadY + 10) {
                     game.rightPadY += 7;
@@ -233,14 +233,14 @@ warp void renderSelectModeScreen() {
         }
     );
 
-    renderer::renderText("AI", 0, 32, green, true);
+    renderer::renderText("Human vs Bot", 0, 32, green, true);
 
     renderer::button(
         "Easy",
         -140, -41, 280, 44,
         rgb(81, 81, 81), green,
         () -> {
-            startGame(GameMode.AI(AIDifficulty.EASY));
+            startGame(GameMode.Bot(BotDifficulty.EASY));
         }
     );
 
@@ -249,7 +249,7 @@ warp void renderSelectModeScreen() {
         -140, -95, 280, 44,
         rgb(81, 81, 81), green,
         () -> {
-            startGame(GameMode.AI(AIDifficulty.MEDIUM));
+            startGame(GameMode.Bot(BotDifficulty.MEDIUM));
         }
     );
 
@@ -258,7 +258,7 @@ warp void renderSelectModeScreen() {
         -140, -149, 280, 44,
         rgb(81, 81, 81), green,
         () -> {
-            startGame(GameMode.AI(AIDifficulty.IMPOSSIBLE));
+            startGame(GameMode.Bot(BotDifficulty.IMPOSSIBLE));
         }
     );
 }
