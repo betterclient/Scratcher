@@ -32,7 +32,7 @@ BOOL_TYPE  : 'bool';
 CHAR_TYPE  : 'char';
 AUTO       : 'auto';
 
-TICK : '\'';
+CHAR_LITERAL : '\'' (~['\\\r\n] | '\\' .) '\'' ;
 TRUE  : 'true';
 FALSE : 'false';
 NULL  : 'null';

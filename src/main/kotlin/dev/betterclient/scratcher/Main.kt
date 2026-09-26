@@ -29,7 +29,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("test/docs_test.sc"))
+    val (ast, context) = compile(File("examples/pong/pong.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }
@@ -42,7 +42,7 @@ fun main() {
     Optimizations.apply(reachableFunctions, context)
 
     println("Desugaring")
-    Desugaring.apply(reachableFunctions, context)
+    Desugaring.apply(reachableFunctions, context, runDynamicDispatch = false)
     context.isPreOptimize = false
 
     val uniqueFunctions0 = reachableFunctions.distinct().toMutableList()
@@ -78,7 +78,11 @@ fun main() {
         reachableFunctions.addAll(RefCountGC.instrument(context, listOf(topLevelInit)))
     }
 
-    Desugaring.apply(mutableListOf(topLevelInit), context)
+    Desugaring.apply(mutableListOf(topLevelInit), context, runDynamicDispatch = false)
+    val allDesugaredFunctions = (reachableFunctions + topLevelInit + StandardLibASTGenerator.lambdaLib.functions).toMutableList()
+    Desugaring.applyDynamicDispatch(allDesugaredFunctions, context)
+    reachableFunctions.addAll(StandardLibASTGenerator.lambdaLib.functions)
+    reachableFunctions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
     Optimizations.apply(mutableListOf(topLevelInit), context, print = false) //optimize the top level init
 
     reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions)
@@ -90,6 +94,8 @@ fun main() {
             topLevelTranslator.translate(variable).also { editor.addVariable(it) }
         }
     }
+    reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions)
+    reachableFunctions.addAll(StandardLibASTGenerator.memLib.functions)
 
     val uniqueFunctions = reachableFunctions.distinct()
     reachableFunctions.clear()

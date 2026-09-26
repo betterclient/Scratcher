@@ -269,12 +269,10 @@ warp <T> List<T> List<T>.take(int n) {
 
 warp <T> List<T> List<T>.drop(int n) {
     List<T> out = newList();
-    int index = 0;
-    for(auto t in this) {
+    for(auto t in this) { index ->
         if(index >= n) {
             out.add(t);
         }
-        index++;
     }
     return out;
 }

@@ -34,10 +34,15 @@ object Desugaring {
         ShortCircuit
     )
 
-    fun apply(functions: MutableList<Function>, context: CompilationContext) {
+    fun apply(
+        functions: MutableList<Function>,
+        context: CompilationContext,
+        runDynamicDispatch: Boolean = true
+    ) {
         sugar.forEach { s ->
             val callGraph = generateCallGraph(functions)
             if (s is DynamicDispatchHandler) {
+                if (!runDynamicDispatch) return@forEach
                 s.apply(callGraph.keys.first(), callGraph, context)
                 functions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
                 return@forEach
@@ -51,6 +56,13 @@ object Desugaring {
                 functions.addAll(StandardLibASTGenerator.lambdaLib.functions)
             }
         }
+        context.generateGCNames()
+    }
+
+    fun applyDynamicDispatch(functions: MutableList<Function>, context: CompilationContext) {
+        val callGraph = generateCallGraph(functions)
+        DynamicDispatchHandler.apply(callGraph.keys.first(), callGraph, context)
+        functions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
         context.generateGCNames()
     }
 }

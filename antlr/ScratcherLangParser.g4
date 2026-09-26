@@ -251,7 +251,7 @@ literal
     | stringLiteral
     | TRUE
     | FALSE
-    | TICK IDENTIFIER TICK
+    | CHAR_LITERAL
     ;
 
 stringLiteral

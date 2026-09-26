@@ -106,6 +106,20 @@ class InlineSingleUseAnalysis {
 
             return super.visitLocalVariableExpression(variable)
         }
+
+        override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            invalidateForCall()
+            return super.visitCallExpression(func, args)
+        }
+
+        override fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression {
+            invalidateForCall()
+            return super.visitDynamicCallExpression(function, args, type)
+        }
+    }
+
+    private fun invalidateForCall() {
+        activeVars.values.forEach { if (!it.isConstant) it.isInvalid = true }
     }
 
     fun analyze(function: Function) {
@@ -181,9 +195,13 @@ class InlineSingleUseAnalysis {
                 val modified = collectModifiedVariables(stmt)
                 removeDependents(modified)
 
+                val beforeBranch = activeVars.toMap()
                 analyzeBlock(stmt.thenBlock)
 
+                activeVars.clear()
+                activeVars.putAll(beforeBranch)
                 modified.forEach { activeVars.remove(it) }
+                allVars.filter { it.variable in modified }.forEach { it.isInvalid = true }
             }
             is IfElseStatement -> {
                 exprVisitor.visit(stmt.condition)
@@ -191,10 +209,17 @@ class InlineSingleUseAnalysis {
                 val modified = collectModifiedVariables(stmt)
                 removeDependents(modified)
 
+                val beforeBranches = activeVars.toMap()
                 analyzeBlock(stmt.thenBlock)
+
+                activeVars.clear()
+                activeVars.putAll(beforeBranches)
                 analyzeBlock(stmt.elseBlock)
 
+                activeVars.clear()
+                activeVars.putAll(beforeBranches)
                 modified.forEach { activeVars.remove(it) }
+                allVars.filter { it.variable in modified }.forEach { it.isInvalid = true }
             }
             is WhileStatement -> {
                 exprVisitor.visit(stmt.condition)
@@ -207,6 +232,7 @@ class InlineSingleUseAnalysis {
                 loopDepth--
 
                 modified.forEach { activeVars.remove(it) }
+                allVars.filter { it.variable in modified }.forEach { it.isInvalid = true }
             }
             is RepeatStatement -> {
                 exprVisitor.visit(stmt.amount)
@@ -219,15 +245,13 @@ class InlineSingleUseAnalysis {
                 loopDepth--
 
                 modified.forEach { activeVars.remove(it) }
+                allVars.filter { it.variable in modified }.forEach { it.isInvalid = true }
             }
             is CompositeStatement -> {
                 stmt.statements.forEach { analyzeStatement(it) }
             }
             is ExpressionStatement -> {
                 exprVisitor.visit(stmt.expression)
-                if (stmt.expression is CallExpression || stmt.expression is DynamicCallExpression) {
-                    activeVars.clear()
-                }
             }
             is ReturnStatement -> stmt.expression?.let { exprVisitor.visit(it) }
             is TLVariableAssignmentStatement -> {
@@ -238,7 +262,10 @@ class InlineSingleUseAnalysis {
                 exprVisitor.visit(stmt.target)
                 exprVisitor.visit(stmt.assignment)
             }
-            is TemporaryCallStatement -> stmt.args.forEach { exprVisitor.visit(it) }
+            is TemporaryCallStatement -> {
+                stmt.args.forEach { exprVisitor.visit(it) }
+                invalidateForCall()
+            }
             is TemporaryHeapSetStatement -> {
                 exprVisitor.visit(stmt.index)
                 exprVisitor.visit(stmt.data)

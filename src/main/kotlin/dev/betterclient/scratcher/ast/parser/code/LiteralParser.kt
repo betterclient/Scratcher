@@ -25,11 +25,28 @@ class LiteralParser(
             ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(PrimitiveType.Float, PrimitiveType.Null, "${ctx.FLOAT()?.text} is not a float!"))
             ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(PrimitiveType.Integer, PrimitiveType.Null, "${ctx.INT()?.text} is not an int!"))
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
-            ctx.TICK(0) != null -> CharLiteral(ctx.IDENTIFIER()!!.text.also {
-                if (it.length != 1) throw GeneralCompilerException("Char too long or too short at ${ctx.position}!")
-            }.toCharArray()[0])
+            ctx.CHAR_LITERAL() != null -> CharLiteral(parseCharLiteral(ctx.CHAR_LITERAL()!!.text))
             else -> throw NotImplementedException("$ctx is not one of the expected types.")
         }
+    }
+
+    fun parseCharLiteral(raw: String): Char {
+        val content = raw.removeSurrounding("'")
+
+        if (content.startsWith("\\") && content.length > 1) {
+            return when (content) {
+                "\\n"  -> '\n'
+                "\\r"  -> '\r'
+                "\\t"  -> '\t'
+                "\\b"  -> '\b'
+                "\\\\" -> '\\'
+                "\\'"  -> '\''
+                "\\\"" -> '\"'
+                "\\0"  -> '\u0000'
+                else   -> content[1]
+            }
+        }
+        return content.firstOrNull() ?: ' '
     }
 
     private fun parseStringInterp(parts: List<ScratcherLangParser.StringPartContext>): Expression {
