@@ -1,17 +1,7 @@
 package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.ast.BooleanLiteral
-import dev.betterclient.scratcher.ast.CharLiteral
-import dev.betterclient.scratcher.ast.ConcatExpression
-import dev.betterclient.scratcher.ast.Expression
-import dev.betterclient.scratcher.ast.FloatLiteral
-import dev.betterclient.scratcher.ast.GeneralCompilerException
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.NotImplementedException
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.StringLiteral
-import dev.betterclient.scratcher.ast.TypeException
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 
 class LiteralParser(

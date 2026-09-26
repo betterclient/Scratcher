@@ -93,7 +93,7 @@ warp void restart() {
     currentScreen = Screen.ModeChoose;
 }
 
-const int MOVE_SPEED = 10;
+const int MOVE_SPEED = 15;
 
 warp void updateKeys(Screen.Game game) {
     if(sensing::isKeyPressed("w")) {
@@ -223,7 +223,7 @@ warp void renderSelectModeScreen() {
 
     float green = rgb(0, 255, 0);
 
-    renderer::renderText("Select game difficulty", 0, 134, green, true);
+    renderer::renderText("Select game mode", 0, 134, green, true);
     renderer::button(
         "Human vs Human",
         -140, 61, 280, 44,
