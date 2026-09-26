@@ -63,6 +63,12 @@ object FunctionInlining : Optimization("Function inlining") {
                 }
                 return null
             }
+
+            override fun visitExpressionStatement(expression: Expression): Statement? {
+                if (expression is CallExpression && expression.func.sourceAST == StandardLibASTGenerator.typeChecker) return null
+
+                return super.visitExpressionStatement(expression)
+            }
         })
         prepend.addAll(out.code)
 
@@ -139,6 +145,8 @@ object InlineEligibility {
             }
 
             override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+                if (func.sourceAST == StandardLibASTGenerator.typeChecker) return super.visitCallExpression(func, args)
+
                 currentCost += when (func) {
                     is InlineStandardLibFunction -> 100
                     is StandardLibASTFunction -> 20
