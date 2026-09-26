@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.toObjectArray
 import org.json.JSONObject
 import java.io.File
@@ -47,5 +48,7 @@ fun openScratchEditorFromResource(inputStream: InputStream): ScratchEditor {
             inputStream.copyTo(it)
         }
     }
-    return ScratchEditor(JSONEditor(ZipFile(tmpFile)))
+    return ScratchEditor(JSONEditor(ZipFile(tmpFile))).apply {
+        if (CompilationConstants.ADD_DUMMY_SPRITE) addDummySprite()
+    }
 }

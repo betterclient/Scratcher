@@ -85,6 +85,23 @@ value class ScratchEditor(private val editor: JSONEditor) {
         targets.put(sprite.toJson(layerOrder))
     }
 
+    fun addDummySprite() {
+        val targets = editor.project.getJSONArray("targets")
+        val dummy = ScratchSprite("Dummy").toJson(1)
+
+        val reordered = JSONArray()
+        reordered.put(targets.getJSONObject(0))
+        reordered.put(dummy)
+        for (i in 1 until targets.length()) {
+            reordered.put(targets.getJSONObject(i))
+        }
+        editor.project.put("targets", reordered)
+
+        for (i in 0 until reordered.length()) {
+            reordered.getJSONObject(i).put("layerOrder", i)
+        }
+    }
+
     fun addEventListener(listener: ScratchASTEventListener) {
         addEventListener(listener.internal)
     }
