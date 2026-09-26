@@ -110,8 +110,13 @@ fun main() {
 
     val reachableFunctionsLocalCountsMap = ConvertToHeapAccess(reachableFunctions).run()
 
-    val translator = FunctionStructureTranslator()
+    val (nowReachable) = FunctionReachability(reachableEntrypoints).run(ast)
+    reachableFunctions.clear()
+    reachableFunctions.addAll(nowReachable)
+    reachableFunctions.add(topLevelInit)
+
     //store it as a pair cause we need the original func for the code itself
+    val translator = FunctionStructureTranslator()
     val scratchStubs = reachableFunctions.associateWith { translator.translate(it) }.filterValues { it != null }.mapValues { it.value!! }
 
     println("Translate code")

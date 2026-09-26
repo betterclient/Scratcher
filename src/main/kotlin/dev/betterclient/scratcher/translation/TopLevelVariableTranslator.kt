@@ -28,30 +28,16 @@ class TopLevelVariableTranslator {
         )
 
         if (CompilationConstants.REFCOUNT_GC) {
-            vars.forEach { (variable, _) ->
-                func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, StringLiteral("null"))
-                )
-            }
+            vars.keys.forEach { func.code.code.add(assign(it, null)) }
         }
+        vars.forEach { (variable, value) -> func.code.code.add(assign(variable, value)) }
 
-        vars.forEach { (variable, value) ->
-            if(value == null) {
-                func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, StringLiteral("null"))
-                )
-            } else {
-                func.code.code.add(
-                    TLVariableAssignmentStatement(variable, variable.sourceAST, value)
-                )
-            }
-        }
-
-        reachableLists.forEach {
-            if (it.scratchList.items.isEmpty())
-                func.code.code.add(StaticListClearStatement(it))
-        }
+        reachableLists.filter { it.scratchList.items.isEmpty() }
+            .forEach { func.code.code.add(StaticListClearStatement(it)) }
 
         return func
     }
+
+    private fun assign(variable: TLVariable, value: Expression?) =
+        TLVariableAssignmentStatement(variable, variable.sourceAST, value ?: StringLiteral("null"))
 }

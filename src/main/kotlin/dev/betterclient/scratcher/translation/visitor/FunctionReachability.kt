@@ -115,6 +115,11 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
                 reachableLists.add(list)
                 return super.visitStaticListSetStatement(list, index, item)
             }
+
+            override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+                enqueueFunction(func)
+                return super.visitTemporaryCallStatement(func, args)
+            }
         }
 
         entrypoints.forEach { entrypoint ->
