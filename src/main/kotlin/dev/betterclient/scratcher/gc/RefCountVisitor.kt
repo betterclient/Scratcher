@@ -373,7 +373,8 @@ class RefCountVisitor(
         if (nonNull is SimpleType) {
             return (compilationContext.asts.values.flatMap { it.structs } +
                     StandardLibASTGenerator.compilerLib.structs +
-                    StandardLibASTGenerator.lambdaLib.structs).any { it.type.asNonNull() == nonNull }
+                    StandardLibASTGenerator.lambdaLib.structs +
+                    StandardLibASTGenerator.listPoolLib.structs).any { it.type.asNonNull() == nonNull }
         }
         return false
     }

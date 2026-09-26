@@ -25,6 +25,11 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object PromoteToGlobals : Optimization("Promote to globals") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
+        if (func.sourceAST == StandardLibASTGenerator.gc ||
+            func.sourceAST == StandardLibASTGenerator.refCountGC
+        ) {
+            return false
+        }
         return func.warp || func.isEventListener
     }
 
@@ -232,6 +237,8 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 val finalStates = merge(preLoopStates, variableStates)
                 variableStates.clear()
                 variableStates.putAll(finalStates)
+
+                visit(condition)
 
                 return super.visitWhileStatement(condition, block)
             }
