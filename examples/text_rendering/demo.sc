@@ -7,7 +7,7 @@ import math;
 import "text_render.sc"::*;
 
 on GreenFlag {
-    init();
+    initRoboto();
 
     str text = "Hello world! Tap to change";
     while(true) {

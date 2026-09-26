@@ -5,7 +5,7 @@ import triangle;
 import sensing;
 
 warp void renderText(str text, int x, int y, float color, bool center) {
-    pen::setSize(2);
+    pen::setSize(1.5);
 
     float xOffset = if(center) {
         render::textWidth(text, 15, 4) / 2
@@ -54,5 +54,5 @@ warp void clear() {
 }
 
 warp void init() {
-    render::init();
+    render::initRoboto();
 }
