@@ -76,7 +76,12 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
             }
         }
 
-        fun propagate(expr: Expression): Expression = expressionVisitor.visit(expr)
+        fun propagate(expr: Expression): Expression {
+            if (expr is StatementExpression) {
+                return StatementExpression(expr.statements.map { processStatement(it) }, propagate(expr.expression))
+            }
+            return expressionVisitor.visit(expr)
+        }
 
         fun invalidate(variable: LocalVariable) {
             knownValues.remove(variable)
@@ -279,10 +284,39 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
             is SafeDotExpression -> hasCallsOrLambdas(expr.target)
             is NonNullAssertExpression -> hasCallsOrLambdas(expr.expression)
             is NonNullOrElseExpression -> hasCallsOrLambdas(expr.operand1) || hasCallsOrLambdas(expr.operand2)
-            is StatementExpression -> expr.statements.any { stmt ->
-                stmt is ExpressionStatement && hasCallsOrLambdas(stmt.expression)
-            } || hasCallsOrLambdas(expr.expression)
+            is StatementExpression -> expr.statements.any { hasCallsOrLambdas(it) } || hasCallsOrLambdas(expr.expression)
             else -> false
+        }
+    }
+
+    private fun hasCallsOrLambdas(block: CodeBlock): Boolean {
+        return block.code.any { hasCallsOrLambdas(it) }
+    }
+
+    private fun hasCallsOrLambdas(stmt: Statement): Boolean {
+        return when (stmt) {
+            is ExpressionStatement -> hasCallsOrLambdas(stmt.expression)
+            is VariableStatement -> stmt.defaultValue?.let { hasCallsOrLambdas(it) } ?: false
+            is LocalVariableAssignmentStatement -> hasCallsOrLambdas(stmt.assignment)
+            is VariableAssignmentStatement -> hasCallsOrLambdas(stmt.target) || hasCallsOrLambdas(stmt.assignment)
+            is TLVariableAssignmentStatement -> hasCallsOrLambdas(stmt.assignment)
+            is ReturnStatement -> stmt.expression?.let { hasCallsOrLambdas(it) } ?: false
+            is IfStatement -> hasCallsOrLambdas(stmt.condition) || hasCallsOrLambdas(stmt.thenBlock)
+            is IfElseStatement -> hasCallsOrLambdas(stmt.condition) || hasCallsOrLambdas(stmt.thenBlock) || hasCallsOrLambdas(stmt.elseBlock)
+            is WhileStatement -> hasCallsOrLambdas(stmt.condition) || hasCallsOrLambdas(stmt.block)
+            is RepeatStatement -> hasCallsOrLambdas(stmt.amount) || hasCallsOrLambdas(stmt.block)
+            is TemporaryCallStatement -> stmt.args.any { hasCallsOrLambdas(it) }
+            is TemporaryHeapSetStatement -> hasCallsOrLambdas(stmt.index) || hasCallsOrLambdas(stmt.data)
+            is TemporaryScratchStmt -> stmt.inputExprs.any { hasCallsOrLambdas(it) }
+            is CompositeStatement -> stmt.statements.any { hasCallsOrLambdas(it) }
+            is StaticListSetStatement -> hasCallsOrLambdas(stmt.index) || hasCallsOrLambdas(stmt.value)
+            is StaticListAddStatement -> hasCallsOrLambdas(stmt.item)
+            is StaticListInsertStatement -> hasCallsOrLambdas(stmt.index) || hasCallsOrLambdas(stmt.value)
+            is StaticListRemoveStatement -> hasCallsOrLambdas(stmt.index)
+
+            is BreakStatement -> false
+            is ContinueStatement -> false
+            is StaticListClearStatement -> false
         }
     }
 }
