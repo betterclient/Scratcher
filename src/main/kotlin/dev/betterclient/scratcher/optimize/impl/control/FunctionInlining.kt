@@ -103,12 +103,15 @@ object InlineEligibility {
         if (targetFunc.export) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
 
+        val hasSingleReturnNonVoid = targetFunc.returnType != PrimitiveType.Void &&
+                countReturns(targetFunc.code) == 1
+
         if (!func.warp && targetFunc.warp) return Int.MAX_VALUE
 
         visit(targetFunc, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
             override fun visitReturnStatement(expression: Expression?): Statement? {
-                currentCost += 600
+                currentCost += if (hasSingleReturnNonVoid) 50 else 600
                 return super.visitReturnStatement(expression)
             }
 
@@ -166,9 +169,40 @@ object InlineEligibility {
 
                 return super.visitNonNullOrElseExpression(operand1, operand2)
             }
+
+            override fun visitCodeBlock(block: CodeBlock): CodeBlock {
+                val before = currentBlock
+                currentBlock = block
+                for (stmt in block.code) {
+                    if (stmt is ExpressionStatement &&
+                        stmt.expression is CallExpression &&
+                        stmt.expression.func.sourceAST == StandardLibASTGenerator.typeChecker
+                    ) {
+                        continue
+                    }
+                    visitStatementWithBuffer(stmt)
+                }
+                currentBlock = before
+                return block
+            }
         })
 
         return currentCost
+    }
+
+    private fun countReturns(block: CodeBlock): Int {
+        var count = 0
+        visit(block, object : ASTVisitor() {
+            override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode {
+                return VisitMode.READ_ONLY
+            }
+
+            override fun visitReturnStatement(expression: Expression?): Statement? {
+                count++
+                return super.visitReturnStatement(expression)
+            }
+        })
+        return count
     }
 }
 
