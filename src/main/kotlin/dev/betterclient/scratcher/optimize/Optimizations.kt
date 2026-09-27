@@ -13,6 +13,7 @@ import dev.betterclient.scratcher.optimize.impl.dynamic.LambdaInlining
 import dev.betterclient.scratcher.optimize.impl.expr.ConstantFolding
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyBooleanEquality
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyDoubleNegation
+import dev.betterclient.scratcher.optimize.impl.expr.SimplifyMath
 import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination
 import dev.betterclient.scratcher.optimize.impl.variable.InlineSingleUseAssignment
 import dev.betterclient.scratcher.optimize.impl.variable.SequentialConstantPropagation
@@ -27,6 +28,7 @@ object Optimizations {
         SimplifyDoubleNegation,
         SimplifyBooleanEquality,
         ConstantFolding,
+        SimplifyMath,
         DeadCodeElimination,
         InlineSingleUseAssignment,
         SequentialConstantPropagation,
