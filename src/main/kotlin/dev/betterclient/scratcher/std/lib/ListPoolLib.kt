@@ -3,9 +3,15 @@ package dev.betterclient.scratcher.std.lib
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.codegen.ast.TurboWarpBoolExpressions
+import dev.betterclient.scratcher.codegen.ast.TurboWarpListExpressions
+import dev.betterclient.scratcher.codegen.ast.TurboWarpListStatements
+import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
+import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import java.math.BigInteger
 
 object ListPoolLib {
     fun init(lib: ASTFile) {
@@ -33,7 +39,11 @@ object ListPoolLib {
             TLStaticList(
                 name = "Pool$index",
                 sourceAST = lib,
-                private = true
+                private = true,
+                scratchList = ScratchList(
+                    if (CompilationConstants.TURBOWARP) "list_pool::Pool$index"
+                    else obfuscate("list_pool::Pool$index")
+                )
             ).also { lib.staticLists.add(it) }
         }
         pool.scratchList.items.addAll(
@@ -91,7 +101,8 @@ object ListPoolLib {
             receiver: Boolean = true,
             operator: Boolean = false,
             returnType: PrimitiveType = PrimitiveType.Void,
-            action: (TLStaticList, List<Parameter>) -> List<Statement>
+            turbowarpAction: ((Expression, List<Parameter>) -> List<Statement>)? = null,
+            fallbackAction: (TLStaticList, List<Parameter>) -> List<Statement>
         ): Function {
             val parsList = pars.toList()
             return newListFunc(
@@ -102,10 +113,10 @@ object ListPoolLib {
                 parameters = parsList,
                 pooledList = pooledList,
                 pool = lists,
-                returnType = returnType
-            ) { list ->
-                action(list, parsList)
-            }.also {
+                returnType = returnType,
+                turbowarpAction = turbowarpAction?.let { act -> { dynamicName -> act(dynamicName, parsList) } },
+                fallbackAction = { list -> fallbackAction(list, parsList) }
+            ).also {
                 lib.functions.add(it)
             }
         }
@@ -116,79 +127,115 @@ object ListPoolLib {
             receiver: Boolean = true,
             operator: Boolean = false,
             returnType: PrimitiveType = PrimitiveType.Void,
-            action: (TLStaticList, List<Parameter>) -> Statement
+            turbowarpAction: ((Expression, List<Parameter>) -> Statement)? = null,
+            fallbackAction: (TLStaticList, List<Parameter>) -> Statement
         ) = newList(
             name,
             *pars,
             receiver = receiver,
             operator = operator,
             returnType = returnType,
-            action = { list, parameters -> listOf(action(list, parameters)) }
+            turbowarpAction = turbowarpAction?.let { act -> { dyn, p -> listOf(act(dyn, p)) } },
+            fallbackAction = { list, parameters -> listOf(fallbackAction(list, parameters)) }
         )
 
         singleStmtList(
             name = "add",
-            Parameter("item", PrimitiveType.Str)
-        ) { list, par ->
-            StaticListAddStatement(list, ParameterExpression(par[0]))
-        }
+            Parameter("item", PrimitiveType.Str),
+            turbowarpAction = { dynList, pars ->
+                TemporaryScratchStmt(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                    listOf(TurboWarpListStatements.Add(args[0], args[1]))
+                }
+            },
+            fallbackAction = { list, par ->
+                StaticListAddStatement(list, ParameterExpression(par[0]))
+            }
+        )
 
         val clearFunc = singleStmtList(
-            "clear"
-        ) { list, _ ->
-            StaticListClearStatement(list)
-        }
+            name = "clear",
+            turbowarpAction = { dynList, _ ->
+                TemporaryScratchStmt(listOf(dynList)) { args ->
+                    listOf(TurboWarpListStatements.Clear(args[0]))
+                }
+            },
+            fallbackAction = { list, _ ->
+                StaticListClearStatement(list)
+            }
+        )
 
         singleStmtList(
-            "get",
+            name = "get",
             Parameter("index", PrimitiveType.Integer),
             operator = true,
-            returnType = PrimitiveType.Str
-        ) { list, pars ->
-            ReturnStatement(StaticListItemExpression(
-                list = list,
-                index = BinaryExpression(
-                    left = ParameterExpression(pars[0]),
-                    right = IntLiteral(1.toBigInteger()),
-                    operator = BinaryOperator.ADD
-                ) //compensate for 0-indexing
-            ))
-        }
-
-        singleStmtList("length", returnType = PrimitiveType.Integer) { list, _ ->
-            ReturnStatement(StaticListLengthExpression(list))
-        }
+            returnType = PrimitiveType.Str,
+            turbowarpAction = { dynList, pars ->
+                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                ReturnStatement(
+                    TemporaryScratchExpr(listOf(dynList, index1Based)) { args ->
+                        TurboWarpListExpressions.GetItem(args[0], args[1])
+                    }
+                )
+            },
+            fallbackAction = { list, pars ->
+                ReturnStatement(StaticListItemExpression(
+                    list = list,
+                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                ))
+            }
+        )
 
         singleStmtList(
-            "set",
+            name = "length",
+            returnType = PrimitiveType.Integer,
+            turbowarpAction = { dynList, _ ->
+                ReturnStatement(
+                    TemporaryScratchExpr(listOf(dynList)) { args ->
+                        TurboWarpListExpressions.Length(args[0])
+                    }
+                )
+            },
+            fallbackAction = { list, _ ->
+                ReturnStatement(StaticListLengthExpression(list))
+            }
+        )
+
+        singleStmtList(
+            name = "set",
             Parameter("index", PrimitiveType.Integer),
             Parameter("value", PrimitiveType.Str),
-            operator = true
-        ) { list, pars ->
-            StaticListSetStatement(
-                list = list,
-                index = BinaryExpression(
-                    left = ParameterExpression(pars[0]),
-                    right = IntLiteral(1.toBigInteger()),
-                    operator = BinaryOperator.ADD
-                ),
-                value = ParameterExpression(pars[1])
-            )
-        }
+            operator = true,
+            turbowarpAction = { dynList, pars ->
+                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                TemporaryScratchStmt(listOf(dynList, index1Based, ParameterExpression(pars[1]))) { args ->
+                    listOf(TurboWarpListStatements.Replace(args[0], args[1], args[2]))
+                }
+            },
+            fallbackAction = { list, pars ->
+                StaticListSetStatement(
+                    list = list,
+                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE)),
+                    value = ParameterExpression(pars[1])
+                )
+            }
+        )
 
         singleStmtList(
-            "removeAt",
-            Parameter("index", PrimitiveType.Integer)
-        ) { list, pars ->
-            StaticListRemoveStatement(
-                list = list,
-                index = BinaryExpression(
-                    left = ParameterExpression(pars[0]),
-                    right = IntLiteral(1.toBigInteger()),
-                    operator = BinaryOperator.ADD
+            name = "removeAt",
+            Parameter("index", PrimitiveType.Integer),
+            turbowarpAction = { dynList, pars ->
+                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                TemporaryScratchStmt(listOf(dynList, index1Based)) { args ->
+                    listOf(TurboWarpListStatements.Delete(args[0], args[1]))
+                }
+            },
+            fallbackAction = { list, pars ->
+                StaticListRemoveStatement(
+                    list = list,
+                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
                 )
-            )
-        }
+            }
+        )
 
         singleStmtList(
             "insert",
@@ -207,34 +254,48 @@ object ListPoolLib {
         }
 
         singleStmtList(
-            "contains",
+            name = "contains",
             Parameter("item", PrimitiveType.Str),
-            returnType = PrimitiveType.Bool
-        ) { list, pars ->
-            ReturnStatement(
-                StaticListContainsExpression(
-                    list = list,
-                    item = ParameterExpression(pars[0])
+            returnType = PrimitiveType.Bool,
+            turbowarpAction = { dynList, pars ->
+                ReturnStatement(
+                    TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                        TurboWarpBoolExpressions.ListContains(args[0], args[1])
+                    }
                 )
-            )
-        }
+            },
+            fallbackAction = { list, pars ->
+                ReturnStatement(StaticListContainsExpression(list, ParameterExpression(pars[0])))
+            }
+        )
+
 
         singleStmtList(
-            "indexOf",
+            name = "indexOf",
             Parameter("item", PrimitiveType.Str),
-            returnType = PrimitiveType.Integer
-        ) { list, pars ->
-            ReturnStatement(
-                BinaryExpression(
-                    left = StaticListItemIndexExpression(
-                        list = list,
-                        item = ParameterExpression(pars[0])
-                    ),
-                    right = IntLiteral(1.toBigInteger()),
-                    operator = BinaryOperator.SUBTRACT
+            returnType = PrimitiveType.Integer,
+            turbowarpAction = { dynList, pars ->
+                ReturnStatement(
+                    BinaryExpression(
+                        left = TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                            TurboWarpListExpressions.IndexOf(args[0], args[1])
+                        },
+                        right = IntLiteral(BigInteger.ONE),
+                        operator = BinaryOperator.SUBTRACT
+                    )
                 )
-            )
-        }
+            },
+            fallbackAction = { list, pars ->
+                ReturnStatement(
+                    BinaryExpression(
+                        left = StaticListItemIndexExpression(list, ParameterExpression(pars[0])),
+                        right = IntLiteral(BigInteger.ONE),
+                        operator = BinaryOperator.SUBTRACT
+                    )
+                )
+            }
+        )
+
 
         val listParam = Parameter("list", pooledList.type)
         lib.functions.add(Function(
@@ -277,7 +338,8 @@ object ListPoolLib {
         pooledList: Struct,
         pool: List<TLStaticList>,
         returnType: PrimitiveType = PrimitiveType.Void,
-        action: (TLStaticList) -> List<Statement>
+        turbowarpAction: ((Expression) -> List<Statement>)?,
+        fallbackAction: (TLStaticList) -> List<Statement>
     ): Function {
         val listParam = Parameter("list", pooledList.type)
         val out = Function(
@@ -299,17 +361,25 @@ object ListPoolLib {
             struct = pooledList
         )
 
-        val cachedIndex = LocalVariable("dispatch_idx", PrimitiveType.Integer)
-        out.code.code.add(VariableStatement(targetIndexExpr, cachedIndex))
+        if (CompilationConstants.TURBOWARP && turbowarpAction != null) {
+            val dynamicListName = ConcatExpression(
+                StringLiteral("list_pool::Pool"),
+                targetIndexExpr
+            )
+            out.code.code.addAll(turbowarpAction(dynamicListName))
+        } else {
+            val cachedIndex = LocalVariable("dispatch_idx", PrimitiveType.Integer)
+            out.code.code.add(VariableStatement(targetIndexExpr, cachedIndex))
 
-        val dispatchTree = generateBinarySearch(
-            targetIndex = LocalVariableExpression(cachedIndex),
-            low = 1,
-            high = CompilationConstants.LIST_POOL_SIZE,
-            pool = pool,
-            action = action
-        )
-        out.code.code.addAll(dispatchTree)
+            val dispatchTree = generateBinarySearch(
+                targetIndex = LocalVariableExpression(cachedIndex),
+                low = 1,
+                high = CompilationConstants.LIST_POOL_SIZE,
+                pool = pool,
+                action = fallbackAction
+            )
+            out.code.code.addAll(dispatchTree)
+        }
 
         return out
     }

@@ -1,26 +1,10 @@
 package dev.betterclient.scratcher.optimize.impl
 
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.CodeBlock
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.ArrayType
-import dev.betterclient.scratcher.ast.LocalVariable
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.Statement
-import dev.betterclient.scratcher.ast.TLVariable
-import dev.betterclient.scratcher.ast.TLVariableAssignmentStatement
-import dev.betterclient.scratcher.ast.VariableExpression
-import dev.betterclient.scratcher.ast.WhenBranch
-import dev.betterclient.scratcher.ast.WhenExpression
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.optimize.Optimization
-import dev.betterclient.scratcher.optimize.OptimizationUtils
-import dev.betterclient.scratcher.optimize.TCallGraph
-import dev.betterclient.scratcher.optimize.VisitMode
-import dev.betterclient.scratcher.optimize.visit
+import dev.betterclient.scratcher.optimize.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object PromoteToGlobals : Optimization("Promote to globals") {

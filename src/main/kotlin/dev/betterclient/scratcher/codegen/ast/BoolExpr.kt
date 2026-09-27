@@ -137,3 +137,47 @@ object SensingBoolExpressions {
         }
     }
 }
+
+object TurboWarpBoolExpressions {
+    class StringsIdentical(
+        val operand1: ScratchExpression,
+        val operand2: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower() = StringsIdenticalOpcode(operand1.lower(), operand2.lower()).asValue
+    }
+
+    class StringsIsCase(
+        val string: ScratchExpression,
+        val textCase: StringsTextCase
+    ) : ScratchBoolExpression() {
+        override fun lower() = StringsIsCaseOpcode(string.lower(), textCase).asValue
+    }
+
+    class MathMoreOrEqual(
+        val a: ScratchExpression,
+        val b: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower() = TrueFantomMathMoreOrEqualOpcode(a.lower(), b.lower()).asValue
+    }
+
+    class MathLessOrEqual(
+        val a: ScratchExpression,
+        val b: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower() = TrueFantomMathLessOrEqualOpcode(a.lower(), b.lower()).asValue
+    }
+
+    class MathNotEqual(
+        val a: ScratchExpression,
+        val b: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower() = TrueFantomMathNotEqualOpcode(a.lower(), b.lower()).asValue
+    }
+
+    class ListContains(
+        val listName: ScratchExpression,
+        val value: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower() = VarAndListContainsOpcode(listName.lower(), value.lower()).asValue
+    }
+}

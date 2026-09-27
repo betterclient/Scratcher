@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.codegen.ast
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
@@ -143,6 +144,36 @@ object ListExpressions {
     }
 
     class ReflectVariable(val name: ScratchExpression) : ScratchExpression() {
-        override fun lower() = ReadVariable(name.lower()).asValue
+        override fun lower() = if (CompilationConstants.TURBOWARP)
+            ReadVariableTurboWarp(name.lower()).asValue else
+                ReadVariable(name.lower()).asValue
+    }
+}
+
+object TurboWarpMathExpressions {
+    class Exponent(
+        val a: ScratchExpression,
+        val b: ScratchExpression
+    ) : ScratchExpression() {
+        override fun lower() = TrueFantomMathExponentOpcode(a.lower(), b.lower()).asValue
+    }
+
+    class Root(
+        val a: ScratchExpression,
+        val b: ScratchExpression
+    ) : ScratchExpression() {
+        override fun lower() = TrueFantomMathRootOpcode(a.lower(), b.lower()).asValue
+    }
+}
+
+object TurboWarpListExpressions {
+    class GetItem(val listName: ScratchExpression, val index: ScratchExpression) : ScratchExpression() {
+        override fun lower() = VarAndListGetValueOfListOpcode(listName.lower(), index.lower()).asValue
+    }
+    class IndexOf(val listName: ScratchExpression, val value: ScratchExpression) : ScratchExpression() {
+        override fun lower() = VarAndListGetIndexOfListOpcode(listName.lower(), value.lower()).asValue
+    }
+    class Length(val listName: ScratchExpression) : ScratchExpression() {
+        override fun lower() = VarAndListLengthOpcode(listName.lower()).asValue
     }
 }

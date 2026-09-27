@@ -219,3 +219,18 @@ object PenStatements {
         override fun lower() = listOf(PenSetSizeOpcode(size.lower()))
     }
 }
+
+object TurboWarpListStatements {
+    class Add(val listName: ScratchExpression, val value: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(VarAndListAddOpcode(listName.lower(), value.lower()))
+    }
+    class Delete(val listName: ScratchExpression, val index: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(VarAndListDeleteOpcode(listName.lower(), index.lower()))
+    }
+    class Clear(val listName: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(VarAndListClearOpcode(listName.lower()))
+    }
+    class Replace(val listName: ScratchExpression, val index: ScratchExpression, val value: ScratchExpression) : ScratchStatement() {
+        override fun lower() = listOf(VarAndListReplaceOpcode(listName.lower(), index.lower(), value.lower()))
+    }
+}

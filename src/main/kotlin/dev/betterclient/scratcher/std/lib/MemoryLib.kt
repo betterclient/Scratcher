@@ -78,12 +78,14 @@ object MemoryLib {
                 }
             }
 
-            control.ifThen(
-                ((heap.length - freeList.length + actualSize) gt 199999.sc)
-                        and
-                (DSLBoolFromCreator { SensingBoolExpressions.IsTurboWarpExpression() }.not())
-            ) {
-                call(ExceptionLib.panic, "Scratcher runtime error: Out of memory!".sc)
+            if (!CompilationConstants.TURBOWARP) {
+                control.ifThen(
+                    ((heap.length - freeList.length + actualSize) gt 199999.sc)
+                            and
+                            (DSLBoolFromCreator { SensingBoolExpressions.IsTurboWarpExpression() }.not())
+                ) {
+                    call(ExceptionLib.panic, "Scratcher runtime error: Out of memory!".sc)
+                }
             }
 
             allocatedAddress.set((-1).sc)

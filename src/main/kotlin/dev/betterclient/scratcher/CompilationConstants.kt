@@ -26,8 +26,8 @@ object CompilationConstants {
 
     const val DISABLE_OPTIMIZATIONS = false //disable optimizations to make performance worse for debugging
 
-    const val ADD_DUMMY_SPRITE = true //add an empty dummy sprite so the editor opens it instead of the massive worker sprite
-
     //experimental
     const val SHORT_CIRCUITS = true //experimental short circuit support via desugar pass
+    const val ADD_DUMMY_SPRITE = true //add an empty dummy sprite so the editor opens it instead of the massive worker sprite
+    const val TURBOWARP = true //use TurboWarp only extensions to improve performance (NOT COMPATIBLE WITH SCRATCH!!)
 }

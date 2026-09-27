@@ -1,9 +1,12 @@
 package dev.betterclient.scratcher.sugar.other
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
+import dev.betterclient.scratcher.codegen.ast.BoolOperatorExpressions
+import dev.betterclient.scratcher.codegen.ast.TurboWarpBoolExpressions
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
@@ -17,18 +20,28 @@ object CaseSensitiveEquals : CompilerSugar() {
         context: CompilationContext
     ) {
         visit(func, object : ASTVisitor() {
-            override fun visitBinaryExpression(
-                left: Expression,
-                right: Expression,
-                operator: BinaryOperator
-            ): Expression {
-                if (operator == BinaryOperator.STRICT_EQUAL) {
-                    return strictEqual(left, right)
-                } else if (operator == BinaryOperator.STRICT_NOT_EQUAL) {
-                    return UnaryExpression(
-                        operator = UnaryOperator.NOT,
-                        expression = strictEqual(left, right),
-                    )
+            override fun visitBinaryExpression(left: Expression, right: Expression, operator: BinaryOperator): Expression {
+                if (CompilationConstants.TURBOWARP) {
+                    if (operator == BinaryOperator.STRICT_EQUAL) {
+                        return TemporaryScratchExpr(listOf(left, right)) { args ->
+                            TurboWarpBoolExpressions.StringsIdentical(args[0], args[1])
+                        }
+                    } else if (operator == BinaryOperator.STRICT_NOT_EQUAL) {
+                        return TemporaryScratchExpr(listOf(left, right)) { args ->
+                            BoolOperatorExpressions.SNotExpression(
+                                TurboWarpBoolExpressions.StringsIdentical(args[0], args[1])
+                            )
+                        }
+                    }
+                } else {
+                    if (operator == BinaryOperator.STRICT_EQUAL) {
+                        return strictEqual(left, right)
+                    } else if (operator == BinaryOperator.STRICT_NOT_EQUAL) {
+                        return UnaryExpression(
+                            operator = UnaryOperator.NOT,
+                            expression = strictEqual(left, right),
+                        )
+                    }
                 }
 
                 return super.visitBinaryExpression(left, right, operator)

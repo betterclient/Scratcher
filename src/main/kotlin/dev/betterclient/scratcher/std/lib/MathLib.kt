@@ -1,11 +1,14 @@
 package dev.betterclient.scratcher.std.lib
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
+import dev.betterclient.scratcher.codegen.ast.TurboWarpMathExpressions
+import dev.betterclient.scratcher.codegen.ast.scratch
 import dev.betterclient.scratcher.codegen.opcode.MathOp
 import dev.betterclient.scratcher.std.dsl.*
 
@@ -26,21 +29,53 @@ object MathLib {
 
         compileInline(
             lib, "pow",
-            parameters = mutableListOf(Parameter("base", PrimitiveType.Float), Parameter("exponent", PrimitiveType.Float)),
+            parameters = mutableListOf(
+                Parameter("base", PrimitiveType.Float),
+                Parameter("exponent", PrimitiveType.Float)
+            ),
             returnType = PrimitiveType.Float
-        ) {
-            OperatorExpressions.MathOperation(
-                MathOp.E_POW,
-                OperatorExpressions.BinaryExpression(
-                    left = it[1],
-                    right = OperatorExpressions.MathOperation(
-                        MathOp.LN,
-                        it[0]
-                    ),
-                    operator = OperatorExpressions.BinaryOperator.MULTIPLY
+        ) { args ->
+            if (CompilationConstants.TURBOWARP) {
+                TurboWarpMathExpressions.Exponent(args[0], args[1])
+            } else {
+                OperatorExpressions.MathOperation(
+                    MathOp.E_POW,
+                    OperatorExpressions.BinaryExpression(
+                        left = args[1],
+                        right = OperatorExpressions.MathOperation(MathOp.LN, args[0]),
+                        operator = OperatorExpressions.BinaryOperator.MULTIPLY
+                    )
                 )
-            )
+            }
         }
+
+        compileInline(
+            lib,
+            "root",
+            parameters = mutableListOf(
+                Parameter("value", PrimitiveType.Float),
+                Parameter("n", PrimitiveType.Float)
+            ),
+            returnType = PrimitiveType.Float
+        ) { args ->
+            if (CompilationConstants.TURBOWARP) {
+                TurboWarpMathExpressions.Root(args[0], args[1])
+            } else {
+                OperatorExpressions.MathOperation(
+                    MathOp.E_POW,
+                    OperatorExpressions.BinaryExpression(
+                        left = OperatorExpressions.BinaryExpression(
+                            left = "1.0".scratch,
+                            right = args[1],
+                            operator = OperatorExpressions.BinaryOperator.DIVIDE
+                        ),
+                        right = OperatorExpressions.MathOperation(MathOp.LN, args[0]),
+                        operator = OperatorExpressions.BinaryOperator.MULTIPLY
+                    )
+                )
+            }
+        }
+
 
         compileInline(
             lib,

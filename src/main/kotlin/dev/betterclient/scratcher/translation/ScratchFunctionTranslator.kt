@@ -190,6 +190,21 @@ class ScratchFunctionTranslator(
     }
 
     private fun translateBinaryExpression(expr: BinaryExpression): ScratchExpression {
+        if (CompilationConstants.TURBOWARP) {
+            when (expr.operator) {
+                BinaryOperator.GREATER_EQUAL -> return TurboWarpBoolExpressions.MathMoreOrEqual(
+                    translateExpr(expr.left), translateExpr(expr.right)
+                )
+                BinaryOperator.LESS_EQUAL -> return TurboWarpBoolExpressions.MathLessOrEqual(
+                    translateExpr(expr.left), translateExpr(expr.right)
+                )
+                BinaryOperator.NOT_EQUAL -> return TurboWarpBoolExpressions.MathNotEqual(
+                    translateExpr(expr.left), translateExpr(expr.right)
+                )
+                else -> {}
+            }
+        }
+
         return when(expr.operator) {
             BinaryOperator.ADD -> OperatorExpressions.BinaryExpression(
                 left = translateExpr(expr.left),

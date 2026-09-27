@@ -1,13 +1,18 @@
 package dev.betterclient.scratcher.std.lib
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ScratchSprite
 import dev.betterclient.scratcher.codegen.ast.SensingExpressions
+import dev.betterclient.scratcher.codegen.ast.TurboWarpBoolExpressions
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
+import dev.betterclient.scratcher.codegen.opcode.StringsTextCase
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.dsl.compile
+import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.dsl.equals
 import dev.betterclient.scratcher.std.dsl.not
 import dev.betterclient.scratcher.std.dsl.sc
@@ -21,6 +26,22 @@ object CaseSensitiveLib {
     val spriteName = alphabet.items.joinToString("")
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
+        if (CompilationConstants.TURBOWARP) {
+            compileInline(
+                lib,
+                "isUppercase",
+                parameters = mutableListOf(Parameter("letter", PrimitiveType.Char)),
+                returnType = PrimitiveType.Bool
+            ) { args ->
+                TurboWarpBoolExpressions.StringsIsCase(
+                    string = args[0],
+                    textCase = StringsTextCase.UPPERCASE
+                )
+            }
+
+            return
+        }
+
         editor.addSprite(ScratchSprite(spriteName)) //just used for the check
         editor.addList(alphabet)
 

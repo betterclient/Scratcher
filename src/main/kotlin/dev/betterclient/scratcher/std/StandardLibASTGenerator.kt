@@ -171,6 +171,7 @@ object StandardLibASTGenerator {
     }
 
     val strict_equals by lazy {
+        if (CompilationConstants.TURBOWARP) return@lazy ASTFile("strict_equals")
         bypassRestrictions = true
         val out = compile("/strict_equals.sc", "strict_equals").also {
             lib["strict_equals"] = it
