@@ -38,7 +38,7 @@ object Optimizations {
     )
 
     val applyLast = listOf<Optimization>(
-        PromoteToGlobals
+
     )
 
     fun apply(functions: MutableList<Function>, context: CompilationContext, print: Boolean = true) {
