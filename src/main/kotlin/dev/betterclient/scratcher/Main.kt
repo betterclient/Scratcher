@@ -29,7 +29,7 @@ fun main() {
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("examples/pong/pong.sc"))
+    val (ast, context) = compile(File("examples/math/math.sc"))
     if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
     }

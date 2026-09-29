@@ -633,9 +633,28 @@ fun figureOutType(
                     }
                     return found
                 } else {
-                    return context.types.find {
-                        it is SimpleType && it.name == rawText && it.sourceAST == currentAST
-                    } ?: throw NotFoundException("Type ${type.text} not found in current file")
+                    val parentName = rawText.substringBefore(".").substringBefore("@")
+                    fun findIn(source: ASTFile) = context.types.find {
+                        it is SimpleType && it.name == rawText && it.sourceAST == source
+                    }
+                    fun checkPrivate(source: ASTFile) {
+                        if (source == currentAST) return
+                        val isPrivate = source.sealedEnums.find { it.name == parentName || it.name.substringBefore("@") == parentName }?.private
+                            ?: source.sealedEnumTemplates.find { it.name == parentName }?.private
+                            ?: source.structs.find { it.name == rawText }?.private
+                            ?: false
+                        if (isPrivate) {
+                            throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                        }
+                    }
+                    findIn(currentAST)?.also { checkPrivate(currentAST); return it }
+                    currentAST.flatImportNames[parentName]?.let { flatSource ->
+                        findIn(flatSource)?.also { checkPrivate(flatSource); return it }
+                    }
+                    for (wildcardAst in currentAST.wildcardImportSources) {
+                        findIn(wildcardAst)?.also { checkPrivate(wildcardAst); return it }
+                    }
+                    throw NotFoundException("Type ${type.text} not found in current file")
                 }
             }
 
