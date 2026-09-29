@@ -136,7 +136,7 @@
 - `<T> List<T> T[].toList()`
 
 ### `array`
-**Notes**: 
+**Notes**:
 - Arrays are 0-indexed.
 - Create big arrays using the syntax `[obj, obj, obj ...]`
 - `<T> T?[] arrayOfNulls(int size)`
@@ -167,8 +167,8 @@
 - `<T> void T[].forEach((T) -> void action)`
 
 ### `list_pool`
-**Notes**: The pool is configurable. 
-You must free an allocated list. 
+**Notes**: The pool is configurable.
+You must free an allocated list.
 Pooled lists are 0-indexed.
 - `PooledList allocate()`
 - `PooledList? allocateOrNull()`
@@ -435,6 +435,29 @@ funcWithReferenceInput(() -> {
 //a is 1 here
 ```
 Lambdas support variable captures and capture mutation. Any local variable outside a lambda can be affected by a lambda.
+
+## Memory management & Garbage collection
+Scratcher is a memory safe language. It does not have any unsafe operations. Scratcher comes with 2 garbage collectors to manage memory for you.
+- ARC
+- Tracing M&S
+
+### ARC
+The ARC collector stands for `Automatic Reference Counting`, it works by injecting a `refcount` variable in your structs, increasing it for every user and decreasing everytime it goes out of scope.
+
+The ARC collector can collect non-cyclic objects instantly after they go out of scope.
+
+However, the ARC collector **CANNOT** collect cyclic objects, as the objects always reference themselves, always keeping the reference count at 1.
+
+### Tracing
+The tracing collector works like so:
+- Stop the world (make sure only the collector is running, pause everything else)
+- Walk from the roots and mark objects (look at the local variables of every function that was running when the pause happened and mark objects that are reachable)
+- Free all non-marked objects
+
+The tracing collector can collect cyclic objects at the expense of being slower as the heap gets bigger.
+
+- It's best to run both collectors in parallel to collect all types of objects as fast as possible and avoid an out of memory error.
+- If you still hit out of memory errors, see the documentation on [Out of memory](out_of_memory.md)
 
 ## Other stuff
 - String interpolation: `"Hi: ${1 + 1}"`

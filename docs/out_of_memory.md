@@ -83,7 +83,6 @@ Pooled lists are a pool of static lists managed by the compiler.
 
 As for downsides:
 - They have small overhead on any operation (minimized by binary search dispatch)
-- You must manually manage their lifecycle using the allocator. They won't be garbage collected automatically.
 - They can only store strings.
 
 To use them:
@@ -102,9 +101,4 @@ a.length();
 a.contains("55");
 a.indexOf("55");
 a.insert(5, "hi");
-
-//remember to free when done with it.
-//this will give the list back to the pool so it can be allocated again
-a.free();
 ```
-- You can now ignore free-ing the list if you have the `ARC` collector enabled, the GC will automatically free it.
