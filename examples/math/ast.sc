@@ -19,7 +19,9 @@ sealed enum Expr {
     )
 }
 
-warp Expr List<LexerToken>.parse() {
+warp Expr? List<LexerToken>.parse() {
+    return null if this.length() == 1;
+
     auto parser = ASTParser(this, 0);
 
     auto expr = parser.expression();

@@ -14,7 +14,7 @@ class FunctionStructureTranslator {
         if (function is InlineStandardLibFunction) return null
 
         return ScratchASTFunction(
-            name = obfuscate("${function.sourceAST.simplePath}::${function.name}"),
+            name = obfuscate(scratchName(function)),
             args = function.parameters.map {
                 ScratchFuncArgument(
                     name = obfuscate(it.name),
@@ -23,5 +23,15 @@ class FunctionStructureTranslator {
             },
             runWithoutScreenRefresh = function.warp
         )
+    }
+
+    fun scratchName(function: Function): String {
+        val base = "${function.sourceAST.simplePath}::${function.name}"
+        val receiver = function.parameters.find { it.name == "this" }?.type
+        return if (function.isReceiver && receiver != null) {
+            "$base::${receiver.toSafeString()}"
+        } else {
+            base
+        }
     }
 }
