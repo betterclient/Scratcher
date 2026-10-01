@@ -4,7 +4,6 @@ import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.optimize.impl.*
 import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
@@ -16,6 +15,7 @@ import dev.betterclient.scratcher.optimize.impl.expr.SimplifyDoubleNegation
 import dev.betterclient.scratcher.optimize.impl.expr.SimplifyMath
 import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination
 import dev.betterclient.scratcher.optimize.impl.variable.InlineSingleUseAssignment
+import dev.betterclient.scratcher.optimize.impl.variable.PrimitiveCopyPropagation
 import dev.betterclient.scratcher.optimize.impl.variable.SequentialConstantPropagation
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
@@ -32,6 +32,7 @@ object Optimizations {
         DeadCodeElimination,
         InlineSingleUseAssignment,
         SequentialConstantPropagation,
+        PrimitiveCopyPropagation,
         DeadStoreElimination,
         FunctionInlining,
         TailCallOptimization

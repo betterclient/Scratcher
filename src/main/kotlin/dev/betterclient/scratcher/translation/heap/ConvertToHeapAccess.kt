@@ -56,6 +56,8 @@ class ConvertToHeapAccess(
             })
         }
 
+        RemoveRedundantHeapStores.run(newFuncs.keys.toList())
+
         return newFuncs.mapValues { (_, data) ->
             data.size to data.gcInfo
         }

@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
+import dev.betterclient.scratcher.gc.ReleaseDeadTemporaries
 import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.RefCountGC
 import dev.betterclient.scratcher.optimize.Optimizations
@@ -107,6 +108,9 @@ fun main() {
 
     println("Re-parse locals")
     reachableFunctions.forEach { ReParseLocalVariables(it).run() }
+
+    println("Release dead temporaries")
+    ReleaseDeadTemporaries.run(reachableFunctions, RefCountGC.decFunctions(), RefCountGC.incFunction())
 
     val reachableFunctionsLocalCountsMap = ConvertToHeapAccess(reachableFunctions).run()
 

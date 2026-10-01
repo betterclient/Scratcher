@@ -44,6 +44,11 @@ object RefCountGC {
         return listOf(inc) + structDecs.values + sealedDecs.values + listDecMap.values
     }
 
+    fun decFunctions(): Set<Function> =
+        (structDecs.values + sealedDecs.values + listDecMap.values).toSet()
+
+    fun incFunction(): Function = inc
+
     private fun setup(context: CompilationContext) {
         if (setupDone) return
         setupDone = true
