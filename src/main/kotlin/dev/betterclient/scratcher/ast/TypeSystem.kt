@@ -180,7 +180,7 @@ data class FunctionType(
         }
     }
 
-    override fun toSafeString() = "${parameterTypes.joinToString { it.toSafeString() }} ${returnType.toSafeString()}}"
+    override fun toSafeString() = "${parameterTypes.joinToString { it.toSafeString() }} ${returnType.toSafeString()}"
 }
 
 data class PlaceholderType(val name: String) : Type {
