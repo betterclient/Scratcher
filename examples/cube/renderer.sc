@@ -1,6 +1,7 @@
 import array::*;
 import math::*;
 import triangle;
+import "player.sc"::*;
 import pen;
 import extensions;
 
@@ -90,17 +91,26 @@ warp Mesh createCube() {
     return Mesh(tris);
 }
 
-warp void Mesh.render(float angleX, float angleY, float fov) {
+warp void Mesh.render(float angleX, float angleY, Player camera, float fov) {
     for(auto tri in this.triangles) {
         Vec3D[] transformed = tri.p.map(
             (Vec3D v) -> {
-                Vec3D v2 = rotateX(v, angleX);
-                v2 = rotateY(v2, angleY);
+                Vec3D worldPos = rotateX(v, angleX);
+                worldPos = rotateY(worldPos, angleY);
 
-                v2.z += 2.5;
-                return v2;
+                Vec3D camPos = Vec3D(
+                    worldPos.x - camera.position.x,
+                    worldPos.y - camera.position.y,
+                    worldPos.z - camera.position.z
+                );
+
+                camPos = rotateY(camPos, -camera.yaw);
+                camPos = rotateX(camPos, camera.pitch);
+                return camPos;
             }
         );
+
+        continue if (transformed[0].z <= 0.1 || transformed[1].z <= 0.1 || transformed[2].z <= 0.1);
 
         int width = 480;
         int height = 360;
