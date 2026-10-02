@@ -77,7 +77,7 @@ class LambdaClosureConversion(
         captured: MutableSet<LocalVariable>
     ): Expression {
         val myCapture = Struct(
-            name = "LambdaCapture@${index}",
+            name = "LambdaCapture@${index++}",
             sourceAST = StandardLibASTGenerator.lambdaLib,
             private = false,
         ).also {
@@ -91,10 +91,10 @@ class LambdaClosureConversion(
 
         val oldMappings = captureMappings.toMap()
 
-        myCapture.parameters.addAll(captured.mapIndexed { index, variable ->
+        myCapture.parameters.addAll(captured.mapIndexed { captureIndex, variable ->
             val box = boxFor(variable)
 
-            Parameter("capture$index@${variable.name}", box.type).also {
+            Parameter("capture$captureIndex@${variable.name}", box.type).also {
                 captureMappings[variable] = it
             }
         })
