@@ -34,7 +34,7 @@ warp void Player.update() {
     if(sensing::isKeyPressed("down arrow")) deltaLUp -= 1;
     if(sensing::isKeyPressed("right arrow")) deltaLRight += 1;
 
-    float turnSpeed = 2;
+    float turnSpeed = 10;
     this.pitch += deltaLUp * turnSpeed;
     this.yaw += deltaLRight * turnSpeed;
 
