@@ -122,10 +122,26 @@ warp void Mesh.render(float angleX, float angleY, Player camera, float fov) {
         continue if (cross >= 0);
 
         triangle::fill(
-            p0.x - 240, p0.y - 180,
-            p1.x - 240, p1.y - 180,
-            p2.x - 240, p2.y - 180,
+            clampX(p0.x), clampY(p0.y),
+            clampX(p1.x), clampY(p1.y),
+            clampX(p2.x), clampY(p2.y),
             tri.color, 1
         );
     }
+}
+
+private warp float clampX(float value) {
+    float rv = value - 240;
+
+    return -240 if rv < -240;
+    return 240 if rv > 240;
+    return rv;
+}
+
+private warp float clampY(float value) {
+    float rv = value - 180;
+
+    return -180 if rv < -180;
+    return 180 if rv > 180;
+    return rv;
 }
