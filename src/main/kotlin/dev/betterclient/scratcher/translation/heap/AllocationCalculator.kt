@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.translation.heap
 
+import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.gc.*
@@ -154,9 +155,13 @@ class LocalAllocationCalculator(val func: Function) {
     }
 
     private fun getGCType(type: Type): String {
-        return if (type.isPrimitive) {
-            "p"
-        } else if (type is ArrayType) {
+        if (type.isPrimitive) {
+            return "p"
+        }
+        if (!CompilationConstants.MARK_AND_SWEEP_GC) {
+            return type.toSafeString()
+        }
+        return if (type is ArrayType) {
             "${"l".repeat(type.toString().count { '[' == it })}${findGC(type.raw())}"
         } else {
             findGC(type).toString()
