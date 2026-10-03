@@ -176,17 +176,17 @@ warp void Mesh.render(float angleX, float angleY, Player camera, float fov) {
 }
 
 private warp float clampX(float value) {
-    float rv = value - 240;
-
-    return -240 if rv < -240;
-    return 240 if rv > 240;
-    return rv;
+    return when {
+        (value <= 0) -> -240;
+        (value >= 480) -> 240;
+        else -> value - 240;
+    };
 }
 
 private warp float clampY(float value) {
-    float rv = value - 180;
-
-    return -180 if rv < -180;
-    return 180 if rv > 180;
-    return rv;
+    return when {
+        (value <= 0) -> -180;
+        (value >= 360) -> 180;
+        else -> value - 180;
+    };
 }
