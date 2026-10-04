@@ -136,6 +136,26 @@ object SensingBoolExpressions {
             return IsTurboWarpOpcode().asValue
         }
     }
+
+    class IsTouchingEdgeExpression : ScratchBoolExpression() {
+        override fun lower(): ScratchValue {
+            return TouchingObjectOpcode(
+                TouchingObjectMode.Edge
+            ).asValue
+        }
+    }
+
+    class IsTouchingSpriteExpression(
+        val spriteName: ScratchExpression
+    ) : ScratchBoolExpression() {
+        override fun lower(): ScratchValue {
+            return TouchingObjectOpcode(
+                TouchingObjectMode.Sprite(
+                    spriteName.lower()
+                )
+            ).asValue
+        }
+    }
 }
 
 object TurboWarpBoolExpressions {

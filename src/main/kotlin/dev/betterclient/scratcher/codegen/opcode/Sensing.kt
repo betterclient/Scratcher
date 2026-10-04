@@ -49,9 +49,10 @@ class TouchingObjectOpcode(mode: TouchingObjectMode) : ScratchOpcode() {
     }
 }
 
-enum class TouchingObjectMode(val id: String) {
-    MOUSE("_mouse_"),
-    EDGE("_edge_")
+sealed class TouchingObjectMode(val id: String) {
+    object Mouse : TouchingObjectMode("_mouse_")
+    object Edge : TouchingObjectMode("_edge_")
+    class Sprite(val name: ScratchValue) : TouchingObjectMode("meow")
 }
 
 class TouchingObjectMenuOpcode(val mode: TouchingObjectMode) : ScratchOpcode() {
@@ -59,10 +60,20 @@ class TouchingObjectMenuOpcode(val mode: TouchingObjectMode) : ScratchOpcode() {
     override val opcode = "sensing_touchingobjectmenu"
     override var shadow = true
 
+    init {
+        if (mode is TouchingObjectMode.Sprite) takeOwnership(listOfNotNull(mode.name.value))
+    }
+
     override fun toJSON(base: JSONObject) {
         base.put("inputs", JSONObject())
         base.put("fields", JSONObject().apply {
-            put("TOUCHINGOBJECTMENU", JSONArray(listOf(mode.id, null)))
+            put("TOUCHINGOBJECTMENU", JSONArray(
+                if (mode is TouchingObjectMode.Sprite) {
+                    mode.name.toOperand()
+                } else {
+                    listOf(mode.id, null)
+                }
+            ))
         })
     }
 }
