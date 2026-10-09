@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.std
 import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.ArrayType
+import dev.betterclient.scratcher.ast.ErrorReporter
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.InlineStandardLibFunction
@@ -81,6 +82,7 @@ object StandardLibASTGenerator {
     val gcInternalsLib = ASTFile("gc_internal")
     val gcLib = ASTFile("gc")
     val exceptLib = ASTFile("except")
+    val emptyLib = ASTFile("empty") //for errors
 
     val lib = mutableMapOf(
         "looks" to looksLib,
@@ -211,7 +213,8 @@ object StandardLibASTGenerator {
         val ast = ASTReader(
             ctx = context,
             source = String(StandardLibASTGenerator::class.java.getResourceAsStream(file).use { it!!.readBytes() }),
-            fullPath = path
+            fullPath = path,
+            errorReporter = ErrorReporter()
         ).read()
         MemoryLib.initMem(memoryLib, ast)
         Stage1Parser(context, ast).parse()

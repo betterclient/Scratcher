@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.ErrorReporter
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.ast.parser.ASTReader
@@ -161,7 +162,7 @@ fun main() {
 fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
     val context = CompilationContext()
     println("Initial parse")
-    val ast = ASTReader(context, sourceFile.readText(), sourceFile.absolutePath).read()
+    val ast = ASTReader(ErrorReporter(), context, sourceFile.readText(), sourceFile.absolutePath).read()
     context.generateGCNames()
     StandardLibASTGenerator.generateFrom(context, ast)
     println("Code parse")

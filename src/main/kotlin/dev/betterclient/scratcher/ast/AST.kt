@@ -6,6 +6,8 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.obfuscate
+import org.antlr.v4.kotlinruntime.StringCharStream
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.io.File
 
 class ASTFile(
@@ -22,6 +24,7 @@ class ASTFile(
     val sealedEnums: MutableList<SealedEnum> = mutableListOf(),
     val sealedEnumTemplates: MutableList<SealedEnum> = mutableListOf(),
     val staticLists: MutableList<TLStaticList> = mutableListOf(),
+    val sourceCode: MySource = MySource.None,
 ) {
     val flatImportNames: MutableMap<String, ASTFile> = mutableMapOf()
     val wildcardImportSources: MutableList<ASTFile> = mutableListOf()
@@ -168,3 +171,43 @@ data class ExpressionLowerResult(
     val expression: Expression?,
     val prepend: List<Statement> = emptyList(),
 )
+
+class ErrorReporter {
+    val errors = mutableListOf<String>()
+
+    fun logError(ast: ASTFile, position: Position, text: String) {
+        val source = ast.sourceCode.source
+        val lines = source.lines()
+        val fullLine = lines[position.start.line - 1]
+
+        val start = position.start.column
+        val end = position.end.column
+        val markerLength = maxOf(1, end - start)
+
+        val prefix = fullLine.take(start).map { if (it == '\t') '\t' else ' ' }.joinToString("")
+        errors.add(
+            "${ast.simplePath}.sc:${position.prettyString()}: $text\n" +
+                    "$fullLine\n" +
+                    "$prefix${"^".repeat(markerLength)}"
+        )
+    }
+
+    fun flush() {
+        if (errors.isNotEmpty()) {
+            throw GeneralCompilerException(
+                "Encountered errors while compiling! \n${errors.joinToString("\n")}"
+            )
+        }
+    }
+
+    private fun Position.prettyString(): String {
+        return "${this.start.line}:${this.start.column}"
+    }
+}
+
+sealed class MySource(
+    val source: String
+) {
+    object None : MySource("")
+    class Some(source: String) : MySource(source)
+}

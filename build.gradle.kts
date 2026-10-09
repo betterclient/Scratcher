@@ -2,7 +2,7 @@ import com.strumenta.antlrkotlin.gradle.AntlrKotlinTask
 
 plugins {
     kotlin("jvm") version "2.3.21"
-    id("com.strumenta.antlr-kotlin") version "1.0.10"
+    id("com.strumenta.antlr-kotlin") version "1.0.14"
     application
 }
 
@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.strumenta:antlr-kotlin-runtime:1.0.10")
+    implementation("com.strumenta:antlr-kotlin-runtime:1.0.14")
     implementation("org.json:json:20250517")
 }
 

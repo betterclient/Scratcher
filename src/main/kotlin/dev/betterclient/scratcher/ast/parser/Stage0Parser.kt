@@ -13,6 +13,7 @@ import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.gc.gcNames
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import org.antlr.v4.kotlinruntime.ast.Position
 import org.antlr.v4.kotlinruntime.tree.TerminalNode
 import org.json.JSONArray
 import java.io.File
@@ -55,11 +56,15 @@ class CompilationContext {
     )
 }
 
-class ASTReader(val ctx: CompilationContext, source: String, val fullPath: String) {
-    val initialRead = read(source)
+class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, val source: String, val fullPath: String) {
+    val initialRead = read(source, errorReporter)
 
     fun read(): ASTFile {
-        val ast = ASTFile(fullPath)
+        val ast = ASTFile(
+            fullPath,
+            sourceCode = MySource.Some(source)
+        )
+
         ctx.asts[fullPath] = ast
 
         //get these out of the way
@@ -78,7 +83,8 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val jsonFile = File(currentFile.parentFile, relPath).canonicalFile
 
                 if (!jsonFile.exists()) {
-                    throw NotFoundException("JSON file not found at ${jsonFile.absolutePath}")
+                    errorReporter.logError(ast, list.position!!, "JSON file not found at ${jsonFile.absolutePath}")
+                    return@let
                 }
 
                 try {
@@ -90,12 +96,13 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                         println("WARN: ${ast.simplePath}::${staticList.name} contains more than 200k elements, you might not be able to add items to this list in vanilla scratch.")
                     }
                 } catch (e: Exception) {
-                    throw GeneralCompilerException("Failed to parse JSON array from ${jsonFile.name}: ${e.message}")
+                    errorReporter.logError(ast, list.position!!, "Failed to parse JSON array from ${jsonFile.name}: ${e.message}")
+                    return@let
                 }
             }
 
             ast.staticLists.find { it.name == staticList.name }?.let {
-                throw DuplicateDefinitionException("Duplicate static list definition ${ast.simplePath}::${it.name}")
+                errorReporter.logError(ast, list.position!!, "Duplicate static list definition ${ast.simplePath}::${it.name}")
             }
 
             ast.staticLists.add(staticList)
@@ -134,7 +141,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             )
             ctx.types.add(enumAST.type)
             ast.enums.find { it.name == enumAST.name }?.let {
-                throw DuplicateDefinitionException("Duplicate enum definition ${ast.simplePath}::${it.name}")
+                errorReporter.logError(ast, enum.position!!, "Duplicate enum definition ${ast.simplePath}::${it.name}")
             }
 
             ast.enums.add(enumAST)
@@ -186,14 +193,17 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         for (context in initialRead.importDecl()) {
             parseImport(context, ast)
         }
+        errorReporter.flush() //if we import a restricted library and use elements from it that we don't have access to, that will cause more errors, fail fast here
 
         //second read for parameters
         (ast.structs.filter { it.parseInfo != null } + ast.structTemplates).forEach { struct ->
             for (field in struct.parseInfo!!.structField()) {
-                val type = figureOutType(ctx, ast, field.type(), struct.typeParameters)
+                val type = figureOutType(errorReporter, ctx, ast, field.type(), struct.typeParameters)
 
                 val isPrivate = field.PRIVATE() != null
-                if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${struct.name} has an argument with type void.")
+                if (type == PrimitiveType.Void) {
+                    errorReporter.logError(ast, field.type().position!!, "${ast.simplePath}::${struct.name} has an argument with type void.")
+                }
                 struct.parameters.add(
                     Parameter(
                         field.IDENTIFIER().text,
@@ -202,7 +212,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     )
                 )
             }
-            checkDuplicates(struct.parameters, "struct ${ast.simplePath}::${struct.name}")
+            checkDuplicates(ast, struct.parseInfo!!.position!!, struct.parameters, "struct ${ast.simplePath}::${struct.name}")
             if (struct !in ast.structTemplates) {
                 struct.parseInfo = null
             }
@@ -211,9 +221,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         for ((struct, argCtx) in sealedEnumArgMap) {
             val paramList = argCtx.paramList()?.param() ?: emptyList()
             for (param in paramList) {
-                val type = figureOutType(ctx, ast, param.type())
+                val type = figureOutType(errorReporter, ctx, ast, param.type())
                 if (type == PrimitiveType.Void) {
-                    throw VoidVariableException("${ast.simplePath}::${struct.name} has a field with type void.")
+                    errorReporter.logError(ast, param.type().position!!, "${ast.simplePath}::${struct.name} has an argument with type void.")
                 }
                 struct.parameters.add(
                     Parameter(
@@ -223,16 +233,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     )
                 )
             }
-            checkDuplicates(struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
+            checkDuplicates(ast, argCtx.position!!, struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
         }
 
         for ((struct, pair) in sealedTemplateVariantMap) {
             val (parentSealed, argCtx) = pair
             val paramList = argCtx.paramList()?.param() ?: emptyList()
             for (param in paramList) {
-                val type = figureOutType(ctx, ast, param.type(), parentSealed.typeParameters)
+                val type = figureOutType(errorReporter, ctx, ast, param.type(), parentSealed.typeParameters)
                 if (type == PrimitiveType.Void) {
-                    throw VoidVariableException("${ast.simplePath}::${struct.name} has a field with type void.")
+                    errorReporter.logError(ast, param.type().position!!, "${ast.simplePath}::${struct.name} has a field with type void.")
                 }
                 struct.parameters.add(
                     Parameter(
@@ -242,7 +252,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     )
                 )
             }
-            checkDuplicates(struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
+            checkDuplicates(ast, argCtx.position!!, struct.parameters, "sealed enum variant ${ast.simplePath}::${struct.name}")
         }
 
         for (context in initialRead.topLevelElement()) {
@@ -254,12 +264,14 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val receiverTypeCtx = if (hasReceiver) func.type(1) else null
                 val isPrivate = func.PRIVATE() != null
 
-                val returnType = figureOutType(ctx, ast, returnTypeCtx, typeParams)
-                val receiverType = receiverTypeCtx?.let { figureOutType(ctx, ast, it, typeParams) }
+                val returnType = figureOutType(errorReporter, ctx, ast, returnTypeCtx, typeParams)
+                val receiverType = receiverTypeCtx?.let { figureOutType(errorReporter, ctx, ast, it, typeParams) }
 
                 val parameterList = (func.paramList()?.param() ?: listOf()).map {
-                    val type = figureOutType(ctx, ast, it.type(), typeParams)
-                    if (type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
+                    val type = figureOutType(errorReporter, ctx, ast, it.type(), typeParams)
+                    if (type == PrimitiveType.Void) {
+                        errorReporter.logError(ast, it.position!!,"${ast.simplePath}::${func.IDENTIFIER().text} has an argument with type void.")
+                    }
                     Parameter(it.IDENTIFIER().text, type, false)
                 }.toMutableList()
 
@@ -267,7 +279,18 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                     parameterList.add(0, Parameter("this", receiverType, false))
                 }
 
-                checkDuplicates(parameterList, "function ${ast.simplePath}::${func.IDENTIFIER().text}")
+                if (receiverType == PrimitiveType.Void) {
+                    errorReporter.logError(ast, receiverTypeCtx.position!!,"${ast.simplePath}::${func.IDENTIFIER().text} has a receiver with type void.")
+                }
+
+                checkDuplicates(
+                    ast,
+                    func.paramList()?.position ?:
+                        receiverTypeCtx?.position ?:
+                        func.LPAREN().position(),
+                    parameterList,
+                    "function ${ast.simplePath}::${func.IDENTIFIER().text}"
+                )
 
                 val funcName = func.IDENTIFIER().text
 
@@ -278,32 +301,34 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 
                 if (duplicate != null) {
                     val sig = parameterList.joinToString(", ") { it.type.toString() }
-                    throw DuplicateDefinitionException("Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
+                    errorReporter.logError(ast, func.position!!,"Duplicate function definition in ${ast.simplePath}::$funcName($sig)")
                 }
 
                 var isWarp = false
                 var isExport = false
                 var isOperator = false
+                var lastExportCtx: Position? = null
                 func.modifier().forEach { modifier ->
                     when {
                         modifier.EXPORT() != null -> {
+                            lastExportCtx = modifier.position!!
                             if (isExport) {
                                 val sig = parameterList.joinToString(", ") { it.type.toString() }
-                                throw GeneralCompilerException("Double export in ${ast.simplePath}::$funcName($sig)")
+                                errorReporter.logError(ast, modifier.position!!, "Double export in ${ast.simplePath}::$funcName($sig)")
                             }
                             isExport = true
                         }
                         modifier.WARP() != null -> {
                             if (isWarp) {
                                 val sig = parameterList.joinToString(", ") { it.type.toString() }
-                                throw GeneralCompilerException("Double warp in ${ast.simplePath}::$funcName($sig)")
+                                errorReporter.logError(ast, modifier.position!!, "Double warp in ${ast.simplePath}::$funcName($sig)")
                             }
                             isWarp = true
                         }
                         modifier.OPERATOR() != null -> {
                             if(isOperator) {
                                 val sig = parameterList.joinToString(", ") { it.type.toString() }
-                                throw GeneralCompilerException("Double operator in ${ast.simplePath}::$funcName($sig)")
+                                errorReporter.logError(ast, modifier.position!!, "Double operator in ${ast.simplePath}::$funcName($sig)")
                             }
                             isOperator = true
                         }
@@ -311,7 +336,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 }
 
                 if (isPrivate && isExport) {
-                    throw GeneralCompilerException("Function ${ast.simplePath}::$funcName cannot be both private and exported")
+                    errorReporter.logError(ast, lastExportCtx!!, "Function ${ast.simplePath}::$funcName cannot be both private and exported")
                 }
 
                 val funcAST = Function(
@@ -341,25 +366,27 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val variable = context.tlVarDecl()!!
                 val private = variable.PRIVATE() != null
                 if (variable.expression() == null && variable.AUTO() != null) {
-                    throw GeneralCompilerException("Top-level auto variable ${variable.IDENTIFIER().text} must have an initializer.")
+                    errorReporter.logError(ast, variable.position!!, "Top-level auto variable ${variable.IDENTIFIER().text} must have an initializer.")
                 }
 
                 val astVariable = TLVariable(
                     variable.IDENTIFIER().text,
                     variable.isConst == null,
                     variable.type()?.let {
-                        figureOutType(ctx, ast, it)
+                        figureOutType(errorReporter, ctx, ast, it)
                     }?: PrimitiveType.Auto,
                     sourceAST = ast,
                     private = private
                 )
                 astVariable.ctx = variable.expression()
-                if (astVariable.type == PrimitiveType.Void) throw VoidVariableException("${ast.simplePath}::${astVariable.name} is type void.")
+                if (astVariable.type == PrimitiveType.Void) {
+                    errorReporter.logError(ast, variable.position!!, "${ast.simplePath}::${astVariable.name} is type void.")
+                }
                 if (ast.variables.find { it.name == astVariable.name } != null) {
-                    throw DuplicateDefinitionException("Duplicate variable definition ${astVariable.name}")
+                    errorReporter.logError(ast, variable.position!!, "Duplicate variable definition ${astVariable.name}")
                 }
                 if (ast.staticLists.find { it.name == astVariable.name } != null) {
-                    throw DuplicateDefinitionException("Top-level variable ${ast.simplePath}::${astVariable.name} conflicts with static list of the same name")
+                    errorReporter.logError(ast, variable.position!!, "Top-level variable ${ast.simplePath}::${astVariable.name} conflicts with static list of the same name")
                 }
 
                 ast.variables.add(astVariable)
@@ -368,7 +395,10 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 val listener = when (event.IDENTIFIER().text) {
                     "GreenFlag" if event.eventArg() == null -> EventListener.GreenFlag
                     "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!))
-                    else -> throw GeneralCompilerException("Unknown event type ${event.text}, expected GreenFlag or KeyPressed")
+                    else -> {
+                        errorReporter.logError(ast, event.IDENTIFIER().position(), "Unknown event type, expected GreenFlag or KeyPressed")
+                        EventListener.GreenFlag
+                    }
                 }
 
                 val func = Function(
@@ -393,6 +423,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             }
         }
 
+        errorReporter.flush()
         return ast
     }
 
@@ -407,9 +438,16 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             val moduleName = moduleNode.text
 
             val stdLib = StandardLibASTGenerator.lib[moduleName]
-                ?: throw NotFoundException("Standard library module $moduleName not found")
-            if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) throw GeneralCompilerException("Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
-            if (StandardLibASTGenerator.isRestricted(stdLib)) throw GeneralCompilerException("Standard library module $moduleName is restricted!")
+                ?: run {
+                    errorReporter.logError(ast, identifier.position(), "No standard library module $moduleName found!")
+                    StandardLibASTGenerator.emptyLib
+                }
+            if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) {
+                errorReporter.logError(ast, identifier.position(), "Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
+            }
+            if (StandardLibASTGenerator.isRestricted(stdLib)) {
+                errorReporter.logError(ast, identifier.position(), "Standard library module $moduleName is restricted!")
+            }
 
             return stdLib
         } else {
@@ -421,12 +459,13 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
             val importedPath = importedFile.absolutePath
 
             if (!importedFile.exists()) {
-                throw NotFoundException("Imported file not found at $importedPath")
+                errorReporter.logError(ast, plainStringLiteralContext.position!!, "Imported file not found at $importedPath")
+                return StandardLibASTGenerator.emptyLib
             }
 
             val importedAST = ctx.asts[importedPath] ?: run {
                 val sourceCode = importedFile.readText()
-                val reader = ASTReader(ctx, sourceCode, importedPath)
+                val reader = ASTReader(errorReporter, ctx, sourceCode, importedPath)
                 reader.read()
             }
 
@@ -481,11 +520,9 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 } else {
                     //import x::x or x::{x, y, z}
                     importNames.forEach { name ->
-                        verifyFlatImportNameExists(name, imported)
+                        verifyFlatImportNameExists(context.imported().position!!, name, imported)
                         if (ast.flatImportNames.containsKey(name)) {
-                            throw DuplicateDefinitionException(
-                                "Duplicate flat import of \"$name\" in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})"
-                            )
+                            errorReporter.logError(ast, context.imported().position!!,  "Duplicate flat import of \"$name\" in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})")
                         }
                         ast.flatImportNames[name] = imported
                     }
@@ -494,7 +531,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
         }
     }
 
-    private fun verifyFlatImportNameExists(name: String, source: ASTFile) {
+    private fun verifyFlatImportNameExists(position: Position, name: String, source: ASTFile) {
         val found =
             source.functions.any { it.name == name && !it.private } ||
             source.templates.any { it.name == name && !it.private } ||
@@ -518,18 +555,17 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
                 source.variables.filter { !it.private }.map { it.name } +
                 source.staticLists.filter { it.name == name && !it.private }
             ).distinct().take(10).joinToString(", ")
-            throw NotFoundException(
-                "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
-                        "Available: $available"
-            )
+
+            errorReporter.logError(source, position, "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
+                    "Available: $available")
         }
     }
 
-    private fun checkDuplicates(list: List<Parameter>, error: String) {
+    private fun checkDuplicates(ast: ASTFile, position: Position, list: List<Parameter>, error: String) {
         val found = mutableListOf<String>()
         list.forEach {
             if (found.contains(it.name)) {
-                throw DuplicateDefinitionException("Duplicate parameter definition ${it.name} in $error")
+                errorReporter.logError(ast, position, "Duplicate argument definition ${it.name} in $error")
             }
             found.add(it.name)
         }
@@ -537,6 +573,7 @@ class ASTReader(val ctx: CompilationContext, source: String, val fullPath: Strin
 }
 
 fun figureOutType(
+    reporter: ErrorReporter,
     context: CompilationContext,
     currentAST: ASTFile,
     type: ScratcherLangParser.TypeContext,
@@ -546,11 +583,11 @@ fun figureOutType(
     return when(type) {
         is ScratcherLangParser.ArrayTypeContext -> {
             ArrayType(
-                figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
+                figureOutType(reporter, context, currentAST, type.type(), typeParameters, localTypeBindings)
             )
         }
         is ScratcherLangParser.NullableTypeContext -> {
-            val inner = figureOutType(context, currentAST, type.type(), typeParameters, localTypeBindings)
+            val inner = figureOutType(reporter, context, currentAST, type.type(), typeParameters, localTypeBindings)
             if (inner is NullableType) return inner
             if (inner == PrimitiveType.Str) {
                 NullableType(
@@ -569,10 +606,13 @@ fun figureOutType(
             val rawText = type.typePath().text
 
             if (typeArgsCtx.isNotEmpty()) {
-                val resolvedArgs = typeArgsCtx.map { figureOutType(context, currentAST, it, typeParameters, localTypeBindings) }
+                val resolvedArgs = typeArgsCtx.map { figureOutType(reporter, context, currentAST, it, typeParameters, localTypeBindings) }
                 val targetAST = if (id.size == 2) {
                     currentAST.imports[id[0].text]
-                        ?: throw NotFoundException("Import \"${id[0].text}\" not found for type ${type.text}")
+                        ?: run {
+                            reporter.logError(currentAST, id[0].position(), "Import \"${id[0].text}\" not found for type ${type.text}")
+                            StandardLibASTGenerator.emptyLib
+                        }
                 } else {
                     currentAST
                 }
@@ -607,11 +647,19 @@ fun figureOutType(
                     val importName = parts[0]
                     val typeFullName = parts[1]
                     val otherFile = currentAST.imports[importName]
-                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                        ?: run {
+                            reporter.logError(currentAST, type.typePath().position!!, "Type ${type.text} not found in any imports")
+                            StandardLibASTGenerator.emptyLib
+                        }
+
                     val found = context.types.find {
                         (it is SimpleType && it.name == typeFullName && it.sourceAST == otherFile) ||
                                 (it is SealedEnumType && it.name == typeFullName && it.sourceAST == otherFile)
-                    } ?: throw NotFoundException("Type ${type.text} not found in import $importName")
+                    } ?: run {
+                        reporter.logError(currentAST, type.typePath().position!!, "Type ${type.text} not found in import $importName")
+                        PrimitiveType.Integer
+                    }
+
                     if (otherFile != currentAST) {
                         val isPrivate = if (typeFullName.contains(".")) {
                             val parentName = typeFullName.substringBefore(".").substringBefore("@")
@@ -628,7 +676,7 @@ fun figureOutType(
                                 ?: false
                         }
                         if (isPrivate) {
-                            throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                            reporter.logError(currentAST, type.position!!, "Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
                         }
                     }
                     return found
@@ -644,7 +692,7 @@ fun figureOutType(
                             ?: source.structs.find { it.name == rawText }?.private
                             ?: false
                         if (isPrivate) {
-                            throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                            reporter.logError(currentAST, type.position!!, "Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
                         }
                     }
                     findIn(currentAST)?.also { checkPrivate(currentAST); return it }
@@ -654,7 +702,8 @@ fun figureOutType(
                     for (wildcardAst in currentAST.wildcardImportSources) {
                         findIn(wildcardAst)?.also { checkPrivate(wildcardAst); return it }
                     }
-                    throw NotFoundException("Type ${type.text} not found in current file")
+                    reporter.logError(currentAST, type.position!!, "Type ${type.text} not found in current file")
+                    return PrimitiveType.Integer
                 }
             }
 
@@ -662,7 +711,10 @@ fun figureOutType(
                 2 -> {
                     //from other file
                     val otherFile = currentAST.imports[id[0].text]
-                        ?: throw NotFoundException("Type ${type.text} not found in any imports")
+                        ?: run {
+                            reporter.logError(currentAST, type.typePath().position!!, "Type ${type.text} not found in any imports")
+                            StandardLibASTGenerator.emptyLib
+                        }
 
                     val typeName = id[1].text
                     val isPrivate = otherFile.structs.find { it.name == typeName }?.private
@@ -673,13 +725,16 @@ fun figureOutType(
                         ?: false
 
                     if (isPrivate && otherFile != currentAST) {
-                        throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                        reporter.logError(currentAST, type.position!!, "Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
                     }
 
                     context.types.find {
                         ((it is SimpleType && it.name == id[1].text && it.sourceAST == otherFile) ||
                                 (it is SealedEnumType && it.name == id[1].text && it.sourceAST == otherFile))
-                    } ?: throw NotFoundException("Type ${type.text} not found in import ${id[0].text}")
+                    } ?: run {
+                        reporter.logError(currentAST, type.position!!, "Type ${type.text} not found in import ${id[0].text}")
+                        PrimitiveType.Integer
+                    }
                 }
                 1 -> {
                     //current file
@@ -705,7 +760,7 @@ fun figureOutType(
                                     ?: flatSource.sealedEnumTemplates.find { it.name == typeName }?.private
                                     ?: false
                                 if (isPrivate) {
-                                    throw NotFoundException("Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
+                                    reporter.logError(currentAST, type.position!!, "Type ${type.text} is private and cannot be accessed from ${currentAST.simplePath}")
                                 }
                             }
                             return fromFlat
@@ -728,10 +783,12 @@ fun figureOutType(
                         if (fromWildcard != null) return fromWildcard
                     }
 
-                    throw NotFoundException("Type ${type.text} not found in current file")
+                    reporter.logError(currentAST, type.position!!, "Type ${type.text} not found in current file")
+                    PrimitiveType.Integer
                 }
                 else -> {
-                    throw GeneralCompilerException("Too many :: in type ${type.text}")
+                    reporter.logError(currentAST, type.position!!, "Too many :: in type ${type.text}")
+                    PrimitiveType.Integer
                 }
             }
         }
@@ -744,12 +801,18 @@ fun figureOutType(
         is ScratcherLangParser.FuncRefTypeContext -> {
             FunctionType(
                 parameterTypes = type.type().dropLast(1).map {
-                    figureOutType(context, currentAST, it, typeParameters, localTypeBindings)
+                    figureOutType(reporter, context, currentAST, it, typeParameters, localTypeBindings)
                 },
-                returnType = figureOutType(context, currentAST, type.type().last(), typeParameters, localTypeBindings)
+                returnType = figureOutType(reporter, context, currentAST, type.type().last(), typeParameters, localTypeBindings)
             )
         }
 
         else -> throw GeneralCompilerException("Type parser not implemented for ${type.text}")
+    }
+}
+
+fun TerminalNode.position(): Position {
+    return this.symbol.let {
+        Position(it.startPoint(), it.endPoint()!!)
     }
 }
