@@ -150,6 +150,7 @@ interface BaseExpressionVisitor {
     fun visitStaticListLengthExpression(list: TLStaticList): Expression = StaticListLengthExpression(list)
     fun visitStaticListContainsExpression(list: TLStaticList, item: Expression): Expression = StaticListContainsExpression(list, item)
     fun visitStaticListItemIndexExpression(list: TLStaticList, item: Expression): Expression = StaticListItemIndexExpression(list, item)
+    fun visitErrorExpression(): Expression = ErrorExpression
 
     fun visitExpr(expression: Expression) {}
 }
@@ -233,6 +234,7 @@ fun ASTVisitor.visit(expression: Expression): Expression {
         is StaticListItemExpression -> this.visitStaticListItemExpression(expression.list, visit(expression.index))
         is StaticListContainsExpression -> this.visitStaticListContainsExpression(expression.list, visit(expression.item))
         is StaticListItemIndexExpression -> this.visitStaticListItemIndexExpression(expression.list, visit(expression.item))
+        ErrorExpression -> this.visitErrorExpression()
     }
     afterVisit(expression, result)
     return result

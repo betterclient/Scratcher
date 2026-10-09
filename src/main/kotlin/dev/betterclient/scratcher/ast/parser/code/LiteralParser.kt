@@ -12,8 +12,14 @@ class LiteralParser(
         return when {
             ctx.FALSE() != null -> BooleanLiteral(false)
             ctx.TRUE() != null -> BooleanLiteral(true)
-            ctx.FLOAT() != null -> FloatLiteral(ctx.FLOAT()!!.text.toBigDecimalOrNull()?: throw TypeException(PrimitiveType.Float, PrimitiveType.Null, "${ctx.FLOAT()?.text} is not a float!"))
-            ctx.INT() != null -> IntLiteral(ctx.INT()!!.text.toBigIntegerOrNull()?: throw TypeException(PrimitiveType.Integer, PrimitiveType.Null, "${ctx.INT()?.text} is not an int!"))
+            ctx.FLOAT() != null -> {
+                ctx.FLOAT()!!.text.toBigDecimalOrNull()?.let { FloatLiteral(it) }
+                    ?: expressionParser.error(ctx.position!!, parser.ast, "Not a float!")
+            }
+            ctx.INT() != null -> {
+                ctx.INT()!!.text.toBigIntegerOrNull()?.let { IntLiteral(it) }
+                    ?: expressionParser.error(ctx.position!!, parser.ast, "Not an int!")
+            }
             ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
             ctx.CHAR_LITERAL() != null -> CharLiteral(parseCharLiteral(ctx.CHAR_LITERAL()!!.text))
             else -> throw NotImplementedException("$ctx is not one of the expected types.")

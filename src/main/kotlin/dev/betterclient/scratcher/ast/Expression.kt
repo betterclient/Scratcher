@@ -192,3 +192,5 @@ data class TemporaryStackSizeExpression(
 data class TemporaryStackNameExpression(
     val function: Function
 ) : TemporaryExpression()
+
+object ErrorExpression : TemporaryExpression()

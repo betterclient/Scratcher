@@ -93,4 +93,6 @@ internal val Expression.simple: Boolean
         is StaticListItemExpression -> this.index.simple
         is StaticListContainsExpression -> this.item.simple
         is StaticListItemIndexExpression -> this.item.simple
+
+        is ErrorExpression -> true //how
     }

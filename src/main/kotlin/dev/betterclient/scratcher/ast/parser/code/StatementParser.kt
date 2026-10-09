@@ -219,12 +219,17 @@ class StatementParser(
     private fun parseForStatement(child: ScratcherLangParser.ForStmtContext): IfStatement {
         val list = exprParser.parseExpression(child.expression())
         val type = ExpressionTypes.getExpressionType(list)
-        if (type is NullableType) throw TypeAnalysisException("List is nullable in for statement at ${child.position}")
+        if (type is NullableType) {
+            this.parser.reporter.logError(ast, child.expression().position!!, "List is nullable")
+        }
         if (type is SimpleType && type.sourceAST.simplePath == "list" && type.name.startsWith("List")) {
             return parseListForStatement(child, list, type)
         }
 
-        if (type !is ArrayType) throw TypeAnalysisException("For statement doesn't have an array at ${child.position}")
+        if (type !is ArrayType) {
+            this.parser.reporter.logError(ast, child.expression().position!!, "For statement doesn't have an array, found $type")
+            return IfStatement(ErrorExpression, CodeBlock())
+        }
 
         val listVar = LocalVariable(
             obfuscate("compiler@forStmtList${getUniqueName()}"),
@@ -401,7 +406,11 @@ class StatementParser(
                     StringBoxing.autoConvert(valueExpr, targetExpr.member.type)
                 )
                 is VariableExpression -> {
-                    if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                    if (!targetExpr.variable.mutable) {
+                        ///this.parser.reporter.logError(ast, )
+                        //TODO: come back after expressions have positions
+                        throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                    }
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
                         targetExpr.sourceAST,

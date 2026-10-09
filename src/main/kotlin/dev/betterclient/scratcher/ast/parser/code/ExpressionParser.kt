@@ -8,13 +8,14 @@ import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class ExpressionParser(
     val parser: Stage1Parser,
     val ast: ASTFile
 ) {
-    val literalParser = LiteralParser(this, parser)
     val reporter = parser.reporter
+    val literalParser = LiteralParser(this, parser)
 
     fun parseExpression(
         ctx: ScratcherLangParser.ExpressionContext,
@@ -1172,5 +1173,10 @@ class ExpressionParser(
         }
 
         return BinaryExpression(left, op, right)
+    }
+
+    fun error(position: Position, ast: ASTFile, text: String): ErrorExpression {
+        this.reporter.logError(ast, position, text)
+        return ErrorExpression
     }
 }

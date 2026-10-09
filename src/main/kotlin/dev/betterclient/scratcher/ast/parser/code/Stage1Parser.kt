@@ -7,13 +7,13 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
+    val reporter = ErrorReporter()
     val functionResolver = FunctionResolver(this, ast)
     val expressionParser = ExpressionParser(this, ast)
     val statementParser = StatementParser(this, ast)
     val localVariables = mutableListOf<LocalVariable>() //keep track of local variables
     var currentFunction: Function? = null
     var currentTypeBindings: Map<String, Type> = emptyMap()
-    val reporter = ErrorReporter()
 
     fun parse() {
         ast.completedStage1Parsing = true
