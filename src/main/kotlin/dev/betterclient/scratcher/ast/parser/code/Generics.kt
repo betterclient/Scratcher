@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.ArrayType
+import dev.betterclient.scratcher.ast.ErrorReporter
 import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
@@ -28,14 +29,14 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 object Generics {
-    fun substituteType(context: CompilationContext, type: Type, bindings: Map<String, Type>): Type {
+    fun substituteType(reporter: ErrorReporter, context: CompilationContext, type: Type, bindings: Map<String, Type>): Type {
         return when (type) {
             is PlaceholderType -> bindings[type.name] ?: type
-            is ArrayType -> ArrayType(substituteType(context, type.elementType, bindings))
-            is NullableType -> substituteType(context, type.inner, bindings).asNullable()
+            is ArrayType -> ArrayType(substituteType(reporter, context, type.elementType, bindings))
+            is NullableType -> substituteType(reporter, context, type.inner, bindings).asNullable()
             is FunctionType -> FunctionType(
-                type.parameterTypes.map { substituteType(context, it, bindings) },
-                substituteType(context, type.returnType, bindings)
+                type.parameterTypes.map { substituteType(reporter, context, it, bindings) },
+                substituteType(reporter, context, type.returnType, bindings)
             )
             is SealedEnumType -> {
                 if (type.typeBindings.isEmpty()) {
@@ -44,18 +45,18 @@ object Generics {
                     if (template != null && template.typeParameters.any { bindings.containsKey(it) }) {
                         val typeArgs = template.typeParameters.map { bindings[it] ?: PlaceholderType(it) }
                         if (typeArgs.none { it is PlaceholderType }) {
-                            return resolveGenericSealedEnum(context, type.sourceAST, type.sourceAST, type.name, typeArgs, type.sourceAST)
+                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, type.name, typeArgs, type.sourceAST)
                         }
                     }
                 } else {
-                    val newBindings = type.typeBindings.mapValues { substituteType(context, it.value, bindings) }
+                    val newBindings = type.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings) }
                     if (newBindings != type.typeBindings) {
                         val baseName = type.name.substringBefore("@")
                         val template = type.sourceAST.sealedEnumTemplates.find { it.name == baseName }
                             ?: type.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
                         if (template != null) {
                             val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericSealedEnum(context, type.sourceAST, type.sourceAST, baseName, typeArgs, type.sourceAST)
+                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs, type.sourceAST)
                         }
                     }
                 }
@@ -64,13 +65,13 @@ object Generics {
             is SimpleType -> {
                 val struct = type.sourceAST.structs.find { it.type == type }
                 if (struct != null && struct.typeBindings.isNotEmpty()) {
-                    val newBindings = struct.typeBindings.mapValues { substituteType(context, it.value, bindings) }
+                    val newBindings = struct.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings) }
                     if (newBindings != struct.typeBindings) {
                         val baseName = struct.name.substringBefore("@")
                         val template = type.sourceAST.structTemplates.find { it.name == baseName }
                         if (template != null) {
                             val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericStruct(context, type.sourceAST, type.sourceAST, baseName, typeArgs)
+                            return resolveGenericStruct(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs)
                         }
                     }
                 }
@@ -159,6 +160,7 @@ object Generics {
     }
 
     fun tryResolve(
+        reporter: ErrorReporter,
         context: CompilationContext,
         sourceAST: ASTFile,
         funcName: String,
@@ -205,9 +207,9 @@ object Generics {
             val owner = template.sourceAST
             val resolvedFunc = owner.functions.find { it.name == instantiatedName } ?: run {
                 val newParams = template.parameters.map {
-                    Parameter(it.name, substituteType(context, it.type, bindings), false)
+                    Parameter(it.name, substituteType(reporter, context, it.type, bindings), false)
                 }.toMutableList()
-                val newReturnType = substituteType(context, template.returnType, bindings)
+                val newReturnType = substituteType(reporter, context, template.returnType, bindings)
 
                 val candidate = Function(
                     name = instantiatedName,
@@ -249,6 +251,7 @@ object Generics {
     }
 
     fun resolveGenericStruct(
+        reporter: ErrorReporter,
         context: CompilationContext,
         searchAST: ASTFile,
         startAST: ASTFile,
@@ -298,8 +301,8 @@ object Generics {
 
         for (field in template.parseInfo!!.structField()) {
             val abstractType =
-                figureOutType(context, target, field.type(), template.typeParameters, bindings)
-            val concreteType = substituteType(context, abstractType, bindings)
+                figureOutType(reporter, context, target, field.type(), template.typeParameters, bindings)
+            val concreteType = substituteType(reporter, context, abstractType, bindings)
 
             instantiatedStruct.parameters.add(
                 Parameter(field.IDENTIFIER().text, concreteType, field.PRIVATE() != null)
@@ -312,6 +315,7 @@ object Generics {
     }
 
     fun resolveGenericSealedEnum(
+        reporter: ErrorReporter,
         context: CompilationContext,
         searchAST: ASTFile,
         startAST: ASTFile,
@@ -375,7 +379,7 @@ object Generics {
                 private = false
             )
             for (param in placeholderVariant.parameters) {
-                val concreteType = substituteType(context, param.type, bindings)
+                val concreteType = substituteType(reporter, context, param.type, bindings)
                 concreteVariant.parameters.add(Parameter(param.name, concreteType, false))
             }
             targetAST.structs.add(concreteVariant)

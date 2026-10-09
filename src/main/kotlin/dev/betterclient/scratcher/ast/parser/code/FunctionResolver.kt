@@ -94,7 +94,7 @@ class FunctionResolver(
             )
         }
 
-        Generics.tryResolve(parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser, expectedType)?.let {
+        Generics.tryResolve(this.parser.reporter, parser.ctx, sourceAST, funcName, expectedArgListTypes, args, parser, expectedType)?.let {
             return it
         }
 
@@ -135,7 +135,7 @@ class FunctionResolver(
                 var concreteStruct = structTemplate.sourceAST.structs.find { it.name == instantiatedName }
 
                 if (concreteStruct == null) {
-                    val concreteType = Generics.resolveGenericStruct(parser.ctx, structTemplate.sourceAST, ast, funcName, resolvedTypes) as SimpleType
+                    val concreteType = Generics.resolveGenericStruct(this.parser.reporter, parser.ctx, structTemplate.sourceAST, ast, funcName, resolvedTypes) as SimpleType
                     concreteStruct = structTemplate.sourceAST.structs.find { it.type == concreteType }
                 }
 
@@ -373,7 +373,7 @@ class FunctionResolver(
         val searchASTs = listOf(ast) + ast.imports.values + ast.wildcardImportSources + ast.flatImportNames.values
 
         for (sourceAST in searchASTs) {
-            Generics.tryResolve(parser.ctx, sourceAST, methodName, argTypes, allArgs, parser, filter = filter)?.let {
+            Generics.tryResolve(this.parser.reporter, parser.ctx, sourceAST, methodName, argTypes, allArgs, parser, filter = filter)?.let {
                 return it
             }
 
@@ -413,7 +413,7 @@ class FunctionResolver(
 
         for (sourceAST in searchASTs) {
             Generics.tryResolve(
-                parser.ctx, sourceAST, operatorName, argTypes, allArgs, parser,
+                this.parser.reporter, parser.ctx, sourceAST, operatorName, argTypes, allArgs, parser,
                 filter = { it.operator && !it.isReceiver && !(it.private && it.sourceAST != ast) }
             )?.let { return it }
 

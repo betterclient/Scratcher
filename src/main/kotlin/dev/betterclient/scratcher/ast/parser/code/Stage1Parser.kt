@@ -13,6 +13,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     val localVariables = mutableListOf<LocalVariable>() //keep track of local variables
     var currentFunction: Function? = null
     var currentTypeBindings: Map<String, Type> = emptyMap()
+    val reporter = ErrorReporter()
 
     fun parse() {
         ast.completedStage1Parsing = true
@@ -32,6 +33,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         if (StandardLibASTGenerator.lib.containsValue(ast)) return //do not try to parse standard lib
 
         parseInternal()
+        reporter.flush()
     }
 
     private fun parseInternal() {

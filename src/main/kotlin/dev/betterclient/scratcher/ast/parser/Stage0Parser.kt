@@ -520,7 +520,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                 } else {
                     //import x::x or x::{x, y, z}
                     importNames.forEach { name ->
-                        verifyFlatImportNameExists(context.imported().position!!, name, imported)
+                        verifyFlatImportNameExists(context.imported().position!!, name, imported, ast)
                         if (ast.flatImportNames.containsKey(name)) {
                             errorReporter.logError(ast, context.imported().position!!,  "Duplicate flat import of \"$name\" in ${ast.simplePath} (already from ${ast.flatImportNames[name]!!.simplePath})")
                         }
@@ -531,7 +531,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
         }
     }
 
-    private fun verifyFlatImportNameExists(position: Position, name: String, source: ASTFile) {
+    private fun verifyFlatImportNameExists(position: Position, name: String, source: ASTFile, me: ASTFile) {
         val found =
             source.functions.any { it.name == name && !it.private } ||
             source.templates.any { it.name == name && !it.private } ||
@@ -556,7 +556,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                 source.staticLists.filter { it.name == name && !it.private }
             ).distinct().take(10).joinToString(", ")
 
-            errorReporter.logError(source, position, "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
+            errorReporter.logError(me, position, "Cannot import \"$name\" from ${source.simplePath}: no such item exists. " +
                     "Available: $available")
         }
     }
@@ -625,10 +625,10 @@ fun figureOutType(
                     } else null)
 
                 if (sealedTemplate != null) {
-                    return Generics.resolveGenericSealedEnum(context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
+                    return Generics.resolveGenericSealedEnum(reporter, context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
                 }
 
-                return Generics.resolveGenericStruct(context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
+                return Generics.resolveGenericStruct(reporter, context, targetAST, currentAST, typeName, resolvedArgs, if (id.size == 2) null else currentAST)
             }
 
             if (id.size == 1) {

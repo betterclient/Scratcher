@@ -20,7 +20,7 @@ class StatementParser(
             is ScratcherLangParser.VarDeclContext -> {
                 val name = child.IDENTIFIER().text
                 val type = child.type()?.let {
-                    figureOutType(parser.ctx, ast, it, localTypeBindings = parser.currentTypeBindings)
+                    figureOutType(this.parser.reporter, parser.ctx, ast, it, localTypeBindings = parser.currentTypeBindings)
                 }
                 val value = exprParser.parseExpression(child.expression(), type)
                 val resolvedType = type ?: ExpressionTypes.getExpressionType(value)
@@ -233,7 +233,7 @@ class StatementParser(
         val variable = LocalVariable(
             name = child.IDENTIFIER().text,
             child.type()?.let {
-                figureOutType(parser.ctx, ast, it, localTypeBindings = parser.currentTypeBindings)
+                figureOutType(this.parser.reporter, parser.ctx, ast, it, localTypeBindings = parser.currentTypeBindings)
             }?: type.elementType
         )
         val indexVariable = LocalVariable(

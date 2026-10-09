@@ -14,6 +14,8 @@ class ExpressionParser(
     val ast: ASTFile
 ) {
     val literalParser = LiteralParser(this, parser)
+    val reporter = parser.reporter
+
     fun parseExpression(
         ctx: ScratcherLangParser.ExpressionContext,
         expectedType: Type? = null
@@ -419,7 +421,7 @@ class ExpressionParser(
         val args = if (args0.LPAREN() != null) {
             //arg list
             args0.IDENTIFIER().map { it.text }.zip(
-                args0.type().map { figureOutType(this.parser.ctx, this.ast, it, localTypeBindings = parser.currentTypeBindings) }
+                args0.type().map { figureOutType(reporter, this.parser.ctx, this.ast, it, localTypeBindings = parser.currentTypeBindings) }
             ).map {
                 LocalVariable(it.first, it.second)
             }
@@ -427,7 +429,7 @@ class ExpressionParser(
             listOf(
                 LocalVariable(
                     args0.IDENTIFIER(0)!!.text,
-                    figureOutType(this.parser.ctx, this.ast, args0.type(0)!!, localTypeBindings = parser.currentTypeBindings)
+                    figureOutType(reporter, this.parser.ctx, this.ast, args0.type(0)!!, localTypeBindings = parser.currentTypeBindings)
                 )
             )
         }
@@ -642,7 +644,7 @@ class ExpressionParser(
                     val subjectSealedType = subjectVar.type.asNonNull() as? SealedEnumType
                     val inferred = if (subjectSealedType != null) tryResolveIsAsFromLeft(subjectSealedType, condition.type()) else null
                     val (sealed, variant, tag) = inferred ?: run {
-                        val targetType = figureOutType(parser.ctx, ast, condition.type(), localTypeBindings = parser.currentTypeBindings)
+                        val targetType = figureOutType(reporter, parser.ctx, ast, condition.type(), localTypeBindings = parser.currentTypeBindings)
                         val variantType = targetType.asNonNull() as? SimpleType
                             ?: throw TypeAnalysisException("Smart cast target must be a sealed enum variant, got $targetType at ${condition.position}")
                         findVariantInfo(variantType)
@@ -1006,7 +1008,7 @@ class ExpressionParser(
             val typeArgs = template.typeParameters.map { bindings[it]!! }
             requireSealedVisible(template)
             val sealedType = try {
-                Generics.resolveGenericSealedEnum(parser.ctx, ast, ast, template.name, typeArgs, ast)
+                Generics.resolveGenericSealedEnum(reporter, parser.ctx, ast, ast, template.name, typeArgs, ast)
             } catch (e: Exception) {
                 if ((e as? NotFoundException)?.message?.contains("private") == true) throw e
                 return null
@@ -1068,7 +1070,7 @@ class ExpressionParser(
                 return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag)
             }
         }
-        val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
+        val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
             ?: throw TypeAnalysisException("IS check target must be a sealed enum variant, got $targetType at ${ctx.position}")
         val info = findVariantInfo(variantType)
@@ -1097,7 +1099,7 @@ class ExpressionParser(
                 return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe)
             }
         }
-        val targetType = figureOutType(parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
+        val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
             ?: throw TypeAnalysisException("AS cast target must be a sealed enum variant, got $targetType at ${ctx.position}")
         val info = findVariantInfo(variantType)
@@ -1135,7 +1137,7 @@ class ExpressionParser(
         }
         if (hasArgs) {
             return try {
-                val explicitType = figureOutType(parser.ctx, ast, targetTypeCtx, localTypeBindings = parser.currentTypeBindings)
+                val explicitType = figureOutType(reporter, parser.ctx, ast, targetTypeCtx, localTypeBindings = parser.currentTypeBindings)
                 val variantType = explicitType.asNonNull() as? SimpleType ?: return null
                 findVariantInfo(variantType)
             } catch (_: Exception) { null }
