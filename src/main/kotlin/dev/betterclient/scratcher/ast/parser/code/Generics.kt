@@ -6,10 +6,8 @@ import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
-import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.ErrorReporter
-import dev.betterclient.scratcher.ast.NotFoundException
 import dev.betterclient.scratcher.ast.NullableType
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PlaceholderType
@@ -30,14 +28,22 @@ import dev.betterclient.scratcher.std.lib.MemoryLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
 object Generics {
-    fun substituteType(reporter: ErrorReporter, context: CompilationContext, type: Type, bindings: Map<String, Type>): Type {
+    private fun logTypeError(reporter: ErrorReporter, ast: ASTFile, position: Position?, text: String) {
+        if (position != null) {
+            reporter.logError(ast, position, text)
+        } else {
+            reporter.errors.add("${ast.simplePath}.sc: $text")
+        }
+    }
+
+    fun substituteType(reporter: ErrorReporter, context: CompilationContext, type: Type, bindings: Map<String, Type>, position: Position? = null): Type {
         return when (type) {
             is PlaceholderType -> bindings[type.name] ?: type
-            is ArrayType -> ArrayType(substituteType(reporter, context, type.elementType, bindings))
-            is NullableType -> substituteType(reporter, context, type.inner, bindings).asNullable()
+            is ArrayType -> ArrayType(substituteType(reporter, context, type.elementType, bindings, position))
+            is NullableType -> substituteType(reporter, context, type.inner, bindings, position).asNullable()
             is FunctionType -> FunctionType(
-                type.parameterTypes.map { substituteType(reporter, context, it, bindings) },
-                substituteType(reporter, context, type.returnType, bindings)
+                type.parameterTypes.map { substituteType(reporter, context, it, bindings, position) },
+                substituteType(reporter, context, type.returnType, bindings, position)
             )
             is SealedEnumType -> {
                 if (type.typeBindings.isEmpty()) {
@@ -46,18 +52,18 @@ object Generics {
                     if (template != null && template.typeParameters.any { bindings.containsKey(it) }) {
                         val typeArgs = template.typeParameters.map { bindings[it] ?: PlaceholderType(it) }
                         if (typeArgs.none { it is PlaceholderType }) {
-                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, type.name, typeArgs, type.sourceAST)
+                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, type.name, typeArgs, type.sourceAST, position)
                         }
                     }
                 } else {
-                    val newBindings = type.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings) }
+                    val newBindings = type.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings, position) }
                     if (newBindings != type.typeBindings) {
                         val baseName = type.name.substringBefore("@")
                         val template = type.sourceAST.sealedEnumTemplates.find { it.name == baseName }
                             ?: type.sourceAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
                         if (template != null) {
-                            val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs, type.sourceAST)
+                            val typeArgs = template.typeParameters.map { newBindings[it] ?: return type }
+                            return resolveGenericSealedEnum(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs, type.sourceAST, position)
                         }
                     }
                 }
@@ -66,13 +72,13 @@ object Generics {
             is SimpleType -> {
                 val struct = type.sourceAST.structs.find { it.type == type }
                 if (struct != null && struct.typeBindings.isNotEmpty()) {
-                    val newBindings = struct.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings) }
+                    val newBindings = struct.typeBindings.mapValues { substituteType(reporter, context, it.value, bindings, position) }
                     if (newBindings != struct.typeBindings) {
                         val baseName = struct.name.substringBefore("@")
                         val template = type.sourceAST.structTemplates.find { it.name == baseName }
                         if (template != null) {
-                            val typeArgs = template.typeParameters.map { newBindings[it]!! }
-                            return resolveGenericStruct(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs)
+                            val typeArgs = template.typeParameters.map { newBindings[it] ?: return type }
+                            return resolveGenericStruct(reporter, context, type.sourceAST, type.sourceAST, baseName, typeArgs, position = position)
                         }
                     }
                 }
@@ -249,7 +255,6 @@ object Generics {
         newParser.currentTypeBindings = bindings
         TypeCheckParameters.addParameterChecks(resolvedFunc.code, resolvedFunc.parameters, template.sourceAST, template)
         newParser.statementParser.parseBlock(resolvedFunc.code, template.ctx!!)
-        resolvedFunc.ctx = null
     }
 
     fun resolveGenericStruct(
@@ -259,21 +264,26 @@ object Generics {
         startAST: ASTFile,
         baseName: String,
         typeArgs: List<Type>,
-        unqualifiedContextAST: ASTFile? = null
+        unqualifiedContextAST: ASTFile? = null,
+        position: Position? = null
     ): Type {
         val template = searchAST.structTemplates.find { it.name == baseName }
             ?: (if (unqualifiedContextAST != null) {
                 unqualifiedContextAST.flatImportNames[baseName]?.structTemplates?.find { it.name == baseName }
                     ?: unqualifiedContextAST.wildcardImportSources.firstNotNullOfOrNull { it.structTemplates.find { st -> st.name == baseName } }
             } else null)
-            ?: throw NotFoundException("Generic struct template $baseName not found")
+            ?: run {
+                logTypeError(reporter, startAST, position, "Generic struct template $baseName not found")
+                return PrimitiveType.Integer
+            }
 
         if (template.private && template.sourceAST != startAST) {
-            throw NotFoundException("Cannot access ${template.sourceAST.simplePath}::${template.name} from ${startAST.simplePath} because it is private!")
+            logTypeError(reporter, startAST, position, "Cannot access ${template.sourceAST.simplePath}::${template.name} from ${startAST.simplePath} because it is private!")
         }
 
         if (template.typeParameters.size != typeArgs.size) {
-            throw GeneralCompilerException("Type argument count mismatch for ${template.name}")
+            logTypeError(reporter, startAST, position, "Type argument count mismatch for ${template.name}")
+            return PrimitiveType.Integer
         }
 
         val suffix = typeArgs.joinToString("_") { it.toSafeString() }
@@ -323,7 +333,8 @@ object Generics {
         startAST: ASTFile,
         baseName: String,
         typeArgs: List<Type>,
-        unqualifiedContextAST: ASTFile? = null
+        unqualifiedContextAST: ASTFile? = null,
+        position: Position? = null
     ): Type {
         val template = searchAST.sealedEnumTemplates.find { it.name == baseName }
             ?: (if (unqualifiedContextAST != null) {
@@ -331,14 +342,18 @@ object Generics {
                     ?: unqualifiedContextAST.wildcardImportSources.firstNotNullOfOrNull { it.sealedEnumTemplates.find { st -> st.name == baseName } }
                     ?: searchAST.imports.values.flatMap { it.sealedEnumTemplates }.find { it.name == baseName }
             } else null)
-            ?: throw NotFoundException("Generic sealed enum template $baseName not found")
+            ?: run {
+                logTypeError(reporter, startAST, position, "Generic sealed enum template $baseName not found")
+                return PrimitiveType.Integer
+            }
 
         if (template.private && template.sourceAST != startAST) {
-            throw NotFoundException("${template.name} cannot be accessed by ${startAST.simplePath} because it is private")
+            logTypeError(reporter, startAST, position, "${template.name} cannot be accessed by ${startAST.simplePath} because it is private")
         }
 
         if (template.typeParameters.size != typeArgs.size) {
-            throw GeneralCompilerException("Type argument count mismatch for sealed enum ${template.name}")
+            logTypeError(reporter, startAST, position, "Type argument count mismatch for sealed enum ${template.name}")
+            return PrimitiveType.Integer
         }
 
         val suffix = typeArgs.joinToString("_") { it.toSafeString() }

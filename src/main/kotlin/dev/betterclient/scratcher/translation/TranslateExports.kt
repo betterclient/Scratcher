@@ -49,6 +49,7 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                             null,
                             compilerLib,
                             private = false,
+                            position = null
                         )
                         compilerLib.variables.add(outVar)
                         block.code.add(TLVariableAssignmentStatement(

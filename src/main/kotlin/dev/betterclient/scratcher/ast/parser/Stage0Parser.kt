@@ -93,6 +93,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                         staticList.scratchList.items.add(any.toString())
                     }
                     if (staticList.scratchList.items.size > 200_000) {
+                        //TODO: warning reporter
                         println("WARN: ${ast.simplePath}::${staticList.name} contains more than 200k elements, you might not be able to add items to this list in vanilla scratch.")
                     }
                 } catch (e: Exception) {
@@ -353,7 +354,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                 )
 
                 if (funcAST.operator) {
-                    OperatorFunctions.check(funcAST)
+                    OperatorFunctions.check(funcAST, errorReporter, func.position!!)
                 }
                 funcAST.ctx = func.block()
 
@@ -376,7 +377,8 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                         figureOutType(errorReporter, ctx, ast, it)
                     }?: PrimitiveType.Auto,
                     sourceAST = ast,
-                    private = private
+                    private = private,
+                    position = variable.position
                 )
                 astVariable.ctx = variable.expression()
                 if (astVariable.type == PrimitiveType.Void) {
@@ -394,7 +396,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                 val event = context.eventDecl()!!
                 val listener = when (event.IDENTIFIER().text) {
                     "GreenFlag" if event.eventArg() == null -> EventListener.GreenFlag
-                    "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!))
+                    "KeyPressed" if event.eventArg() != null -> EventListener.KeyPressed(Key.from(event.eventArg()!!, errorReporter, ast))
                     else -> {
                         errorReporter.logError(ast, event.IDENTIFIER().position(), "Unknown event type, expected GreenFlag or KeyPressed")
                         EventListener.GreenFlag

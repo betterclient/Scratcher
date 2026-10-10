@@ -57,6 +57,7 @@ object ExpressionTypes {
             is StaticListExpression -> PrimitiveType.StaticList
             is StaticListContainsExpression -> PrimitiveType.Bool
             is StaticListItemIndexExpression -> PrimitiveType.Integer
+            is ErrorExpression -> PrimitiveType.Integer
 
             is TemporaryExpression -> throw UnreachableException()
         }

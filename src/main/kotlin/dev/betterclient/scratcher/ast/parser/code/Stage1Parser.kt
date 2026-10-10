@@ -69,7 +69,6 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
                 TypeCheckParameters.addParameterChecks(it.code, it.parameters, ast, currentFunction)
             }
             statementParser.parseBlock(it.code, it.ctx!!)
-            it.ctx = null
         }
 
         ast.templates.toList().forEach {

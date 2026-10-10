@@ -1,21 +1,23 @@
 package dev.betterclient.scratcher.ast.parser
 
+import dev.betterclient.scratcher.ast.ErrorReporter
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.GeneralCompilerException
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object OperatorFunctions {
-    fun check(function: Function) {
+    fun check(function: Function, reporter: ErrorReporter, position: Position) {
         val myEntry = OverloadableOperators.entries.find { it.funcName == function.name }
         if (myEntry == null) {
-            throw GeneralCompilerException("\"overload\" function ${function.name} does not match any overload names, expected: ${
+            reporter.logError(function.sourceAST, position, "\"operator\" function ${function.name} does not match any overload names, expected: ${
                 OverloadableOperators.entries.joinToString("\n") { it.funcName }
             }")
+            return
         }
 
         if (!myEntry.signatureChecker(function.parameters.map { it.type }, function.returnType, function.isReceiver)) {
-            throw GeneralCompilerException("\"overload\" function ${function.name} does not match the overload's expected parameters, Expected ${myEntry.expectedSignature}")
+            reporter.logError(function.sourceAST, position, "\"operator\" function ${function.name} does not match the overload's expected parameters, Expected ${myEntry.expectedSignature}")
         }
     }
 

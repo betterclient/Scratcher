@@ -2,28 +2,25 @@ package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.TypeAnalysisException
-import dev.betterclient.scratcher.ast.TypeException
-import dev.betterclient.scratcher.ast.UnreachableException
-import dev.betterclient.scratcher.ast.VoidVariableException
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
-class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
+class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val ast: ASTFile) {
     private var loopDepth = 0
     fun run() {
         ast.completedTypeAnalysis = true
         ast.imports.forEach { (_, ast) ->
             if (!ast.completedTypeAnalysis) {
                 ast.completedTypeAnalysis = true
-                TypeAnalysis(ctx, ast).run()
+                TypeAnalysis(reporter, ctx, ast).run()
             }
         }
 
         (ast.flatImportNames.values + ast.wildcardImportSources).distinct().forEach { ast ->
             if (!ast.completedTypeAnalysis) {
                 ast.completedTypeAnalysis = true
-                TypeAnalysis(ctx, ast).run()
+                TypeAnalysis(reporter, ctx, ast).run()
             }
         }
 
@@ -40,8 +37,12 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         for (variable in ast.variables) {
             variable.defaultValue?.let {
                 val actualType = getActualTypeOrThrow(it, null)
-                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) throw VoidVariableException("Variable ${ast.simplePath}::${variable.name} is of type void.")
-                if (!actualType.isAssignable(variable.type)) throw TypeAnalysisException("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}")
+                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) {
+                    this.error("Variable is of type void.", variable.position)
+                }
+                if (!actualType.isAssignable(variable.type)) {
+                    this.error("Tried to assign $actualType to ${variable.name}, which has type ${variable.type}", it.position)
+                }
             }
         }
 
@@ -51,7 +52,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             checkCodeBlock(function, function.code.code)
 
             if (function.returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(function.code.code)) {
-                throw TypeAnalysisException("Function/Template ${ast.simplePath}::${function.name} does not have a guaranteed return")
+                this.error("Function does not have a guaranteed return", function.ctx?.position)
             }
             pruneUnreachableCode(function.code.code)
         }
@@ -118,41 +119,41 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 is ExpressionStatement -> {
                     getActualTypeOrThrow(statement.expression, function)
                     if (!isWhenBranch && statement.expression !is CallExpression && statement.expression !is WhenExpression && statement.expression !is DynamicCallExpression && statement.expression !is StatementExpression) {
-                        throw TypeAnalysisException("Unsupported expression as top level. ${statement.expression}")
+                        this.error("Unsupported top level expression", statement.expression.position)
                     }
                 }
                 is IfElseStatement -> {
-                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if statement condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if statement condition", statement.position)
                     checkCodeBlock(function, statement.thenBlock.code, expectedReturnType, isWhenBranch)
                     checkCodeBlock(function, statement.elseBlock.code, expectedReturnType, isWhenBranch)
                 }
                 is IfStatement -> {
-                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool as if condition", statement.condition.position)
                     checkCodeBlock(function, statement.thenBlock.code, expectedReturnType, isWhenBranch)
                 }
                 is LocalVariableAssignmentStatement -> {
-                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Local variable: ${statement.variable.name} assignment type is not correct")
+                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Assignment type is not correct", statement.assignment.position)
                 }
                 is RepeatStatement -> {
-                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount")
+                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.amount, function), "Repeat statement requires an integer amount", statement.amount.position)
                     loopDepth++
                     checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
                     loopDepth--
                 }
                 is TLVariableAssignmentStatement -> {
-                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Top level variable assignment type is not correct")
+                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Top level variable assignment type is not correct", statement.assignment.position)
                 }
                 is VariableAssignmentStatement -> {
-                    checkType(statement.struct.type, getActualTypeOrThrow(statement.target, function), "Assigning to the wrong struct type.")
-                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Struct variable assignment type is not correct")
+                    checkType(statement.struct.type, getActualTypeOrThrow(statement.target, function), "Assigning to the wrong struct type.", statement.target.position)
+                    checkType(statement.variable.type, getActualTypeOrThrow(statement.assignment, function), "Struct variable assignment type is not correct", statement.assignment.position)
                 }
                 is VariableStatement -> {
                     statement.defaultValue?.let {
-                        checkType(statement.variable.type, getActualTypeOrThrow(it, function), "Local variable default value is not expected type")
+                        checkType(statement.variable.type, getActualTypeOrThrow(it, function), "Local variable default value is not expected type", it.position)
                     }
                 }
                 is WhileStatement -> {
-                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition")
+                    checkType(PrimitiveType.Bool, getActualTypeOrThrow(statement.condition, function), "Non bool used as while condition", statement.condition.position)
                     loopDepth++
                     checkCodeBlock(function, statement.block.code, expectedReturnType, isWhenBranch)
                     loopDepth--
@@ -161,56 +162,57 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     val retType = expectedReturnType ?: function?.returnType
                     if (statement.expression == null) {
                         if (retType != null && retType != PrimitiveType.Void) {
-                            throw TypeAnalysisException("Must return a value from a non-void function/lambda.")
+                            this.error("Must return a value from a non-void function/lambda.", statement.position)
                         }
                     } else {
                         val exprType = getActualTypeOrThrow(statement.expression, function)
                         if (retType == PrimitiveType.Void) {
                             if (exprType != PrimitiveType.Void) {
-                                throw TypeAnalysisException("Cannot return a value from a void function/lambda.")
+                                this.error("Cannot return a value from a void function/lambda.", statement.expression.position)
                             }
                         } else if (retType != null) {
-                            checkType(retType, exprType, "Return statement type")
+                            checkType(retType, exprType, "Return statement type", statement.expression.position)
                         }
                     }
                 }
                 is BreakStatement -> {
                     if (loopDepth <= 0) {
-                        throw TypeAnalysisException("Break statement outside of a loop!")
+                        this.error("Not in a loop!", statement.position)
                     }
                 }
                 is ContinueStatement -> {
                     if (loopDepth <= 0) {
-                        throw TypeAnalysisException("Continue statement outside of a loop!")
+                        this.error("Not in a loop!", statement.position)
                     }
                 }
                 is StaticListSetStatement -> {
                     val index = getActualTypeOrThrow(statement.index, function)
-                    checkType(PrimitiveType.Integer, index, "Static list add index type is not correct")
+                    checkType(PrimitiveType.Integer, index, "Static list add index type is not correct", statement.index.position)
                     val item = getActualTypeOrThrow(statement.value, function)
-                    checkType(PrimitiveType.Str, item, "Static list add item type is not correct")
+                    checkType(PrimitiveType.Str, item, "Static list add item type is not correct", statement.value.position)
                 }
                 is StaticListAddStatement -> {
-                    checkType(PrimitiveType.Str, getActualTypeOrThrow(statement.item, function), "Static list add type is not correct")
+                    checkType(PrimitiveType.Str, getActualTypeOrThrow(statement.item, function), "Static list add type is not correct", statement.item.position)
                 }
                 is StaticListClearStatement -> {}
                 is StaticListInsertStatement -> {
                     val index = getActualTypeOrThrow(statement.index, function)
-                    checkType(PrimitiveType.Integer, index, "Static list insert index type is not correct")
+                    checkType(PrimitiveType.Integer, index, "Static list insert index type is not correct", statement.index.position)
                     val item = getActualTypeOrThrow(statement.value, function)
-                    checkType(PrimitiveType.Str, item, "Static list insert item type is not correct")
+                    checkType(PrimitiveType.Str, item, "Static list insert item type is not correct", statement.value.position)
                 }
                 is StaticListRemoveStatement -> {
-                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.index, function), "Static list remove type is not correct")
+                    checkType(PrimitiveType.Integer, getActualTypeOrThrow(statement.index, function), "Static list remove type is not correct", statement.index.position)
                 }
                 is TemporaryStatement -> {}
             }
         }
     }
 
-    fun checkType(expected: Type, found: Type, errorMessage: String) {
+    fun checkType(expected: Type, found: Type, errorMessage: String, position: Position?) {
         if (!found.isAssignable(expected)) {
-            throw TypeException(expected, found, errorMessage)
+            position?.let { this.error("${errorMessage}, expected \"$expected\" but found \"$found\"", it) }?:
+            throw GeneralCompilerException("Expected $expected but found $found, position null")
         }
     }
 
@@ -230,14 +232,16 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                         if (operandType == PrimitiveType.Integer || operandType == PrimitiveType.Float) {
                             operandType
                         } else {
-                            throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
+                            this.error("Cannot apply operator to type $operandType", expr.position)
+                            PrimitiveType.Float
                         }
                     }
                     UnaryOperator.NOT -> {
                         if (operandType == PrimitiveType.Bool) {
                             PrimitiveType.Bool
                         } else {
-                            throw TypeAnalysisException("Unary operator '${expr.operator.symbol}' cannot be applied to type $operandType")
+                            this.error("Cannot apply operator to type $operandType", expr.position)
+                            PrimitiveType.Bool
                         }
                     }
                 }
@@ -252,14 +256,26 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftOk = leftBase is PrimitiveType && leftBase != PrimitiveType.Void && leftBase != PrimitiveType.Null
                 val rightOk = rightBase is PrimitiveType && rightBase != PrimitiveType.Void && rightBase != PrimitiveType.Null
 
-                if (!leftOk || !rightOk) throw TypeAnalysisException("Either $leftType or $rightType isn't concattable")
+                when {
+                    leftOk && !rightOk -> {
+                        this.error("Cannot concatenate $rightType", expr.right.position)
+                    }
+                    !leftOk && rightOk -> {
+                        this.error("Cannot concatenate $leftType", expr.left.position)
+                    }
+                    !leftOk && !rightOk -> {
+                        this.error("Cannot concatenate types together.", expr.position)
+                    }
+                }
 
                 PrimitiveType.Str
             }
             is SafeDotExpression -> {
                 val structType = getActualTypeOrThrow(expr.target, function)
-                if (structType !is NullableType) throw TypeAnalysisException("Safe dot expression(?.) called with non nullable receiver")
-                checkType(expr.struct.type, structType.asNonNull(), "Safe dot expression struct type does not match expected type!")
+                if (structType !is NullableType) {
+                    this.error("Safe dot with non nullable receiver", expr.target.position)
+                }
+                checkType(expr.struct.type, structType.asNonNull(), "Safe dot expression struct type does not match expected type!", expr.target.position)
 
                 expr.member.type.asNullable()
             }
@@ -269,7 +285,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                     ArrayLib.getActualReturnType(expr) { getActualTypeOrThrow(it, function) }
                 } else {
                     expr.arguments.forEachIndexed { index, expression ->
-                        checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct")
+                        checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct", expression.position)
                     }
 
                     expr.func.returnType
@@ -279,22 +295,23 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(
                     expected = expr.type,
                     found = getActualTypeOrThrow(expr.function, function),
-                    errorMessage = "Dynamic call expression is not the correct function type"
+                    errorMessage = "Dynamic call expression is not the correct function type",
+                    expr.function.position
                 )
                 expr.arguments.forEachIndexed { index, expression ->
-                    checkType(expr.type.parameterTypes[index], getActualTypeOrThrow(expression, function), "Call parameter type is not correct")
+                    checkType(expr.type.parameterTypes[index], getActualTypeOrThrow(expression, function), "Call parameter type is not correct", expression.position)
                 }
 
                 expr.type.returnType
             }
             is MemberExpression -> {
-                checkType(expr.struct.type, getActualTypeOrThrow(expr.expression, function), "Struct type is not correct")
+                checkType(expr.struct.type, getActualTypeOrThrow(expr.expression, function), "Struct type is not correct", expr.expression.position)
                 expr.member.type
             }
             is NonNullAssertExpression -> {
                 val innerType = getActualTypeOrThrow(expr.expression, function)
                 if (innerType !is NullableType) {
-                    throw TypeAnalysisException("Cannot assert non-null with '!!' on a type that is already non-nullable: $innerType")
+                    this.error("Already non-nullable!", expr.position)
                 }
                 innerType.asNonNull()
             }
@@ -303,13 +320,15 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val op2 = getActualTypeOrThrow(expr.operand2, function)
 
                 if (op1 !is NullableType) {
-                    println("WARN: First operand of elvis expression is non null, the right hand side will never run.")
+                    println("WARN: First operand of elvis expression is non null, the right hand side will never run.") //TODO: make a warning reporter
                 }
 
                 val unified = unifyTypes(op1.asNonNull(), op2.asNonNull())
-                    ?: throw TypeAnalysisException("Elvis expression's operand types do not match, found $op1 and $op2")
 
-                unified
+                if (unified == null) {
+                    this.error("Operand types do not match, found $op1 and $op2", expr.position)
+                    op2.asNonNull()
+                } else unified
             }
             is StatementExpression -> {
                 checkCodeBlock(
@@ -338,7 +357,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftType = getActualTypeOrThrow(expr.expr, function)
                 val expectedSealed = leftType.asNonNull()
                 if (expectedSealed != expr.sealedEnum.type) {
-                    throw TypeAnalysisException("IS check left type $leftType does not match sealed enum ${expr.sealedEnum.type}")
+                    this.error("IS check left type $leftType does not match sealed enum ${expr.sealedEnum.type}", expr.position)
                 }
                 PrimitiveType.Bool
             }
@@ -346,7 +365,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val leftType = getActualTypeOrThrow(expr.expr, function)
                 val expectedSealed = leftType.asNonNull()
                 if (expectedSealed != expr.sealedEnum.type) {
-                    throw TypeAnalysisException("AS cast left type $leftType does not match sealed enum ${expr.sealedEnum.type}")
+                    this.error("AS cast left type $leftType does not match sealed enum ${expr.sealedEnum.type}", expr.position)
                 }
                 expr.targetVariant.type.let {
                     if (expr.safe) it.asNullable()
@@ -354,10 +373,19 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
             }
             is SealedEnumConstructionExpression -> {
-                expr.arguments.forEachIndexed { index, expression ->
-                    val paramType = expr.targetVariant.parameters.getOrNull(index)?.type
-                        ?: throw TypeAnalysisException("Sealed enum variant ${expr.sealedEnum.name}.${expr.targetVariant.name.substringAfter(".")} expects ${expr.targetVariant.parameters.size} argument(s), got ${expr.arguments.size}")
-                    checkType(paramType, getActualTypeOrThrow(expression, function), "Sealed enum variant parameter type is not correct")
+                if (expr.targetVariant.parameters.size != expr.arguments.size) {
+                    this.error("Sealed enum variant ${expr.sealedEnum.name}.${
+                        expr.targetVariant.name.substringAfter(".")
+                    } expects ${
+                        expr.targetVariant.parameters.size
+                    } argument(s), got ${
+                        expr.arguments.size
+                    }", expr.position)
+                } else {
+                    expr.arguments.forEachIndexed { index, expression ->
+                        val paramType = expr.targetVariant.parameters[index].type
+                        checkType(paramType, getActualTypeOrThrow(expression, function), "Sealed enum variant parameter type is not correct", expression.position)
+                    }
                 }
 
                 expr.sealedEnum.type
@@ -368,7 +396,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(
                     expected = PrimitiveType.Integer,
                     found = getActualTypeOrThrow(expr.index, function),
-                    errorMessage = "Static list item expression index type not correct."
+                    errorMessage = "Static list item expression index type not correct.",
+                    position = expr.index.position
                 )
                 PrimitiveType.Str
             }
@@ -377,7 +406,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(
                     expected = PrimitiveType.Str,
                     found = getActualTypeOrThrow(expr.item, function),
-                    errorMessage = "Static list contains item type not correct."
+                    errorMessage = "Static list contains item type not correct.",
+                    position = expr.item.position
                 )
                 PrimitiveType.Bool
             }
@@ -385,7 +415,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 checkType(
                     expected = PrimitiveType.Str,
                     found = getActualTypeOrThrow(expr.item, function),
-                    errorMessage = "Static list item index type not correct."
+                    errorMessage = "Static list item index type not correct.",
+                    position = expr.item.position
                 )
                 PrimitiveType.Integer
             }
@@ -408,26 +439,26 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 val isSealedEnum = baseType is SealedEnumType
                 if ((isEnum || isSealedEnum) && !ExpressionTypes.isWhenExhaustive(expr) && expr.branches.none { it.isElse }) {
                     val kind = if (isSealedEnum) "sealed enum" else "enum"
-                    throw TypeAnalysisException("When statement/expression on $kind must be exhaustive or have an else branch")
+                    this.error("When statement/expression on $kind must be exhaustive or have an else branch", expr.position)
                 }
             }
 
             expr.branches.forEach { branch ->
-                checkType(PrimitiveType.Bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct")
+                checkType(PrimitiveType.Bool, getActualTypeOrThrow(branch.cond, function), "Branch type is not correct", branch.cond.position)
                 subjectType?.let { expected ->
                     if (!branch.isElse) {
                         when (val cond = branch.cond) {
                             is CheckSealedEnumTypeExpression -> {
                                 val expectedSealed = expected.asNonNull()
                                 if (expectedSealed != cond.sealedEnum.type) {
-                                    throw TypeAnalysisException("Branch condition sealed enum type ${cond.sealedEnum.type} not compatible with subject type $expected")
+                                    this.error("Branch condition sealed enum type ${cond.sealedEnum.type} not compatible with subject type $expected", cond.position)
                                 }
                             }
                             is BinaryExpression -> {
                                 val actualBranchExpr = cond.right
                                 val branchExprType = getActualTypeOrThrow(actualBranchExpr, function)
                                 if (!branchExprType.isAssignable(expected)) {
-                                    throw TypeAnalysisException("Branch condition type $branchExprType not compatible with subject type $expected")
+                                    this.error("Branch condition type $branchExprType not compatible with subject type $expected", cond.position)
                                 }
                             }
                             else -> {}
@@ -443,12 +474,17 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         }
 
         return if (allBranchesReturnExpression && expr.branches.isNotEmpty()) {
-            val branchTypes = expr.branches.map {
-                val branchExpr = (it.block.code.last() as ExpressionStatement).expression
-                getActualTypeOrThrow(branchExpr, function)
+            val branchReturnExpressions = expr.branches.map {
+                (it.block.code.last() as ExpressionStatement).expression
             }
-            val unifiedType = branchTypes.reduce { left, right ->
-                unifyTypes(left, right) ?: throw TypeAnalysisException("When branches return different types.")
+            val branchTypes = branchReturnExpressions.map {
+                getActualTypeOrThrow(it, function)
+            }
+            val unifiedType = branchTypes.reduceIndexed { index, left, right ->
+                unifyTypes(left, right) ?: run {
+                    this.error("When branches return different types.", branchReturnExpressions[index].position)
+                    left
+                }
             }
             unifiedType
         } else {
@@ -461,14 +497,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
         val rightType = getActualTypeOrThrow(expr.right, function)
 
         return when (expr.operator) {
-            BinaryOperator.ADD -> {
-                if (isNumeric(leftType) && isNumeric(rightType)) {
-                    if (leftType == PrimitiveType.Float || rightType == PrimitiveType.Float) PrimitiveType.Float else PrimitiveType.Integer
-                } else {
-                    throw TypeAnalysisException("Operator '+' cannot be applied to $leftType and $rightType")
-                }
-            }
-
+            BinaryOperator.ADD,
             BinaryOperator.SUBTRACT,
             BinaryOperator.MULTIPLY,
             BinaryOperator.DIVIDE,
@@ -476,7 +505,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     if (leftType == PrimitiveType.Float || rightType == PrimitiveType.Float) PrimitiveType.Float else PrimitiveType.Integer
                 } else {
-                    throw TypeAnalysisException("Operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
+                    this.error("Operator cannot be applied to $leftType and $rightType", expr.position)
+                    PrimitiveType.Float
                 }
             }
 
@@ -487,23 +517,13 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     PrimitiveType.Bool
                 } else {
-                    throw TypeAnalysisException("Comparison operator '${expr.operator.symbol}' cannot be applied to $leftType and $rightType")
+                    this.error("Operator cannot be applied to $leftType and $rightType", expr.position)
+                    PrimitiveType.Bool
                 }
             }
 
             BinaryOperator.EQUAL,
-            BinaryOperator.NOT_EQUAL -> {
-                if (leftType.asNonNull() == rightType.asNonNull() ||
-                    (isNumeric(leftType) && isNumeric(rightType)) ||
-                    (leftType is NullableType && rightType == PrimitiveType.Null) ||
-                    (rightType is NullableType && leftType == PrimitiveType.Null)
-                ) {
-                    PrimitiveType.Bool
-                } else {
-                    throw TypeAnalysisException("Cannot compare $leftType and $rightType for equality")
-                }
-            }
-
+            BinaryOperator.NOT_EQUAL,
             BinaryOperator.STRICT_EQUAL,
             BinaryOperator.STRICT_NOT_EQUAL -> {
                 if (leftType.asNonNull() == rightType.asNonNull() ||
@@ -513,7 +533,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 ) {
                     PrimitiveType.Bool
                 } else {
-                    throw TypeAnalysisException("Cannot compare $leftType and $rightType for equality")
+                    this.error("$leftType and $rightType cannot be compared for equality", expr.position)
+                    PrimitiveType.Bool
                 }
             }
 
@@ -522,7 +543,8 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 if (leftType == PrimitiveType.Bool && rightType == PrimitiveType.Bool) {
                     PrimitiveType.Bool
                 } else {
-                    throw TypeAnalysisException("Logical operator '${expr.operator.symbol}' requires boolean operands, but got $leftType and $rightType")
+                    this.error("$leftType and $rightType cannot be compared for equality, expected booleans.", expr.position)
+                    PrimitiveType.Bool
                 }
             }
         }
@@ -548,8 +570,11 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
                 }
             }
 
-            var returnType = returnTypes.reduceOrNull { left, right ->
-                unifyTypes(left, right) ?: throw TypeAnalysisException("Cannot unify $left and $right, lambda return type unknown")
+            var returnType = returnTypes.reduceIndexedOrNull { index, left, right ->
+                unifyTypes(left, right) ?: run {
+                    this.error("Cannot unify $left and $right, lambda return type unknown.", returnStatements[index].position)
+                    left
+                }
             } ?: PrimitiveType.Void
             if (returnType == PrimitiveType.Null) {
                 returnType = PrimitiveType.Void
@@ -558,7 +583,7 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             checkCodeBlock(function, expr.block.code, expectedReturnType = returnType)
 
             if (returnType != PrimitiveType.Void && !doesBlockGuaranteeReturn(expr.block.code)) {
-                throw TypeAnalysisException("Lambda with return type $returnType does not have a guaranteed return")
+                this.error("Lambda does not have a guaranteed return.", expr.position)
             }
             pruneUnreachableCode(expr.block.code)
 
@@ -587,5 +612,11 @@ class TypeAnalysis(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
         return returns
+    }
+
+    private fun error(msg: String, position: Position?) {
+        position?.let {
+            this.reporter.logError(ast, position, msg)
+        }?: throw NotImplementedException(msg)
     }
 }

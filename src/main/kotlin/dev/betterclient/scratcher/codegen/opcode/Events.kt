@@ -1,10 +1,12 @@
 package dev.betterclient.scratcher.codegen.opcode
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
+import dev.betterclient.scratcher.ast.ASTFile
+import dev.betterclient.scratcher.ast.ErrorReporter
+import dev.betterclient.scratcher.ast.parser.position
+import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.codegen.wrapper.ScratchObject
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
-import dev.betterclient.scratcher.ast.NotFoundException
-import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.nextBlockPosition
 import org.json.JSONArray
 import org.json.JSONObject
@@ -100,10 +102,13 @@ enum class Key(val id: String) {
     NUM9("9");
 
     companion object {
-        fun from(eventArg: ScratcherLangParser.EventArgContext): Key {
+        fun from(eventArg: ScratcherLangParser.EventArgContext, reporter: ErrorReporter, ast: ASTFile): Key {
             val text = eventArg.IDENTIFIER()?.text ?:  eventArg.literal()!!.text.removeSurrounding("\"")
             return Key.entries.find { it.id.equals(text, true) }
-                ?: throw NotFoundException("Unknown key $text")
+                ?: run {
+                    reporter.logError(ast, eventArg.IDENTIFIER()?.position()?: eventArg.literal()!!.position!!, "Unknown key $text")
+                    SPACE
+                }
         }
     }
 }

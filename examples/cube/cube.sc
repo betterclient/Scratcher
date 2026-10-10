@@ -10,6 +10,9 @@ on GreenFlag {
     auto player = player::Player(Vec3D(0, 0, -3), 0, 0);
 
     float angle = 0.0;
+    angle = "hi";
+
+    player = !"hi";
 
     while(true) {
         renderer::clear();

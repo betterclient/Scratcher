@@ -1,35 +1,8 @@
 package dev.betterclient.scratcher.ast.parser.code
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.ast.ASTFile
-import dev.betterclient.scratcher.ast.ArrayType
-import dev.betterclient.scratcher.ast.CallExpression
-import dev.betterclient.scratcher.ast.DuplicateDefinitionException
-import dev.betterclient.scratcher.ast.DynamicCallExpression
-import dev.betterclient.scratcher.ast.Expression
+import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.ast.FunctionType
-import dev.betterclient.scratcher.ast.GeneralCompilerException
-import dev.betterclient.scratcher.ast.IntLiteral
-import dev.betterclient.scratcher.ast.LocalVariableExpression
-import dev.betterclient.scratcher.ast.NotFoundException
-import dev.betterclient.scratcher.ast.NullExpression
-import dev.betterclient.scratcher.ast.ParameterExpression
-import dev.betterclient.scratcher.ast.PrimitiveType
-import dev.betterclient.scratcher.ast.SimpleType
-import dev.betterclient.scratcher.ast.StatementExpression
-import dev.betterclient.scratcher.ast.StaticListAddStatement
-import dev.betterclient.scratcher.ast.StaticListClearStatement
-import dev.betterclient.scratcher.ast.StaticListContainsExpression
-import dev.betterclient.scratcher.ast.StaticListExpression
-import dev.betterclient.scratcher.ast.StaticListInsertStatement
-import dev.betterclient.scratcher.ast.StaticListItemExpression
-import dev.betterclient.scratcher.ast.StaticListItemIndexExpression
-import dev.betterclient.scratcher.ast.StaticListLengthExpression
-import dev.betterclient.scratcher.ast.StaticListRemoveStatement
-import dev.betterclient.scratcher.ast.StaticListSetStatement
-import dev.betterclient.scratcher.ast.Type
-import dev.betterclient.scratcher.ast.TypeLiteral
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -41,6 +14,7 @@ class FunctionResolver(
     val parser: Stage1Parser,
     val ast: ASTFile
 ) {
+    val reporter = parser.reporter
     fun figureOutFunction(
         funcCall: ScratcherLangParser.FunctionIdentifierContext,
         argList: ScratcherLangParser.ArgListContext?,
@@ -63,7 +37,8 @@ class FunctionResolver(
         val sourceAST = if (importName == null) {
             ast
         } else {
-            ast.imports[importName]?: throw NotFoundException("Import not found $importName for $errorText.")
+            ast.imports[importName]?:
+                return reporter.error(position!!, ast, "Import not found $importName for $errorText.")
         }
 
         val expectedArgListTypes = argList?.expression()?.map { expr ->
@@ -80,7 +55,7 @@ class FunctionResolver(
                 val elemType = parser.currentTypeBindings["T"]
                     ?: (expectedType as? ArrayType)?.elementType
                     ?: (expectedType?.asNonNull() as? ArrayType)?.elementType
-                    ?: throw GeneralCompilerException("Cannot infer element type for array_internal::newArray at $errorText. Provide an expected array type or call from a generic <T> context.")
+                    ?: return this.reporter.error(position!!, ast, "Cannot infer element type for array_internal::newArray")
 
                 val lengthArg = if (args.isNotEmpty()) args.last() else IntLiteral(BigInteger.ZERO, position)
                 return CallExpression(
@@ -91,7 +66,8 @@ class FunctionResolver(
             }
 
             val resolvedFunc = sourceAST.functions.find { it.name == funcName }
-                ?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${parser.currentFunction?.name} at $errorText")
+                ?: return this.reporter.error(position!!, ast, "Function $funcName not found")
+
             return CallExpression(
                 func = resolvedFunc,
                 arguments = inflatedArgs(resolvedFunc.parameters.map { par -> par.type }),
@@ -145,7 +121,7 @@ class FunctionResolver(
                 }
 
                 if (concreteStruct?.private == true && concreteStruct.sourceAST != ast) {
-                    throw NotFoundException("${concreteStruct.name} is private and cannot be accessed from ${ast.simplePath}")
+                    this.reporter.error(position!!, ast, "${concreteStruct.name} is private and cannot be accessed from ${ast.simplePath}")
                 }
 
                 if (concreteStruct != null) {
@@ -199,10 +175,10 @@ class FunctionResolver(
 
         resolvedFunc?.let {
             if (!it.userAccessible) {
-                throw NotFoundException("Function $errorText is not accessible.")
+                this.reporter.error(position!!, ast, "Function $errorText is not accessible.")
             }
             if (it.private && it.sourceAST != ast) {
-                throw NotFoundException("Function ${it.name} is private and cannot be accessed from ${ast.simplePath}")
+                this.reporter.error(position!!, ast, "Function ${it.name} is private and cannot be accessed from ${ast.simplePath}")
             }
             return CallExpression(
                 func = it,
@@ -269,10 +245,10 @@ class FunctionResolver(
 
         structFinding?.let {
             if (it.private && it.sourceAST != ast) {
-                throw NotFoundException("${it.name} is private and cannot be accessed from ${ast.simplePath}")
+                this.reporter.error(position!!, ast, "${it.name} is private and cannot be accessed from ${ast.simplePath}")
             }
             if (it.sourceAST != ast && it.parameters.any { param -> param.private }) {
-                throw NotFoundException("Cannot instantiate struct ${it.name} from ${ast.simplePath}: it contains private fields")
+                this.reporter.error(position!!, ast, "Cannot instantiate struct ${it.name} from ${ast.simplePath}: it contains private fields")
             }
             return CallExpression(
                 it.allocFunc,
@@ -304,17 +280,20 @@ class FunctionResolver(
             if (a != null) return a
         }
 
-        throw NotFoundException("Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}\nStackTrace:")
+        return this.reporter.error(position!!, ast, "Function $targetFunc not found, candidates: \n${candidates.joinToString("\n")}")
     }
 
     fun figureOutFunctionSimple(
         funcCall: ScratcherLangParser.FunctionIdentifierContext
-    ): Function {
+    ): Function? {
         val sourceAST = if (funcCall.IDENTIFIER() != null) {
             ast
         } else {
             val import = funcCall.simpleTypePath()!!.IDENTIFIER(0)!!.text
-            ast.imports[import]?: throw NotFoundException("Import not found $import for ${funcCall.text}.")
+            ast.imports[import]?: run {
+                this.reporter.error(funcCall.simpleTypePath()!!.position!!, ast, "Import not found $import.")
+                return null
+            }
         }
 
         val funcName = if (funcCall.IDENTIFIER() != null) {
@@ -338,19 +317,21 @@ class FunctionResolver(
 
         return when(resolvedFunc.size) {
             0 -> {
-                throw NotFoundException("Unable to find ${funcCall.text}.")
+                this.reporter.error(funcCall.position!!, ast, "Unable to find ${funcCall.text}.")
+                null
             }
             1 -> {
                 if (!resolvedFunc[0].userAccessible) {
-                    throw NotFoundException("Function ${funcCall.text} is not accessible.")
+                    this.reporter.error(funcCall.position!!, ast, "Function ${funcCall.text} is not accessible.")
                 }
                 if (resolvedFunc[0].private && resolvedFunc[0].sourceAST != ast) {
-                    throw NotFoundException("Function ${funcCall.text} is private and cannot be accessed from ${ast.simplePath}")
+                    this.reporter.error(funcCall.position!!, ast, "Function ${funcCall.text} is private and cannot be accessed from ${ast.simplePath}")
                 }
                 resolvedFunc[0]
             }
             else -> {
-                throw DuplicateDefinitionException("Ambiguous function reference ${funcCall.text}.")
+                this.reporter.error(funcCall.position!!, ast, "Ambiguous function reference ${funcCall.text}.")
+                null
             }
         }
     }
@@ -554,7 +535,7 @@ class FunctionResolver(
                 )
             }
 
-            else -> throw NotFoundException("No method $methodName that can operate on static lists.")
+            else -> this.reporter.error(position!!, ast, "No method $methodName that can operate on static lists.")
         }
     }
 }

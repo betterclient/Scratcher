@@ -218,7 +218,10 @@ object StandardLibASTGenerator {
         ).read()
         MemoryLib.initMem(memoryLib, ast)
         Stage1Parser(context, ast).parse()
-        if (path == GC_LIB_NAME) TypeAnalysis(context, ast).run() //yea
+
+        val reporter = ErrorReporter()
+        if (path == GC_LIB_NAME) TypeAnalysis(reporter, context, ast).run() //yea
+        reporter.flush()
 
         return ast
     }

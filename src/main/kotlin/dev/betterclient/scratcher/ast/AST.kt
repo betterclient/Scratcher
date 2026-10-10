@@ -74,7 +74,8 @@ class TLVariable(
     var type: Type,
     var defaultValue: Expression? = null,
     val sourceAST: ASTFile,
-    val private: Boolean
+    val private: Boolean,
+    val position: Position?
 ) {
     var ctx: ScratcherLangParser.ExpressionContext? = null
 }
@@ -175,6 +176,11 @@ data class ExpressionLowerResult(
 class ErrorReporter {
     val errors = mutableListOf<String>()
 
+    fun error(position: Position, ast: ASTFile, text: String): ErrorExpression {
+        this.logError(ast, position, text)
+        return ErrorExpression
+    }
+
     fun logError(ast: ASTFile, position: Position, text: String) {
         val source = ast.sourceCode.source
         val lines = source.lines()
@@ -202,6 +208,25 @@ class ErrorReporter {
 
     private fun Position.prettyString(): String {
         return "${this.start.line}:${this.start.column}"
+    }
+
+    inline fun <T> catching(action: () -> T): T? {
+        val snapshotSize = errors.size
+
+        return try {
+            val result = action()
+            val hasNewErrors = errors.size > snapshotSize
+            while (errors.size > snapshotSize) {
+                errors.removeAt(errors.lastIndex)
+            }
+
+            if (hasNewErrors) null else result
+        } catch (_: Throwable) {
+            while (errors.size > snapshotSize) {
+                errors.removeAt(errors.lastIndex)
+            }
+            null
+        }
     }
 }
 

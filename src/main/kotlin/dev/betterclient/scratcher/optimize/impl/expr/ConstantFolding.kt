@@ -138,7 +138,7 @@ object ConstantFolding : Optimization("Constant Folding") {
                 left.value.toString().equals(right.value, ignoreCase = true)
             }
             else -> {
-                left == right
+                (left as? Literal)?.withoutPosition() == (right as? Literal)?.withoutPosition()
             }
         }
 
@@ -150,6 +150,18 @@ object ConstantFolding : Optimization("Constant Folding") {
             },
             position
         )
+    }
+
+    private fun Literal.withoutPosition(): Literal = when (this) {
+        is IntLiteral -> copy(position = null)
+        is FloatLiteral -> copy(position = null)
+        is BooleanLiteral -> copy(position = null)
+        is StringLiteral -> copy(position = null)
+        is CharLiteral -> copy(position = null)
+        is EnumLiteral -> copy(position = null)
+        is FunctionLiteral -> copy(position = null)
+        is TypeLiteral -> copy(position = null)
+        NullExpression -> NullExpression
     }
 
     private fun foldConstantNumberComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): BooleanLiteral {

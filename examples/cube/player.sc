@@ -8,6 +8,10 @@ warp void Player.update() {
     float deltaForward = 0;
     float deltaRight = 0;
     float deltaUp = 0;
+    deltaForward = "meow";
+    deltaRight = this!!;
+    if("hi") break;
+    break if("hi");
 
     if (sensing::isKeyPressed("w")) deltaForward += 1;
     if (sensing::isKeyPressed("s")) deltaForward -= 1;

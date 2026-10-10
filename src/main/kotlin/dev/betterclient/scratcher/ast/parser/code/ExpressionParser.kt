@@ -3,7 +3,9 @@ package dev.betterclient.scratcher.ast.parser.code
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
 import dev.betterclient.scratcher.ast.parser.figureOutType
+import dev.betterclient.scratcher.ast.parser.position
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -16,11 +18,13 @@ class ExpressionParser(
 ) {
     val reporter = parser.reporter
     val literalParser = LiteralParser(this, parser)
+    var currentPosition: Position? = null
 
     fun parseExpression(
         ctx: ScratcherLangParser.ExpressionContext,
         expectedType: Type? = null
     ): Expression {
+        currentPosition = ctx.position
         val expr = when (ctx) {
             is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression(), expectedType)
             is ScratcherLangParser.CallExprContext -> parser.functionResolver.figureOutFunction(ctx.functionIdentifier(), ctx.argList(), expectedType)
@@ -43,7 +47,7 @@ class ExpressionParser(
                         ctx.position
                     )
                 }
-                throw NotFoundException("Not a receiver function!")
+                return error(ctx.position!!, ast, "Not a receiver function!")
             }
             is ScratcherLangParser.MultExprContext -> buildBinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
@@ -110,13 +114,17 @@ class ExpressionParser(
                 val structExpr = parseExpression(ctx.expression())
                 val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
                     val baseType = type.asNonNull() as? SimpleType
-                    baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type or enum at ${ctx.position}, expected a struct, found $baseType")
+                    baseType?.sourceAST?.structs?.find { it.type == baseType }?: run {
+                        return error(ctx.position!!, ast, "$type is a primitive type or enum at ${ctx.position}, expected a struct, found $baseType")
+                    }
                 }
                 val memberName = ctx.IDENTIFIER().text
 
-                val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
+                val member = struct.parameters.find { it.name == memberName }?: run {
+                    return error(ctx.position!!, ast, "Struct ${struct.name} does not have $memberName")
+                }
                 if (member.private && struct.sourceAST != this.parser.ast) {
-                    throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
+                    error(ctx.position!!, ast, "Struct ${struct.name}'s member \"${member.name}\" is private!")
                 }
 
                 return SafeDotExpression(struct, structExpr, member, ctx.position)
@@ -130,7 +138,9 @@ class ExpressionParser(
                 }
 
                 parser.functionResolver.resolveReceiverFunction(list, "get", listOf(index), filter = { it.operator })
-                    ?: throw NotFoundException("Cannot resolve get for $type")
+                    ?: run {
+                        return error(ctx.position!!, ast, "Cannot resolve get for $type")
+                    }
             }
             is ScratcherLangParser.WhenExprContext -> {
                 parseWhenExpr(ctx.whenExpression())
@@ -143,10 +153,12 @@ class ExpressionParser(
                 )
             }
             is ScratcherLangParser.FuncRefExprContext -> {
-                FunctionLiteral(
-                    parser.functionResolver.figureOutFunctionSimple(ctx.functionIdentifier()),
-                    ctx.position
-                )
+                parser.functionResolver.figureOutFunctionSimple(ctx.functionIdentifier())?.let {
+                    FunctionLiteral(
+                        it,
+                        ctx.position
+                    )
+                }?: ErrorExpression
             }
             is ScratcherLangParser.DynamicCallExprContext -> {
                 parseDynamicCall(ctx, expectedType)
@@ -209,9 +221,14 @@ class ExpressionParser(
 
         val actualElemType = when {
             elements.isNotEmpty() -> {
-                val inferred = elements.map { ExpressionTypes.getExpressionType(it) }.reduce { left, right ->
+                val elementTypes = elements.map { ExpressionTypes.getExpressionType(it) }
+                val inferred = elementTypes.reduceIndexed { index, left, right ->
                     unifyTypes(left, right)
-                        ?: throw GeneralCompilerException("Cannot unify element types in array literal at ${ctx.position}")
+                        ?: return error(
+                            elements[index].position!!,
+                            ast,
+                            "Cannot unify element types in array literal, left: $left, right: $right"
+                        )
                 }
                 if (expectedElemType != null && inferred.isAssignable(expectedElemType)) {
                     expectedElemType
@@ -220,7 +237,9 @@ class ExpressionParser(
                 }
             }
             expectedElemType != null -> expectedElemType
-            else -> throw GeneralCompilerException("Cannot determine type for empty array literal [] at ${ctx.position}. Please specify an explicit type.")
+            else -> run {
+                return error(ctx.position!!, ast, "Cannot determine type for empty array literal []. Please specify an explicit type.")
+            }
         }
         val type = ArrayType(actualElemType)
 
@@ -299,10 +318,10 @@ class ExpressionParser(
             if (sealedVariant != null) {
                 val (sealed, variant) = sealedVariant
                 if (args.size != variant.parameters.size) {
-                    throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} expects ${variant.parameters.size} argument(s), got ${args.size} at ${ctx.position}")
+                    return error(ctx.position!!, ast, "Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} expects ${variant.parameters.size} argument(s), got ${args.size}")
                 }
                 if (sealed.private && sealed.sourceAST != parser.ast) {
-                    throw NotFoundException("Sealed enum ${sealed.name} is private and cannot be accessed from ${parser.ast.simplePath}")
+                    error(ctx.position!!, ast, "Sealed enum ${sealed.name} is private and cannot be accessed from ${parser.ast.simplePath}")
                 }
                 val inflated = args.mapIndexed { i, arg ->
                     StringBoxing.autoConvert(arg, variant.parameters[i].type)
@@ -324,22 +343,22 @@ class ExpressionParser(
                 position = ctx.position
             )
 
-            try {
-                val memberExpr = parseMemberExpr(innerExpr)
-                val funcType = ExpressionTypes.getExpressionType(memberExpr) as? FunctionType
-
-                if (funcType != null && callExpr != null) {
-                    throw NotFoundException("Ambiguous reference, found extension function ${callExpr.func} and $funcType from struct parameters")
-                }
-            } catch (_: Exception) { } //will throw if its primitive!!
+            val memberExpr = reporter.catching { parseMemberExpr(innerExpr) }
+            val funcType = memberExpr?.type as? FunctionType
+            if (funcType != null && callExpr != null) {
+                return error(ctx.position!!, ast, "Ambiguous reference, found extension function ${callExpr.func} and $funcType from struct parameters")
+            }
 
             callExpr ?: run {
                 val memberExpr = parseMemberExpr(innerExpr)
                 val funcType = ExpressionTypes.getExpressionType(memberExpr) as? FunctionType
+                if (memberExpr == ErrorExpression) return@run memberExpr
 
                 DynamicCallExpression(
                     function = memberExpr,
-                    type = funcType!!,
+                    type = funcType?: run {
+                        return error(ctx.position!!, ast, "Dynamic call without function!")
+                    },
                     arguments = args,
                     position = ctx.position
                 )
@@ -355,9 +374,9 @@ class ExpressionParser(
             DynamicCallExpression(
                 function = func,
                 type = ExpressionTypes.getExpressionType(func) as? FunctionType
-                    ?: throw GeneralCompilerException(
-                        "Dynamic call without a function?"
-                    ),
+                    ?: run {
+                        return error(ctx.position!!, ast, "Dynamic call without function!")
+                    },
                 arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf(),
                 position = ctx.position
             )
@@ -369,13 +388,12 @@ class ExpressionParser(
         expectedType: Type?,
         ctx: ScratcherLangParser.DynamicCallExprContext
     ): Expression {
-        val original = runCatching { parseExpression(innerExpr, expectedType) }
-        if (original.isSuccess) {
-            val fnExpr = original.getOrNull()!!
-            val fnType = ExpressionTypes.getExpressionType(fnExpr) as? FunctionType
+        val original = reporter.catching { parseExpression(innerExpr, expectedType) }
+        if (original != null) {
+            val fnType = ExpressionTypes.getExpressionType(original) as? FunctionType
             if (fnType != null) {
                 return DynamicCallExpression(
-                    function = fnExpr,
+                    function = original,
                     type = fnType,
                     arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf(),
                     position = ctx.position
@@ -391,7 +409,9 @@ class ExpressionParser(
             innerExpr.IDENTIFIER().text,
             userArgs,
             position = innerExpr.position
-        ) ?: throw (original.exceptionOrNull() ?: NotFoundException("Receiver function ${innerExpr.IDENTIFIER().text} not found"))
+        ) ?: run {
+            return original?: error(innerExpr.position!!, ast, "Receiver function ${innerExpr.IDENTIFIER().text} not found")
+        }
 
         val receiverVar = LocalVariable(
             "safeDotCall@receiver@${getUniqueName()}",
@@ -621,7 +641,7 @@ class ExpressionParser(
         } else {
             branch.addAll(parseIfExpr(ctx.ifExpression()!!))
             if (branch.filter { it.cond is BooleanLiteral && it.cond.value }.size > 1) {
-                throw DuplicateDefinitionException("Duplicate else blocks in if expression $ctx")
+                error(ctx.position!!, ast, "Duplicate else blocks")
             }
         }
 
@@ -658,14 +678,14 @@ class ExpressionParser(
         val subjectAssignment = subjectVar?.let { VariableStatement(subject, it, ctx.expression()?.position ?: ctx.position) }
         val entries = ctx.whenEntry()
         if (entries.isEmpty()) {
-            throw GeneralCompilerException("When expression must have at least one branch at ${ctx.position?.start}")
+            return error(ctx.position!!, ast, "When expression must have at least one branch")
         }
         if (entries.count { it.whenCondition() is ScratcherLangParser.ElseCondContext } > 1) {
-            throw DuplicateDefinitionException("Duplicate ELSE condition in ${ctx.position?.start}")
+            return error(ctx.position!!, ast, "Duplicate ELSE condition")
         }
         for (i in entries.indices) {
             if (entries[i].whenCondition() is ScratcherLangParser.ElseCondContext && i != entries.lastIndex) {
-                throw GeneralCompilerException("ELSE must be the last branch in when expression at ${ctx.position?.start}")
+                return error(ctx.position!!, ast, "ELSE must be the last branch in when expression")
             }
         }
 
@@ -674,15 +694,17 @@ class ExpressionParser(
             entries.map { entry ->
                 val condition = entry.whenCondition()
                 val smartCastInfo = if (condition is ScratcherLangParser.SmartCastConditionContext) {
-                    if (subjectVar == null) throw GeneralCompilerException("Must have a subject to use smart cast condition, at ${condition.position}")
+                    if (subjectVar == null) {
+                        return error(condition.position!!, ast, "Must have a subject to use pattern matching condition")
+                    }
                     val subjectSealedType = subjectVar.type.asNonNull() as? SealedEnumType
                     val inferred = if (subjectSealedType != null) tryResolveIsAsFromLeft(subjectSealedType, condition.type()) else null
                     val (sealed, variant, tag) = inferred ?: run {
                         val targetType = figureOutType(reporter, parser.ctx, ast, condition.type(), localTypeBindings = parser.currentTypeBindings)
                         val variantType = targetType.asNonNull() as? SimpleType
-                            ?: throw TypeAnalysisException("Smart cast target must be a sealed enum variant, got $targetType at ${condition.position}")
+                            ?: return error(condition.position!!, ast, "Pattern matching target must be a sealed enum variant")
                         findVariantInfo(variantType)
-                            ?: throw NotFoundException("Type ${condition.type().text} is not a sealed enum variant")
+                            ?: return error(condition.position!!, ast, "Type ${condition.type().text} is not a sealed enum variant")
                     }
                     val effectiveTag = if (variant.parameters.isEmpty()) -tag - 1 else tag
                     Triple(sealed, variant, effectiveTag)
@@ -774,10 +796,10 @@ class ExpressionParser(
         if (sealedVariant != null) {
             val (sealed, variant) = sealedVariant
             if (variant.parameters.isNotEmpty()) {
-                throw GeneralCompilerException("Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} requires arguments, use ${sealed.name}.${variant.name.substringAfter(".")}(...)")
+                return error(ctx.position!!, ast, "Sealed enum variant ${sealed.name}.${variant.name.substringAfter(".")} requires arguments, use ${sealed.name}.${variant.name.substringAfter(".")}(...)")
             }
             if (sealed.sourceAST != parser.ast && sealed.private) {
-                throw NotFoundException("Sealed enum ${sealed.name} is private! and cannot be accessed from ${parser.ast.simplePath}")
+                error(ctx.position!!, ast, "Sealed enum ${sealed.name} is private and cannot be accessed from ${parser.ast.simplePath}!")
             }
             return SealedEnumConstructionExpression(sealed, variant, emptyList(), ctx.position)
         }
@@ -794,7 +816,7 @@ class ExpressionParser(
                 val enumName = leftExpr.IDENTIFIER(1)!!.text
                 ast.imports[importName]?.enums?.find { it.name == enumName }?.also {
                     if (it.private && it.sourceAST != this.parser.ast) {
-                        throw NotFoundException("Enum ${it.name} is private!")
+                        error(ctx.expression().position!!, ast, "Enum ${it.name} is private!")
                     }
                 }
             }
@@ -805,10 +827,10 @@ class ExpressionParser(
             val memberName = ctx.IDENTIFIER().text
             val ordinal = enum.values.indexOf(memberName)
             if (ordinal == -1) {
-                throw NotFoundException("Enum ${enum.name} does not have value $memberName")
+                return error(ctx.IDENTIFIER().position(), ast, "Enum ${enum.name} does not have value $memberName")
             }
             if (enum.private && enum.sourceAST != this.parser.ast) {
-                throw NotFoundException("Enum ${enum.name} is private!")
+                error(ctx.IDENTIFIER().position(), ast, "Enum ${enum.name} is private!")
             }
             return EnumLiteral(enum, memberName, ordinal, ctx.position)
         }
@@ -816,14 +838,16 @@ class ExpressionParser(
         val structExpr = parseExpression(ctx.expression())
         val struct = ExpressionTypes.getExpressionType(structExpr).let { type ->
             val baseType = type.asNonNull() as? SimpleType
-            baseType?.sourceAST?.structs?.find { it.type == baseType }?: throw GeneralCompilerException("$type is a primitive type(?) at ${ctx.position}, expected a struct, found $baseType")
+            baseType?.sourceAST?.structs?.find { it.type == baseType }?:
+                return error(ctx.expression().position!!, ast, "$type is a primitive type(?), expected a struct, found $baseType")
         }
         val memberName = ctx.IDENTIFIER().text
 
-        val member = struct.parameters.find { it.name == memberName }?: throw NotFoundException("Struct ${struct.name} does not have $memberName")
+        val member = struct.parameters.find { it.name == memberName }?:
+            return error(ctx.expression().position!!, ast, "Struct ${struct.name} does not have $memberName")
 
         if (member.private && struct.sourceAST != this.parser.ast) {
-            throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
+            error(ctx.IDENTIFIER().position(), ast, "Struct ${struct.name}'s member \"${member.name}\" is private!")
         }
 
         return MemberExpression(structExpr, member, struct, ctx.position)
@@ -833,18 +857,20 @@ class ExpressionParser(
         val import = ctx.IDENTIFIER(0)!!.text
         val variable = ctx.IDENTIFIER(1)!!.text
         val importedAST = ast.imports[import]
-            ?: throw NotFoundException("Import \"$import\" not found for ${ctx.text}")
+            ?: return error(ctx.IDENTIFIER(0)!!.position(), ast, "Import \"$import\" not found for ${ctx.text}")
 
         importedAST.staticLists.find { it.name == variable }?.let {
-            if (it.private && importedAST != ast) throw NotFoundException("Static list $variable is private and cannot be accessed from ${ast.simplePath}")
+            if (it.private && importedAST != ast) {
+                error(ctx.position!!, ast, "Static list $variable is private and cannot be accessed from ${ast.simplePath}")
+            }
             return StaticListExpression(it, ctx.position)
         }
 
         val tlVar = importedAST.variables.find { it.name == variable }
-            ?: throw NotFoundException("${ctx.text} not found")
+            ?: return error(ctx.IDENTIFIER(1)!!.position(), ast, "${ctx.text} not found")
 
         if (tlVar.private && importedAST != ast) {
-            throw NotFoundException("Variable ${ctx.text} is private and cannot be accessed from ${ast.simplePath}")
+            error(ctx.position!!, ast, "Variable ${ctx.text} is private and cannot be accessed from ${ast.simplePath}")
         }
 
         return VariableExpression(tlVar, importedAST, ctx.position)
@@ -869,14 +895,14 @@ class ExpressionParser(
         if (flatSource != null) {
             flatSource.staticLists.find { it.name == text }?.let {
                 if (it.private && flatSource != ast) {
-                    throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
+                    error(position!!, ast, "Static list ${it.name} is private and cannot be accessed from ${ast.simplePath}")
                 }
                 return StaticListExpression(it, position)
             }
             val importedVar = flatSource.variables.find { it.name == text }
             if (importedVar != null) {
                 if (importedVar.private && flatSource != ast) {
-                    throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
+                    error(position!!, ast, "Variable $text is private and cannot be accessed from ${ast.simplePath}")
                 }
                 return VariableExpression(importedVar, flatSource, position)
             }
@@ -885,7 +911,7 @@ class ExpressionParser(
         for (wildcardAst in ast.wildcardImportSources) {
             val privateMatch = wildcardAst.staticLists.find { it.name == text && it.private }
             if (privateMatch != null && wildcardAst != ast) {
-                throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
+                error(position!!, ast, "Static list $text is private and cannot be accessed from ${ast.simplePath}")
             }
             wildcardAst.staticLists.find { it.name == text && !it.private }?.let {
                 return StaticListExpression(it, position)
@@ -895,18 +921,18 @@ class ExpressionParser(
         for (wildcardAst in ast.wildcardImportSources) {
             val privateMatch = wildcardAst.variables.find { it.name == text && it.private }
             if (privateMatch != null && wildcardAst != ast) {
-                throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
+                error(position!!, ast, "Variable $text is private and cannot be accessed from ${ast.simplePath}")
             }
             val importedVar = wildcardAst.variables.find { it.name == text && !it.private }
             if (importedVar != null) return VariableExpression(importedVar, wildcardAst, position)
         }
 
-        throw NotFoundException("Variable $text not found")
+        return error(position!!, ast, "Variable $text not found!")
     }
 
     private fun requireSealedVisible(sealed: SealedEnum) {
         if (sealed.private && sealed.sourceAST != ast) {
-            throw NotFoundException("Sealed enum ${sealed.name} is private and cannot be accessed from ${ast.simplePath}")
+             error(currentPosition!!, ast, "Sealed enum ${sealed.name} is private and cannot be accessed from ${ast.simplePath}")
         }
     }
 
@@ -1047,15 +1073,13 @@ class ExpressionParser(
         if (template.typeParameters.all { bindings.containsKey(it) }) {
             val typeArgs = template.typeParameters.map { bindings[it]!! }
             requireSealedVisible(template)
-            val sealedType = try {
+            val sealedType = reporter.catching {
                 Generics.resolveGenericSealedEnum(reporter, parser.ctx, ast, ast, template.name, typeArgs, ast)
-            } catch (e: Exception) {
-                if ((e as? NotFoundException)?.message?.contains("private") == true) throw e
-                return null
-            }
+            } as? SealedEnumType ?: return null
+
             val concreteSealedEnum = (ast.sealedEnums.find { it.type == sealedType }
                 ?: parser.ctx.asts.values.flatMap { it.sealedEnums }.find { it.type == sealedType }
-                ?: findSealedEnumByName((sealedType as SealedEnumType).name)
+                ?: findSealedEnumByName(sealedType.name)
                 ?: template.sourceAST.sealedEnums.find { it.type == sealedType }) ?: return null
             val variant = concreteSealedEnum.types.find { it.name.substringAfter(".") == variantShort } ?: return null
             return Pair(concreteSealedEnum, variant)
@@ -1112,15 +1136,16 @@ class ExpressionParser(
         }
         val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
-            ?: throw TypeAnalysisException("IS check target must be a sealed enum variant, got $targetType at ${ctx.position}")
+            ?: return error(ctx.position!!, ast, "IS check target must be a sealed enum variant, got $targetType")
         val info = findVariantInfo(variantType)
-            ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
+            ?: return error(ctx.position!!, ast, "Type ${ctx.type().text} is not a sealed enum variant")
+
         val (sealed, variant, tag) = info
         val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
         val leftNonNull = leftType.asNonNull()
         if (leftNonNull != sealed.type) {
             if (leftType !is NullableType || leftType.inner != sealed.type) {
-                throw TypeAnalysisException("IS check left type $leftType is not ${sealed.type} at ${ctx.position}")
+                error(ctx.position!!, ast, "IS check left type $leftType is not ${sealed.type}")
             }
         }
         return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag, ctx.position)
@@ -1141,15 +1166,16 @@ class ExpressionParser(
         }
         val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
         val variantType = targetType.asNonNull() as? SimpleType
-            ?: throw TypeAnalysisException("AS cast target must be a sealed enum variant, got $targetType at ${ctx.position}")
+            ?: return error(ctx.position!!, ast, "AS cast target must be a sealed enum variant, got $targetType")
         val info = findVariantInfo(variantType)
-            ?: throw NotFoundException("Type ${ctx.type().text} is not a sealed enum variant")
+            ?: return error(ctx.position!!, ast, "Type ${ctx.type().text} is not a sealed enum variant")
+
         val (sealed, variant, tag) = info
         val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
         val leftNonNull = leftType.asNonNull()
         if (leftNonNull != sealed.type) {
             if (leftType !is NullableType || leftType.inner != sealed.type) {
-                throw TypeAnalysisException("AS cast left type $leftType is not ${sealed.type} at ${ctx.position}")
+                error(ctx.position!!, ast, "AS cast left type $leftType is not ${sealed.type}")
             }
         }
         return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe, ctx.position)
@@ -1215,7 +1241,6 @@ class ExpressionParser(
     }
 
     fun error(position: Position, ast: ASTFile, text: String): ErrorExpression {
-        this.reporter.logError(ast, position, text)
-        return ErrorExpression
+        return this.reporter.error(position, ast, text)
     }
 }

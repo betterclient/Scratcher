@@ -13,9 +13,6 @@ sealed interface Type {
 data class NullableType(
     val inner: Type
 ) : Type {
-    init {
-        if (inner is NullableType) throw GeneralCompilerException("Double nullability is not allowed")
-    }
     override val isPrimitive = false
 
     override fun isAssignable(other: Type): Boolean {

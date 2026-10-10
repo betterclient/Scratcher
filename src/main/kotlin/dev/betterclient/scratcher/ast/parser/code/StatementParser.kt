@@ -3,7 +3,9 @@ package dev.betterclient.scratcher.ast.parser.code
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
 import dev.betterclient.scratcher.ast.parser.figureOutType
+import dev.betterclient.scratcher.ast.parser.position
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -26,10 +28,16 @@ class StatementParser(
                 val value = exprParser.parseExpression(child.expression(), type)
                 val resolvedType = type ?: ExpressionTypes.getExpressionType(value)
 
-                if (resolvedType == PrimitiveType.Null) throw GeneralCompilerException("Expected any type, found null, variable $name in ${ast.simplePath}::${parser.currentFunction?.name}")
+                if (resolvedType == PrimitiveType.Null) {
+                    return error("Expected any type, found null", ctx.position!!)
+                }
                 val variable = LocalVariable(name, resolvedType)
-                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) throw VoidVariableException("Variable ${ast.simplePath}::${parser.currentFunction?.name}::${variable.name} is type void.")
-                if (parser.localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${parser.currentFunction?.name}")
+                if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) {
+                    return error("Variable has type void or static list", ctx.position!!)
+                }
+                if (parser.localVariables.find { it.name == variable.name } != null) {
+                    return error("Variable already exists!", child.IDENTIFIER().position())
+                }
                 parser.localVariables.add(variable)
                 VariableStatement(value, variable, child.position)
             }
@@ -47,7 +55,8 @@ class StatementParser(
 
                 val type = ExpressionTypes.getExpressionType(list)
                 val call = parser.functionResolver.resolveReceiverFunction(list, "set", listOf(index, item), filter = { it.operator }, position = child.position)
-                    ?: throw NotFoundException("Cannot resolve $type.set(${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")
+                    ?: return error("Cannot resolve $type.set(${index.type}, ${item.type})", child.position!!)
+
                 ExpressionStatement(call, child.position)
             }
             is ScratcherLangParser.AssignStmtContext -> {
@@ -70,7 +79,7 @@ class StatementParser(
                     val block = child.indexedBlock()
                     val indexVar = LocalVariable(block.IDENTIFIER()!!.text, PrimitiveType.Integer)
                     if (parser.localVariables.find { it.name == indexVar.name } != null) {
-                        throw DuplicateDefinitionException("Variable ${indexVar.name} already exists in ${ast.simplePath}::${parser.currentFunction?.name}")
+                        this.error("Variable already exists!", block.IDENTIFIER()!!.position())
                     }
                     val amountVar = LocalVariable("repeat_stmt_amount_${getUniqueName()}", PrimitiveType.Integer)
                     CompositeStatement(listOf(
@@ -432,9 +441,7 @@ class StatementParser(
                 )
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) {
-                        ///this.parser.reporter.logError(ast, )
-                        //TODO: come back after expressions have positions
-                        throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                        this.parser.reporter.logError(ast, targetExpr.position!!, "Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
                     }
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
@@ -443,7 +450,9 @@ class StatementParser(
                         position
                     )
                 }
-                else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
+                else -> {
+                    return error("Not mutable", targetExpr.position!!)
+                }
             }
         } else {
             return when (targetExpr) {
@@ -456,7 +465,9 @@ class StatementParser(
                     )
                 }
                 is VariableExpression -> {
-                    if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
+                    if (!targetExpr.variable.mutable) {
+                        return this.error("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}", targetExpr.position!!)
+                    }
                     val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr, position)
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
@@ -496,7 +507,9 @@ class StatementParser(
                         position = position
                     )
                 }
-                else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
+                else -> {
+                    this.error("Not mutable, tried to assign to non assignable expression", targetExpr.position!!)
+                }
             }
         }
     }
@@ -521,5 +534,13 @@ class StatementParser(
 
         parser.localVariables.clear()
         parser.localVariables.addAll(prevLocalVariables)
+    }
+
+    fun error(
+        message: String,
+        position: Position
+    ): Statement {
+        this.parser.reporter.logError(ast, position, message)
+        return ExpressionStatement(ErrorExpression, null)
     }
 }
