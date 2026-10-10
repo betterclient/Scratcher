@@ -320,7 +320,7 @@ class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val
                 val op2 = getActualTypeOrThrow(expr.operand2, function)
 
                 if (op1 !is NullableType) {
-                    println("WARN: First operand of elvis expression is non null, the right hand side will never run.") //TODO: make a warning reporter
+                    this.reporter.warn(ast, expr.position!!, "Left operand is non null, the right hand side will never run.")
                 }
 
                 val unified = unifyTypes(op1.asNonNull(), op2.asNonNull())

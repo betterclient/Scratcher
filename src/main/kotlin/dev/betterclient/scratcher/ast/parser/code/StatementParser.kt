@@ -451,7 +451,7 @@ class StatementParser(
                     )
                 }
                 else -> {
-                    return error("Not mutable", targetExpr.position!!)
+                    error("Not mutable", targetExpr.position!!)
                 }
             }
         } else {

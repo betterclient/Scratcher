@@ -93,8 +93,11 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                         staticList.scratchList.items.add(any.toString())
                     }
                     if (staticList.scratchList.items.size > 200_000) {
-                        //TODO: warning reporter
-                        println("WARN: ${ast.simplePath}::${staticList.name} contains more than 200k elements, you might not be able to add items to this list in vanilla scratch.")
+                        errorReporter.warn(
+                            ast,
+                            list.plainStringLiteral()?.position!!,
+                            "${ast.simplePath}::${staticList.name} contains more than 200k elements, you might not be able to add items to this list in vanilla scratch."
+                        )
                     }
                 } catch (e: Exception) {
                     errorReporter.logError(ast, list.position!!, "Failed to parse JSON array from ${jsonFile.name}: ${e.message}")
