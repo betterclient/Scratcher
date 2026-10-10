@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object InlineSingleUseAssignment : Optimization("Inline single-use assignments") {
     override fun apply(
@@ -26,7 +27,7 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
         val inliningStack = mutableSetOf<LocalVariable>()
 
         visit(func, object : ASTVisitor() {
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 val inlinedExpr = inlinedValues[variable]
                 if (inlinedExpr != null && inliningStack.add(variable)) {
                     val result = visit(inlinedExpr)
@@ -34,26 +35,31 @@ object InlineSingleUseAssignment : Optimization("Inline single-use assignments")
                     return result
                 }
 
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 if (inlinedValues.containsKey(variable)) {
                     return null //remove definition if unused
                 }
 
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 if (inlinedValues.containsKey(variable)) {
                     return null //remove assignments
                 }
 
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
         })
 
@@ -96,7 +102,7 @@ class InlineSingleUseAnalysis {
     private var loopDepth = 0
 
     private val exprVisitor = object : ASTVisitor() {
-        override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+        override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
             val def = activeVars[variable]
             if (def != null) {
                 def.readCount++
@@ -104,17 +110,22 @@ class InlineSingleUseAnalysis {
                 invalidated.add(variable)
             }
 
-            return super.visitLocalVariableExpression(variable)
+            return super.visitLocalVariableExpression(variable, position)
         }
 
-        override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+        override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
             invalidateForCall()
-            return super.visitCallExpression(func, args)
+            return super.visitCallExpression(func, args, position)
         }
 
-        override fun visitDynamicCallExpression(function: Expression, args: List<Expression>, type: FunctionType): Expression {
+        override fun visitDynamicCallExpression(
+            function: Expression,
+            args: List<Expression>,
+            type: FunctionType,
+            position: Position?
+        ): Expression {
             invalidateForCall()
-            return super.visitDynamicCallExpression(function, args, type)
+            return super.visitDynamicCallExpression(function, args, type, position)
         }
     }
 
@@ -140,19 +151,24 @@ class InlineSingleUseAnalysis {
         visit(function, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 if (defaultValue != null) {
                     writeCounts[variable] = (writeCounts[variable] ?: 0) + 1
                 }
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 writeCounts[variable] = (writeCounts[variable] ?: 0) + 1
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
         })
     }

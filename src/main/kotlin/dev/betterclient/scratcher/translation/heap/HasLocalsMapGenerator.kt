@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class HasLocalsMapGenerator(
     val functions: List<Function>
@@ -47,10 +48,11 @@ class HasLocalsMapGenerator(
 
             override fun visitVariableStatement(
                 defaultValue: Expression?,
-                variable: LocalVariable
+                variable: LocalVariable,
+                position: Position?
             ): Statement? {
                 foundLocals = true
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
         })
         return foundLocals
@@ -63,7 +65,8 @@ class HasLocalsMapGenerator(
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
             override fun visitTemporaryCallStatement(
                 func: Function,
-                args: MutableList<Expression>
+                args: MutableList<Expression>,
+                position: Position?
             ): Statement? {
                 if (func !is StandardLibASTFunction &&
                     func !is InlineStandardLibFunction
@@ -71,7 +74,7 @@ class HasLocalsMapGenerator(
                     calls += func
                 }
 
-                return super.visitTemporaryCallStatement(func, args)
+                return super.visitTemporaryCallStatement(func, args, position)
             }
         })
 

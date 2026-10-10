@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.codegen.ast.ScratchStatement
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int) : ASTVisitor() {
@@ -15,7 +16,11 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
 
     fun run() {
         visit(function, object : ASTVisitor() {
-            override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+            override fun visitTemporaryCallStatement(
+                func: Function,
+                args: MutableList<Expression>,
+                position: Position?
+            ): Statement? {
                 if (func == MemoryLib.alloc) {
                     val firstArg = args.getOrNull(0) as? IntLiteral
                     if (firstArg?.value == BigInteger.ZERO) {
@@ -25,28 +30,33 @@ class RemoveEmptyAllocations(val function: Function, val functionLocalCount: Int
                         }
                     }
                 }
-                return super.visitTemporaryCallStatement(func, args)
+                return super.visitTemporaryCallStatement(func, args, position)
             }
         })
 
         visit(function, this)
     }
 
-    override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+    override fun visitTemporaryCallStatement(
+        func: Function,
+        args: MutableList<Expression>,
+        position: Position?
+    ): Statement? {
         if (isAlloc0(func, args) || isFree0(func, args)) {
             return null
         }
-        return super.visitTemporaryCallStatement(func, args)
+        return super.visitTemporaryCallStatement(func, args, position)
     }
 
     override fun visitTemporaryScratchStmt(
         inputExprs: List<Expression>,
-        stmt: (List<ScratchExpression>) -> List<ScratchStatement>
+        stmt: (List<ScratchExpression>) -> List<ScratchStatement>,
+        position: Position?
     ): Statement? {
         if (isRemovedScratch(inputExprs)) {
             return null
         }
-        return super.visitTemporaryScratchStmt(inputExprs, stmt)
+        return super.visitTemporaryScratchStmt(inputExprs, stmt, position)
     }
 
     private fun isAlloc0(func: Function, args: List<Expression>): Boolean {

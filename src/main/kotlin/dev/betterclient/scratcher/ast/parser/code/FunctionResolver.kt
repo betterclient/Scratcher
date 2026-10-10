@@ -34,6 +34,7 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 class FunctionResolver(
@@ -43,11 +44,12 @@ class FunctionResolver(
     fun figureOutFunction(
         funcCall: ScratcherLangParser.FunctionIdentifierContext,
         argList: ScratcherLangParser.ArgListContext?,
-        expectedType: Type?
+        expectedType: Type?,
+        position: Position? = funcCall.position
     ): Expression {
         val importName = if (funcCall.IDENTIFIER() != null) null else funcCall.simpleTypePath()!!.IDENTIFIER(0)!!.text
         val funcName = if (funcCall.IDENTIFIER() != null) funcCall.IDENTIFIER()!!.text else funcCall.simpleTypePath()!!.IDENTIFIER(1)!!.text
-        return figureOutFunctionInternal(importName, funcName, funcCall.getParent()?.text?: funcCall.position!!.toString(), argList, expectedType)
+        return figureOutFunctionInternal(importName, funcName, funcCall.getParent()?.text?: funcCall.position!!.toString(), argList, expectedType, position)
     }
 
     fun figureOutFunctionInternal(
@@ -55,7 +57,8 @@ class FunctionResolver(
         funcName: String,
         errorText: String,
         argList: ScratcherLangParser.ArgListContext?,
-        expectedType: Type?
+        expectedType: Type?,
+        position: Position? = null
     ): Expression {
         val sourceAST = if (importName == null) {
             ast
@@ -79,10 +82,11 @@ class FunctionResolver(
                     ?: (expectedType?.asNonNull() as? ArrayType)?.elementType
                     ?: throw GeneralCompilerException("Cannot infer element type for array_internal::newArray at $errorText. Provide an expected array type or call from a generic <T> context.")
 
-                val lengthArg = if (args.isNotEmpty()) args.last() else IntLiteral(BigInteger.ZERO)
+                val lengthArg = if (args.isNotEmpty()) args.last() else IntLiteral(BigInteger.ZERO, position)
                 return CallExpression(
                     func = ArrayLib.newArray,
-                    arguments = listOf(TypeLiteral(elemType), lengthArg)
+                    arguments = listOf(TypeLiteral(elemType, position), lengthArg),
+                    position = position
                 )
             }
 
@@ -90,7 +94,8 @@ class FunctionResolver(
                 ?: throw NotFoundException("Function $funcName not found. in ${ast.simplePath}::${parser.currentFunction?.name} at $errorText")
             return CallExpression(
                 func = resolvedFunc,
-                arguments = inflatedArgs(resolvedFunc.parameters.map { par -> par.type })
+                arguments = inflatedArgs(resolvedFunc.parameters.map { par -> par.type }),
+                position = position
             )
         }
 
@@ -144,7 +149,11 @@ class FunctionResolver(
                 }
 
                 if (concreteStruct != null) {
-                    return CallExpression(concreteStruct.allocFunc, inflatedArgs(concreteStruct.parameters.map { par -> par.type }))
+                    return CallExpression(
+                        concreteStruct.allocFunc,
+                        inflatedArgs(concreteStruct.parameters.map { par -> par.type }),
+                        position = position
+                    )
                 }
             }
         }
@@ -197,7 +206,8 @@ class FunctionResolver(
             }
             return CallExpression(
                 func = it,
-                arguments = inflatedArgs(it.parameters.map { par -> par.type })
+                arguments = inflatedArgs(it.parameters.map { par -> par.type }),
+                position = position
             )
         }
 
@@ -211,8 +221,9 @@ class FunctionResolver(
                     )) {
                     return DynamicCallExpression(
                         type = it.type as FunctionType,
-                        function = LocalVariableExpression(it),
-                        arguments = inflatedArgs((it.type as FunctionType).parameterTypes)
+                        function = LocalVariableExpression(it, position),
+                        arguments = inflatedArgs((it.type as FunctionType).parameterTypes),
+                        position = position
                     )
                 }
             }
@@ -224,8 +235,9 @@ class FunctionResolver(
                     )) {
                     return DynamicCallExpression(
                         type = it.type,
-                        function = ParameterExpression(it),
-                        arguments = inflatedArgs(it.type.parameterTypes)
+                        function = ParameterExpression(it, position),
+                        arguments = inflatedArgs(it.type.parameterTypes),
+                        position = position
                     )
                 }
             }
@@ -262,7 +274,11 @@ class FunctionResolver(
             if (it.sourceAST != ast && it.parameters.any { param -> param.private }) {
                 throw NotFoundException("Cannot instantiate struct ${it.name} from ${ast.simplePath}: it contains private fields")
             }
-            return CallExpression(it.allocFunc, inflatedArgs(it.parameters.map { par -> par.type }))
+            return CallExpression(
+                it.allocFunc,
+                inflatedArgs(it.parameters.map { par -> par.type }),
+                position = position
+            )
         }
 
         val targetFunc = "$funcName(${expectedArgListTypes.joinToString(", ") { it.toString() }})"
@@ -277,9 +293,13 @@ class FunctionResolver(
         if(parser.currentFunction?.isReceiver == true && importName == null) {
             //might be trying to call this.xxx() without the this.
             val a = resolveReceiverFunction(
-                receiverExpr = ParameterExpression(parser.currentFunction?.parameters?.find { it.name == "this" }!!),
+                receiverExpr = ParameterExpression(
+                    parser.currentFunction?.parameters?.find { it.name == "this" }!!,
+                    position
+                ),
                 methodName = funcName,
-                arguments = args
+                arguments = args,
+                position = position
             )
             if (a != null) return a
         }
@@ -360,7 +380,8 @@ class FunctionResolver(
         receiverExpr: Expression,
         methodName: String,
         arguments: List<Expression>,
-        filter: (Function) -> Boolean = { true }
+        filter: (Function) -> Boolean = { true },
+        position: Position? = receiverExpr.position
     ): CallExpression? {
         val allArgs = listOf(receiverExpr) + arguments
         val receiverType = ExpressionTypes.getExpressionType(receiverExpr)
@@ -389,7 +410,8 @@ class FunctionResolver(
             if (resolvedFunc != null) {
                 return CallExpression(
                     func = resolvedFunc,
-                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type })
+                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type }),
+                    position = position
                 )
             }
         }
@@ -397,11 +419,11 @@ class FunctionResolver(
         return null
     }
 
-
     fun resolveOperatorFunction(
         left: Expression,
         operatorName: String,
-        right: Expression
+        right: Expression,
+        position: Position? = left.position
     ): CallExpression? {
         val allArgs = listOf(left, right)
         val argTypes = allArgs.map { ExpressionTypes.getExpressionType(it) }
@@ -434,7 +456,8 @@ class FunctionResolver(
             if (resolvedFunc != null) {
                 return CallExpression(
                     func = resolvedFunc,
-                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type })
+                    arguments = inflatedArgs(resolvedFunc.parameters.map { it.type }),
+                    position = position
                 )
             }
         }
@@ -442,22 +465,29 @@ class FunctionResolver(
         return null
     }
 
-    fun resolveStaticListFunction(list: StaticListExpression, methodName: String, args: List<Expression>): Expression {
+    fun resolveStaticListFunction(
+        list: StaticListExpression,
+        methodName: String,
+        args: List<Expression>,
+        position: Position? = list.position
+    ): Expression {
         return when (methodName) {
             "add" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
                 StatementExpression(
                     statements = listOf(
                         StaticListAddStatement(
                             list = list.list,
-                            item = args[0]
+                            item = args[0],
+                            position
                         )
                     ),
-                    expression = NullExpression
+                    expression = NullExpression,
+                    position = position
                 )
             }
 
             "get" if args.size == 1 && args[0].type == PrimitiveType.Integer -> {
-                StaticListItemExpression(list.list, args[0])
+                StaticListItemExpression(list.list, args[0], position)
             }
 
             "set" if args.size == 2 && args[0].type == PrimitiveType.Integer && args[1].type == PrimitiveType.Str -> {
@@ -466,22 +496,25 @@ class FunctionResolver(
                         StaticListSetStatement(
                             list = list.list,
                             value = args[1],
-                            index = args[0]
+                            index = args[0],
+                            position = position
                         )
                     ),
-                    expression = NullExpression
+                    expression = NullExpression,
+                    position = position
                 )
             }
 
             "clear" if args.isEmpty() -> {
                 StatementExpression(
-                    statements = listOf(StaticListClearStatement(list.list)),
-                    expression = NullExpression
+                    statements = listOf(StaticListClearStatement(list.list, position)),
+                    expression = NullExpression,
+                    position = position
                 )
             }
 
             "length" if args.isEmpty() -> {
-                StaticListLengthExpression(list.list)
+                StaticListLengthExpression(list.list, position)
             }
 
             "insert" if args.size == 2 && args[0].type == PrimitiveType.Integer && args[1].type == PrimitiveType.Str -> {
@@ -490,19 +523,21 @@ class FunctionResolver(
                         StaticListInsertStatement(
                             list = list.list,
                             value = args[1],
-                            index = args[0]
+                            index = args[0],
+                            position = position
                         )
                     ),
-                    expression = NullExpression
+                    expression = NullExpression,
+                    position = position
                 )
             }
 
             "contains" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
-                StaticListContainsExpression(list.list, args[0])
+                StaticListContainsExpression(list.list, args[0], position)
             }
 
             "indexOf" if args.size == 1 && args[0].type == PrimitiveType.Str -> {
-                StaticListItemIndexExpression(list.list, args[0])
+                StaticListItemIndexExpression(list.list, args[0], position)
             }
 
             "remove" if args.size == 1 && args[0].type == PrimitiveType.Integer -> {
@@ -510,10 +545,12 @@ class FunctionResolver(
                     statements = listOf(
                         StaticListRemoveStatement(
                             list = list.list,
-                            index = args[0]
+                            index = args[0],
+                            position = position
                         )
                     ),
-                    expression = NullExpression
+                    expression = NullExpression,
+                    position = position
                 )
             }
 

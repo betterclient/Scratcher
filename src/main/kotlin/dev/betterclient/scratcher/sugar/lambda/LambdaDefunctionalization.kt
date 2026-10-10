@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class LambdaDefunctionalization(
     val ctx: CompilationContext,
@@ -48,11 +49,12 @@ class LambdaDefunctionalization(
     override fun visitLambdaExpression(
         block: CodeBlock,
         arguments: List<LocalVariable>,
-        captured: MutableSet<LocalVariable>
+        captured: MutableSet<LocalVariable>,
+        position: Position?
     ): Expression {
         val pars = arguments.map { Parameter(it.name, it.type) }
         val lookup = arguments.zip(pars).toMap()
-        val lambdaExpr = LambdaExpression(arguments, block, captured)
+        val lambdaExpr = LambdaExpression(arguments, block, captured, position)
         val fullFuncType = ExpressionTypes.getExpressionType(lambdaExpr) as FunctionType
 
         val userFuncType = FunctionType(fullFuncType.parameterTypes.drop(1), fullFuncType.returnType)
@@ -76,28 +78,31 @@ class LambdaDefunctionalization(
         val myCaptureStruct = closureConversion.lambdaCaptureStructs[lambdaExpr]
 
         val captureAlloc = if (myCaptureStruct != null && captured.isNotEmpty()) {
-            val myCaptureArgs = captured.map { LocalVariableExpression(it) }
+            val myCaptureArgs = captured.map { LocalVariableExpression(it, position) }
 
             SealedEnumConstructionExpression(
                 sealedEnum = lambdaCapturesEnum,
                 targetVariant = myCaptureStruct,
-                arguments = myCaptureArgs
+                arguments = myCaptureArgs,
+                position = position
             )
         } else {
             SealedEnumConstructionExpression(
                 sealedEnum = lambdaCapturesEnum,
                 targetVariant = myCaptureStruct!!,
-                arguments = listOf()
+                arguments = listOf(),
+                position = position
             )
         }
 
         return CallExpression(
             closureStruct.allocFunc,
-            listOf(FunctionLiteral(defunc), captureAlloc)
+            listOf(FunctionLiteral(defunc, position), captureAlloc),
+            position
         )
     }
 
-    override fun visitFunctionLiteral(func: Function): Expression {
+    override fun visitFunctionLiteral(func: Function, position: Position?): Expression {
         val userFuncType = FunctionType.from(func)
         val closureStruct = getOrCreateClosureStruct(userFuncType)
 
@@ -107,12 +112,12 @@ class LambdaDefunctionalization(
             val userPars = func.parameters.map { Parameter(it.name, it.type) }
 
             val trampolineBody = CodeBlock()
-            val callExpr = CallExpression(func, userPars.map { ParameterExpression(it) })
+            val callExpr = CallExpression(func, userPars.map { ParameterExpression(it, null) }, null)
             if (func.returnType == PrimitiveType.Void) {
-                trampolineBody.code.add(ExpressionStatement(callExpr))
-                trampolineBody.code.add(ReturnStatement(null))
+                trampolineBody.code.add(ExpressionStatement(callExpr, null))
+                trampolineBody.code.add(ReturnStatement(null, null))
             } else {
-                trampolineBody.code.add(ReturnStatement(callExpr))
+                trampolineBody.code.add(ReturnStatement(callExpr, null))
             }
 
             Function(
@@ -132,14 +137,16 @@ class LambdaDefunctionalization(
 
         return CallExpression(
             closureStruct.allocFunc,
-            listOf(FunctionLiteral(trampoline), NullExpression)
+            listOf(FunctionLiteral(trampoline, position), NullExpression),
+            position
         )
     }
 
     override fun visitDynamicCallExpression(
         function: Expression,
         args: List<Expression>,
-        type: FunctionType
+        type: FunctionType,
+        position: Position?
     ): Expression {
         val closureStruct = getOrCreateClosureStruct(type)
 
@@ -152,25 +159,30 @@ class LambdaDefunctionalization(
         )
 
         return DynamicCallExpression(
-            function = MemberExpression(function, funcField, closureStruct),
-            arguments = listOf(MemberExpression(function, capturesField, closureStruct)) + args,
-            type = targetFuncType
+            function = MemberExpression(function, funcField, closureStruct, position),
+            arguments = listOf(MemberExpression(function, capturesField, closureStruct, position)) + args,
+            type = targetFuncType,
+            position = position
         )
     }
 
-    override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+    override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
         if (parLookup.containsKey(variable)) {
-            return ParameterExpression(parLookup[variable]!!)
+            return ParameterExpression(parLookup[variable]!!, position)
         }
 
-        return super.visitLocalVariableExpression(variable)
+        return super.visitLocalVariableExpression(variable, position)
     }
 
-    override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement? {
+    override fun visitLocalVariableAssignmentStatement(
+        variable: LocalVariable,
+        assignment: Expression,
+        position: Position?
+    ): Statement? {
         if (parLookup.containsKey(variable)) {
             throw GeneralCompilerException("Cannot assign value to parameter ${variable.name}")
         }
 
-        return super.visitLocalVariableAssignmentStatement(variable, assignment)
+        return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
     }
 }

@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object PrimitiveCopyPropagation : Optimization("Primitive copy propagation") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
@@ -25,10 +26,10 @@ object PrimitiveCopyPropagation : Optimization("Primitive copy propagation") {
                 return super.visitCodeBlock(block)
             }
 
-            override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+            override fun visitStatementExpression(statements: List<Statement>, expression: Expression, position: Position?): Expression {
                 val inner = statements.toMutableList()
                 processStmtList(inner)
-                return super.visitStatementExpression(inner, expression)
+                return super.visitStatementExpression(inner, expression, position)
             }
         }
 
@@ -110,32 +111,32 @@ object PrimitiveCopyPropagation : Optimization("Primitive copy propagation") {
                 }
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 if (depth > 0 && (variable == a || variable == b)) found = true
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable, position: Position?): Statement? {
                 if (depth > 0 && (variable == a || variable == b)) found = true
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
-            override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement? {
+            override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression, position: Position?): Statement? {
                 if (depth > 0 && (variable == a || variable == b)) found = true
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+            override fun visitStatementExpression(statements: List<Statement>, expression: Expression, position: Position?): Expression {
                 depth++
                 try {
                     statements.forEach { visit(it) }
                 } finally {
                     depth--
                 }
-                return super.visitStatementExpression(statements, expression)
+                return super.visitStatementExpression(statements, expression, position)
             }
 
-            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
+            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?, position: Position?): Expression {
                 if (subject != null) {
                     depth++
                     try {
@@ -144,35 +145,35 @@ object PrimitiveCopyPropagation : Optimization("Primitive copy propagation") {
                         depth--
                     }
                 }
-                return super.visitWhenExpr(branches, subject)
+                return super.visitWhenExpr(branches, subject, position)
             }
 
-            override fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>): Expression {
+            override fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>, position: Position?): Expression {
                 if (captured.any { it == a || it == b }) found = true
-                return super.visitLambdaExpression(block, arguments, captured)
+                return super.visitLambdaExpression(block, arguments, captured, position)
             }
         }
 
         private fun substUsesInStmt(stmt: Statement, dest: LocalVariable, src: LocalVariable): Statement {
             val v = object : ASTVisitor() {
-                override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+                override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                     if (variable == dest) {
                         this@Worker.changed = true
-                        return LocalVariableExpression(src)
+                        return LocalVariableExpression(src, position)
                     }
-                    return super.visitLocalVariableExpression(variable)
+                    return super.visitLocalVariableExpression(variable, position)
                 }
 
                 override fun visitCodeBlock(block: CodeBlock): CodeBlock = block
 
-                override fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>): Expression =
-                    LambdaExpression(arguments, block, captured)
+                override fun visitLambdaExpression(block: CodeBlock, arguments: List<LocalVariable>, captured: MutableSet<LocalVariable>, position: Position?): Expression =
+                    LambdaExpression(arguments, block, captured, position)
 
-                override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression =
-                    StatementExpression(statements, visit(expression))
+                override fun visitStatementExpression(statements: List<Statement>, expression: Expression, position: Position?): Expression =
+                    StatementExpression(statements, visit(expression), position)
 
-                override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression =
-                    WhenExpression(subject, branches.map { it.copy(cond = visit(it.cond)) })
+                override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?, position: Position?): Expression =
+                    WhenExpression(subject, branches.map { it.copy(cond = visit(it.cond)) }, position)
             }
             if (stmt is ExpressionStatement) return stmt.copy(expression = v.visit(stmt.expression))
             if (stmt is VariableStatement) return stmt.copy(defaultValue = stmt.defaultValue?.let { v.visit(it) })

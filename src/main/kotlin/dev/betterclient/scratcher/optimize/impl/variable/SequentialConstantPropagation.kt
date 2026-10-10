@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.*
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object SequentialConstantPropagation : Optimization("Sequential constant propagation") {
     override fun apply(
@@ -22,7 +23,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
         val currentlyVisiting = mutableSetOf<LocalVariable>()
 
         val expressionVisitor = object : ASTVisitor() {
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 val known = knownValues[variable]
                 if (known != null) {
                     if (currentlyVisiting.add(variable)) {
@@ -34,10 +35,10 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                         }
                     }
                 }
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
+            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?, position: Position?): Expression {
                 val processedSubject = subject?.let { processStatement(it) }
                 val snapshot = knownValues.toMap()
 
@@ -46,7 +47,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     knownValues.putAll(snapshot)
                     val cond = propagate(branch.cond)
                     val block = processCodeBlock(branch.block)
-                    WhenBranch(cond, block, branch.isElse)
+                    WhenBranch(cond, block, branch.isElse, branch.position)
                 }
 
                 knownValues.clear()
@@ -55,30 +56,31 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                 val allModified = branches.flatMap { collectModifiedVariables(it.block) }.toSet()
                 invalidateAll(allModified)
 
-                return WhenExpression(processedSubject, processedBranches)
+                return WhenExpression(processedSubject, processedBranches, position)
             }
 
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
                 val visitedArgs = args.map { propagate(it) }
                 knownValues.clear()
-                return CallExpression(func, visitedArgs)
+                return CallExpression(func, visitedArgs, position)
             }
 
             override fun visitDynamicCallExpression(
                 function: Expression,
                 args: List<Expression>,
-                type: FunctionType
+                type: FunctionType,
+                position: Position?
             ): Expression {
                 val fn = propagate(function)
                 val visitedArgs = args.map { propagate(it) }
                 knownValues.clear()
-                return DynamicCallExpression(type, fn, visitedArgs)
+                return DynamicCallExpression(type, fn, visitedArgs, position)
             }
         }
 
         fun propagate(expr: Expression): Expression {
             if (expr is StatementExpression) {
-                return StatementExpression(expr.statements.map { processStatement(it) }, propagate(expr.expression))
+                return StatementExpression(expr.statements.map { processStatement(it) }, propagate(expr.expression), expr.position)
             }
             return expressionVisitor.visit(expr)
         }
@@ -117,7 +119,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     if (hasCallsOrLambdas(expr)) {
                         knownValues.clear()
                     }
-                    ExpressionStatement(expr)
+                    ExpressionStatement(expr, statement.position)
                 }
 
                 is VariableStatement -> {
@@ -127,7 +129,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     if (propagatedDefault != null && propagatedDefault.isConstant()) {
                         knownValues[statement.variable] = propagatedDefault
                     }
-                    VariableStatement(propagatedDefault, statement.variable)
+                    VariableStatement(propagatedDefault, statement.variable, statement.position)
                 }
 
                 is LocalVariableAssignmentStatement -> {
@@ -137,7 +139,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     if (propagatedAssignment.isConstant()) {
                         knownValues[statement.variable] = propagatedAssignment
                     }
-                    LocalVariableAssignmentStatement(statement.variable, propagatedAssignment)
+                    LocalVariableAssignmentStatement(statement.variable, propagatedAssignment, statement.position)
                 }
 
                 is IfStatement -> {
@@ -149,7 +151,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     knownValues.putAll(snapshot)
                     invalidateAll(collectModifiedVariables(statement.thenBlock))
 
-                    IfStatement(cond, processedThen)
+                    IfStatement(cond, processedThen, statement.position)
                 }
 
                 is IfElseStatement -> {
@@ -167,7 +169,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     val modified = collectModifiedVariables(statement.thenBlock) + collectModifiedVariables(statement.elseBlock)
                     invalidateAll(modified)
 
-                    IfElseStatement(cond, processedThen, processedElse)
+                    IfElseStatement(cond, processedThen, processedElse, statement.position)
                 }
 
                 is WhileStatement -> {
@@ -182,7 +184,7 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     knownValues.clear()
                     knownValues.putAll(snapshot)
 
-                    WhileStatement(cond, processedBlock)
+                    WhileStatement(cond, processedBlock, statement.position)
                 }
 
                 is RepeatStatement -> {
@@ -198,52 +200,52 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                     knownValues.clear()
                     knownValues.putAll(snapshot)
 
-                    RepeatStatement(amt, processedBlock)
+                    RepeatStatement(amt, processedBlock, statement.position)
                 }
 
                 is VariableAssignmentStatement -> VariableAssignmentStatement(
-                    propagate(statement.target), statement.variable, statement.struct, propagate(statement.assignment)
+                    propagate(statement.target), statement.variable, statement.struct, propagate(statement.assignment), statement.position
                 )
 
                 is TLVariableAssignmentStatement -> TLVariableAssignmentStatement(
-                    statement.variable, statement.sourceAST, propagate(statement.assignment)
+                    statement.variable, statement.sourceAST, propagate(statement.assignment), statement.position
                 )
 
-                is ReturnStatement -> ReturnStatement(statement.expression?.let { propagate(it) })
+                is ReturnStatement -> ReturnStatement(statement.expression?.let { propagate(it) }, statement.position)
 
                 is TemporaryCallStatement -> TemporaryCallStatement(
-                    statement.func, statement.args.map { propagate(it) }.toMutableList()
+                    statement.func, statement.args.map { propagate(it) }.toMutableList(), statement.position
                 )
 
                 is TemporaryHeapSetStatement -> TemporaryHeapSetStatement(
-                    propagate(statement.index), propagate(statement.data)
+                    propagate(statement.index), propagate(statement.data), statement.position
                 )
 
                 is TemporaryScratchStmt -> TemporaryScratchStmt(
-                    statement.inputExprs.map { propagate(it) }, statement.stmt
+                    statement.inputExprs.map { propagate(it) }, statement.stmt, statement.position
                 )
 
                 is CompositeStatement -> {
                     val stmts = statement.statements.map { processStatement(it) }
-                    CompositeStatement(stmts)
+                    CompositeStatement(stmts, statement.position)
                 }
 
                 is StaticListSetStatement -> StaticListSetStatement(
-                    statement.list, propagate(statement.index), propagate(statement.value)
+                    statement.list, propagate(statement.index), propagate(statement.value), statement.position
                 )
                 is StaticListAddStatement -> StaticListAddStatement(
-                    statement.list, propagate(statement.item)
+                    statement.list, propagate(statement.item), statement.position
                 )
                 is StaticListInsertStatement -> StaticListInsertStatement(
-                    statement.list, propagate(statement.index), propagate(statement.value)
+                    statement.list, propagate(statement.index), propagate(statement.value), statement.position
                 )
                 is StaticListRemoveStatement -> StaticListRemoveStatement(
-                    statement.list, propagate(statement.index)
+                    statement.list, propagate(statement.index), statement.position
                 )
 
-                is BreakStatement -> BreakStatement()
-                is ContinueStatement -> ContinueStatement()
-                is StaticListClearStatement -> StaticListClearStatement(statement.list)
+                is BreakStatement -> BreakStatement(statement.position)
+                is ContinueStatement -> ContinueStatement(statement.position)
+                is StaticListClearStatement -> StaticListClearStatement(statement.list, statement.position)
             }
         }
 
@@ -254,15 +256,20 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
 
                 override fun visitLocalVariableAssignmentStatement(
                     variable: LocalVariable,
-                    assignment: Expression
+                    assignment: Expression,
+                    position: Position?
                 ): Statement? {
                     modified.add(variable)
-                    return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                    return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
                 }
 
-                override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+                override fun visitVariableStatement(
+                    defaultValue: Expression?,
+                    variable: LocalVariable,
+                    position: Position?
+                ): Statement? {
                     modified.add(variable)
-                    return super.visitVariableStatement(defaultValue, variable)
+                    return super.visitVariableStatement(defaultValue, variable, position)
                 }
             }
             visitor.visitCodeBlock(block)

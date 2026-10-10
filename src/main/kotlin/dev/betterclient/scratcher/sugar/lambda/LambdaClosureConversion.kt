@@ -25,6 +25,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class LambdaClosureConversion(
     val ctx: CompilationContext
@@ -56,10 +57,11 @@ class LambdaClosureConversion(
             override fun visitLambdaExpression(
                 block: CodeBlock,
                 arguments: List<LocalVariable>,
-                captured: MutableSet<LocalVariable>
+                captured: MutableSet<LocalVariable>,
+                position: Position?
             ): Expression {
                 allCapturedLocals.addAll(captured)
-                return super.visitLambdaExpression(block, arguments, captured)
+                return super.visitLambdaExpression(block, arguments, captured, position)
             }
         }
         visit(func, captureCollector)
@@ -74,7 +76,8 @@ class LambdaClosureConversion(
     override fun visitLambdaExpression(
         block: CodeBlock,
         arguments: List<LocalVariable>,
-        captured: MutableSet<LocalVariable>
+        captured: MutableSet<LocalVariable>,
+        position: Position?
     ): Expression {
         val myCapture = Struct(
             name = "LambdaCapture@${index++}",
@@ -117,7 +120,8 @@ class LambdaClosureConversion(
                 captureMappings.putAll(oldMappings)
                 out
             },
-            captured
+            captured,
+            position
         )
         lambdaCaptureStructs[newLambda] = myCapture
         return newLambda
@@ -144,72 +148,75 @@ class LambdaClosureConversion(
         return variableBoxes.computeIfAbsent(variable) { createBox(original) }
     }
 
-    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable, position: Position?): Statement? {
         if (allCapturedLocals.contains(variable)) {
             variableOriginalTypes[variable] = variable.type
             val boxStruct = boxFor(variable)
             val visitedDefault = defaultValue?.let { visit(it) } ?: NullExpression
-            val allocBoxCall = CallExpression(boxStruct.allocFunc, listOf(visitedDefault))
+            val allocBoxCall = CallExpression(boxStruct.allocFunc, listOf(visitedDefault), position)
             variable.type = boxStruct.type
-            return VariableStatement(allocBoxCall, variable)
+            return VariableStatement(allocBoxCall, variable, position)
         }
-        return super.visitVariableStatement(defaultValue, variable)
+        return super.visitVariableStatement(defaultValue, variable, position)
     }
 
-    override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+    override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
         if (activeCapture != null) {
             val mappedParam = captureMappings[variable]
             if (mappedParam != null) {
-                val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
+                val captureParamExpr = LocalVariableExpression(activeCaptureVal!!, position)
                 val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
                     val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
                     if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
-                }, safe = false)
-                val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
+                }, safe = false, position = position)
+                val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!, position)
                 val boxStruct = boxFor(variable)
-                return MemberExpression(boxExpr, boxStruct.parameters.first(), boxStruct)
+                return MemberExpression(boxExpr, boxStruct.parameters.first(), boxStruct, position)
             }
         }
         if (allCapturedLocals.contains(variable)) {
             val boxStruct = boxFor(variable)
             return MemberExpression(
-                expression = LocalVariableExpression(variable),
+                expression = LocalVariableExpression(variable, position),
                 member = boxStruct.parameters.first(),
-                struct = boxStruct
+                struct = boxStruct,
+                position = position
             )
         }
-        return super.visitLocalVariableExpression(variable)
+        return super.visitLocalVariableExpression(variable, position)
     }
 
-    override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression): Statement? {
+    override fun visitLocalVariableAssignmentStatement(variable: LocalVariable, assignment: Expression, position: Position?): Statement? {
         if (activeCapture != null) {
             val mappedParam = captureMappings[variable]
             if (mappedParam != null) {
-                val captureParamExpr = LocalVariableExpression(activeCaptureVal!!)
+                val captureParamExpr = LocalVariableExpression(activeCaptureVal!!, position)
                 val captureExpr = SealedEnumCastExpression(expr = captureParamExpr, targetVariant = activeCapture!!, sealedEnum = lambdaCapturesEnum, tag = run {
                     val idx = lambdaCapturesEnum.types.indexOf(activeCapture)
                     if (activeCapture!!.parameters.isEmpty()) -idx - 1 else idx
-                }, safe = false)
-                val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!)
+                }, safe = false, position = position)
+                val boxExpr = MemberExpression(captureExpr, mappedParam, activeCapture!!, position)
                 val boxStruct = boxFor(variable)
                 return VariableAssignmentStatement(
                     target = boxExpr,
                     struct = boxStruct,
                     variable = boxStruct.parameters.first(),
                     assignment = visit(assignment),
+                    position = position
                 )
             }
         }
         if (allCapturedLocals.contains(variable)) {
             val boxStruct = boxFor(variable)
             return VariableAssignmentStatement(
-                target = LocalVariableExpression(variable),
+                target = LocalVariableExpression(variable, position),
                 struct = boxStruct,
                 variable = boxStruct.parameters.first(),
-                assignment = visit(assignment)
+                assignment = visit(assignment),
+                position = position
             )
         }
 
-        return super.visitLocalVariableAssignmentStatement(variable, assignment)
+        return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
     }
 }

@@ -77,15 +77,17 @@ object RefCountGC {
             userAccessible = false,
             code = CodeBlock().also { code ->
                 code.code.add(isNotNeg1(
-                    left = ParameterExpression(ptrArg),
+                    left = ParameterExpression(ptrArg, null),
                     then = CodeBlock().also { thenBlock ->
                         thenBlock.code.add(TemporaryHeapSetStatement(
-                            index = ParameterExpression(ptrArg),
+                            index = ParameterExpression(ptrArg, null),
                             data = BinaryExpression(
-                                left = TemporaryHeapGetExpression(ParameterExpression(ptrArg)),
-                                right = IntLiteral(BigInteger.ONE),
-                                operator = BinaryOperator.ADD
-                            )
+                                left = TemporaryHeapGetExpression(ParameterExpression(ptrArg, null), null, null),
+                                right = IntLiteral(BigInteger.ONE, null),
+                                operator = BinaryOperator.ADD,
+                                position = null
+                            ),
+                            position = null
                         ))
                     }
                 ))
@@ -132,9 +134,10 @@ object RefCountGC {
             val thenBlock0 = CodeBlock().also {
                 struct.parameters.drop(1).forEach { par ->
                     val fieldExpr = MemberExpression(
-                        expression = ParameterExpression(ptrArg),
+                        expression = ParameterExpression(ptrArg, null),
                         member = par,
-                        struct = struct
+                        struct = struct,
+                        position = null
                     )
                     buildDecCall(par.type, fieldExpr, structDecs, lib)?.let { stmt ->
                         it.code.add(stmt)
@@ -143,18 +146,19 @@ object RefCountGC {
 
                 val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
                     BinaryExpression(
-                        left = ParameterExpression(ptrArg),
-                        right = IntLiteral(BigInteger.ONE),
-                        operator = BinaryOperator.SUBTRACT
+                        left = ParameterExpression(ptrArg, null),
+                        right = IntLiteral(BigInteger.ONE, null),
+                        operator = BinaryOperator.SUBTRACT,
+                        position = null
                     )
                 } else {
-                    ParameterExpression(ptrArg)
+                    ParameterExpression(ptrArg, null)
                 }
 
                 val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                    IntLiteral((struct.sizeOnHeap + 1).toBigInteger())
+                    IntLiteral((struct.sizeOnHeap + 1).toBigInteger(), null)
                 } else {
-                    IntLiteral(struct.sizeOnHeap.toBigInteger())
+                    IntLiteral(struct.sizeOnHeap.toBigInteger(), null)
                 }
 
                 //list pool destructor
@@ -162,46 +166,56 @@ object RefCountGC {
                     it.code.add(ExpressionStatement(
                         CallExpression(
                             func = StandardLibASTGenerator.listPoolLib.functions.find { func -> func.name == "free" }!!,
-                            arguments = listOf(ParameterExpression(ptrArg))
-                        )
+                            arguments = listOf(ParameterExpression(ptrArg, null)),
+                            position = null
+                        ),
+                        null
                     ))
                 }
 
                 it.code.add(ExpressionStatement(
                     CallExpression(
                         func = MemoryLib.free,
-                        arguments = listOf(freePtr, freeSize)
-                    )
+                        arguments = listOf(freePtr, freeSize),
+                        position = null
+                    ),
+                    null
                 ))
             }
 
             function.code.code.add(
-                isNotNeg1(ParameterExpression(ptrArg), CodeBlock().also { thenBlock ->
+                isNotNeg1(ParameterExpression(ptrArg, null), CodeBlock().also { thenBlock ->
                     thenBlock.code.add(VariableAssignmentStatement(
-                        target = ParameterExpression(ptrArg),
+                        target = ParameterExpression(ptrArg, null),
                         variable = struct.parameters[0],
                         struct = struct,
                         assignment = BinaryExpression(
                             left = MemberExpression(
-                                expression = ParameterExpression(ptrArg),
+                                expression = ParameterExpression(ptrArg, null),
                                 member = struct.parameters[0],
                                 struct = struct,
+                                position = null
                             ),
-                            right = IntLiteral(BigInteger.ONE),
-                            operator = BinaryOperator.SUBTRACT
-                        )
+                            right = IntLiteral(BigInteger.ONE, null),
+                            operator = BinaryOperator.SUBTRACT,
+                            position = null
+                        ),
+                        position = null
                     ))
                     thenBlock.code.add(IfStatement(
                         condition = BinaryExpression(
                             left = MemberExpression(
-                                expression = ParameterExpression(ptrArg),
+                                expression = ParameterExpression(ptrArg, null),
                                 member = struct.parameters[0],
                                 struct = struct,
+                                position = null
                             ),
-                            right = IntLiteral(BigInteger.ZERO),
-                            operator = BinaryOperator.EQUAL
+                            right = IntLiteral(BigInteger.ZERO, null),
+                            operator = BinaryOperator.EQUAL,
+                            position = null
                         ),
-                        thenBlock = thenBlock0
+                        thenBlock = thenBlock0,
+                        position = null
                     ))
                 })
             )
@@ -209,30 +223,31 @@ object RefCountGC {
 
         sealedDecs.forEach { (enumDef, function) ->
             val ptrArg = function.parameters[0]
-            val ptr = ParameterExpression(ptrArg)
+            val ptr = ParameterExpression(ptrArg, null)
 
-            fun heapGet(index: Expression) = TemporaryHeapGetExpression(index)
-            fun heapGetAt(offset: Long) = heapGet(BinaryExpression(ptr, BinaryOperator.ADD, IntLiteral(offset.toBigInteger())))
+            fun heapGet(index: Expression) = TemporaryHeapGetExpression(index, null, null)
+            fun heapGetAt(offset: Long) = heapGet(BinaryExpression(ptr, BinaryOperator.ADD, IntLiteral(offset.toBigInteger(), null), null))
 
             val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                BinaryExpression(ptr, BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+                BinaryExpression(ptr, BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE, null), null)
             } else {
                 ptr
             }
             val enumSize: Long = if (CompilationConstants.REFCOUNT_GC) 3 else 2
             val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                IntLiteral((enumSize + 1).toBigInteger())
+                IntLiteral((enumSize + 1).toBigInteger(), null)
             } else {
-                IntLiteral(enumSize.toBigInteger())
+                IntLiteral(enumSize.toBigInteger(), null)
             }
 
             function.code.code.add(isNotNeg1(ptr, CodeBlock().also { body ->
                 body.code.add(TemporaryHeapSetStatement(
                     index = ptr,
-                    data = BinaryExpression(heapGet(ptr), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+                    data = BinaryExpression(heapGet(ptr), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE, null), null),
+                    position = null
                 ))
                 body.code.add(IfStatement(
-                    condition = BinaryExpression(heapGet(ptr), BinaryOperator.EQUAL, IntLiteral(BigInteger.ZERO)),
+                    condition = BinaryExpression(heapGet(ptr), BinaryOperator.EQUAL, IntLiteral(BigInteger.ZERO, null), null),
                     thenBlock = CodeBlock().also { freeBlock ->
                         val taggedVariants = enumDef.types.withIndex().filter { it.value.parameters.isNotEmpty() }
                         if (taggedVariants.isNotEmpty()) {
@@ -240,23 +255,26 @@ object RefCountGC {
                                 val mid = (lo + hi) / 2
                                 val variant = taggedVariants[mid].value
                                 return IfElseStatement(
-                                    condition = BinaryExpression(heapGetAt(1), BinaryOperator.LESS_THAN, IntLiteral(mid.toBigInteger())),
+                                    condition = BinaryExpression(heapGetAt(1), BinaryOperator.LESS_THAN, IntLiteral(mid.toBigInteger(), null), null),
                                     thenBlock = if (lo <= mid - 1) CodeBlock().also { it.code.add(dispatch(lo, mid - 1)) } else CodeBlock(),
                                     elseBlock = CodeBlock().also { eqOrGreater ->
                                         eqOrGreater.code.add(IfElseStatement(
-                                            condition = BinaryExpression(heapGetAt(1), BinaryOperator.EQUAL, IntLiteral(mid.toBigInteger())),
+                                            condition = BinaryExpression(heapGetAt(1), BinaryOperator.EQUAL, IntLiteral(mid.toBigInteger(), null), null),
                                             thenBlock = CodeBlock().also { decBlock ->
                                                 buildDecCall(variant.type, heapGetAt(2), structDecs, lib)?.let { decBlock.code.add(it) }
                                             },
-                                            elseBlock = if (mid + 1 <= hi) CodeBlock().also { it.code.add(dispatch(mid + 1, hi)) } else CodeBlock()
+                                            elseBlock = if (mid + 1 <= hi) CodeBlock().also { it.code.add(dispatch(mid + 1, hi)) } else CodeBlock(),
+                                            position = null
                                         ))
-                                    }
+                                    },
+                                    position = null
                                 )
                             }
                             freeBlock.code.add(dispatch(0, taggedVariants.lastIndex))
                         }
-                        freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize))))
-                    }
+                        freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize), null), null))
+                    },
+                    position = null
                 ))
             }))
         }
@@ -266,10 +284,12 @@ object RefCountGC {
         return IfStatement(
             condition = BinaryExpression(
                 left = left,
-                right = StringLiteral("null"),
-                operator = BinaryOperator.NOT_EQUAL
+                right = StringLiteral("null", null),
+                operator = BinaryOperator.NOT_EQUAL,
+                position = null
             ),
-            thenBlock = then
+            thenBlock = then,
+            position = null
         )
     }
 
@@ -299,12 +319,14 @@ object RefCountGC {
             val thenBlock = CodeBlock()
 
             thenBlock.code.add(TemporaryHeapSetStatement(
-                index = ParameterExpression(ptrArg),
+                index = ParameterExpression(ptrArg, null),
                 data = BinaryExpression(
-                    left = TemporaryHeapGetExpression(ParameterExpression(ptrArg)),
-                    right = IntLiteral(BigInteger.ONE),
-                    operator = BinaryOperator.SUBTRACT
-                )
+                    left = TemporaryHeapGetExpression(ParameterExpression(ptrArg, null), null, null),
+                    right = IntLiteral(BigInteger.ONE, null),
+                    operator = BinaryOperator.SUBTRACT,
+                    position = null
+                ),
+                position = null
             ))
 
             val freeBlock = CodeBlock()
@@ -313,17 +335,21 @@ object RefCountGC {
             if (elemType is SimpleType || elemType is ArrayType || elemType is SealedEnumType) {
                 val iVar = LocalVariable("i", PrimitiveType.Integer)
                 freeBlock.localVariables.add(iVar)
-                freeBlock.code.add(VariableStatement(IntLiteral(BigInteger.ZERO), iVar))
+                freeBlock.code.add(VariableStatement(IntLiteral(BigInteger.ZERO, null), iVar, null))
 
                 val lengthExpr = TemporaryHeapGetExpression(
-                    if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg)
-                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger()))
+                    if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg, null)
+                    else BinaryExpression(ParameterExpression(ptrArg, null), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger(), null), null),
+                    null,
+                    null
                 )
-                val dataPtrExpr = if (ArrayLib.dataOffset == 0) ParameterExpression(ptrArg)
-                    else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.dataOffset.toBigInteger()))
+                val dataPtrExpr = if (ArrayLib.dataOffset == 0) ParameterExpression(ptrArg, null)
+                else BinaryExpression(ParameterExpression(ptrArg, null), BinaryOperator.ADD, IntLiteral(ArrayLib.dataOffset.toBigInteger(), null), null)
 
                 val itemExpr = TemporaryHeapGetExpression(
-                    BinaryExpression(dataPtrExpr, BinaryOperator.ADD, LocalVariableExpression(iVar))
+                    BinaryExpression(dataPtrExpr, BinaryOperator.ADD, LocalVariableExpression(iVar, null), null),
+                    null,
+                    null
                 )
 
                 val loopBlock = CodeBlock()
@@ -332,42 +358,48 @@ object RefCountGC {
                 }
                 loopBlock.code.add(LocalVariableAssignmentStatement(
                     iVar,
-                    BinaryExpression(LocalVariableExpression(iVar), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                    BinaryExpression(LocalVariableExpression(iVar, null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null),
+                    null
                 ))
 
                 freeBlock.code.add(WhileStatement(
-                    condition = BinaryExpression(LocalVariableExpression(iVar), BinaryOperator.LESS_THAN, lengthExpr),
-                    block = loopBlock
+                    condition = BinaryExpression(LocalVariableExpression(iVar, null), BinaryOperator.LESS_THAN, lengthExpr, null),
+                    block = loopBlock,
+                    position = null
                 ))
             }
 
             val lengthForFree = TemporaryHeapGetExpression(
-                if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg)
-                else BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger()))
+                if (ArrayLib.lengthOffset == 0) ParameterExpression(ptrArg, null)
+                else BinaryExpression(ParameterExpression(ptrArg, null), BinaryOperator.ADD, IntLiteral(ArrayLib.lengthOffset.toBigInteger(), null), null),
+                null,
+                null
             )
             val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                BinaryExpression(ParameterExpression(ptrArg), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE))
+                BinaryExpression(ParameterExpression(ptrArg, null), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE, null), null)
             } else {
-                ParameterExpression(ptrArg)
+                ParameterExpression(ptrArg, null)
             }
-            val baseFreeSize = BinaryExpression(IntLiteral(ArrayLib.headerSize.toBigInteger()), BinaryOperator.ADD, lengthForFree)
+            val baseFreeSize = BinaryExpression(IntLiteral(ArrayLib.headerSize.toBigInteger(), null), BinaryOperator.ADD, lengthForFree, null)
             val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                BinaryExpression(baseFreeSize, BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                BinaryExpression(baseFreeSize, BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null)
             } else {
                 baseFreeSize
             }
-            freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize))))
+            freeBlock.code.add(ExpressionStatement(CallExpression(MemoryLib.free, listOf(freePtr, freeSize), null), null))
 
             thenBlock.code.add(IfStatement(
                 condition = BinaryExpression(
-                    left = TemporaryHeapGetExpression(ParameterExpression(ptrArg)),
-                    right = IntLiteral(BigInteger.ZERO),
-                    operator = BinaryOperator.EQUAL
+                    left = TemporaryHeapGetExpression(ParameterExpression(ptrArg, null), null, null),
+                    right = IntLiteral(BigInteger.ZERO, null),
+                    operator = BinaryOperator.EQUAL,
+                    position = null
                 ),
-                thenBlock = freeBlock
+                thenBlock = freeBlock,
+                position = null
             ))
 
-            function.code.code.add(isNotNeg1(ParameterExpression(ptrArg), thenBlock))
+            function.code.code.add(isNotNeg1(ParameterExpression(ptrArg, null), thenBlock))
             function
         }
     }
@@ -383,15 +415,15 @@ object RefCountGC {
             is SimpleType -> {
                 val targetStruct = targetType.sourceAST.structs.find { it.name == targetType.name } ?: return null
                 val decFunc = structDecs[targetStruct] ?: return null
-                ExpressionStatement(CallExpression(decFunc, listOf(expr)))
+                ExpressionStatement(CallExpression(decFunc, listOf(expr), null), null)
             }
             is ArrayType -> {
                 val decListFunc = getOrCreateDecArray(targetType, lib, structDecs)
-                ExpressionStatement(CallExpression(decListFunc, listOf(expr)))
+                ExpressionStatement(CallExpression(decListFunc, listOf(expr), null), null)
             }
             is SealedEnumType -> {
                 val decFunc = sealedDecs.entries.find { it.key.type == targetType }?.value ?: return null
-                ExpressionStatement(CallExpression(decFunc, listOf(expr)))
+                ExpressionStatement(CallExpression(decFunc, listOf(expr), null), null)
             }
             else -> null
         }

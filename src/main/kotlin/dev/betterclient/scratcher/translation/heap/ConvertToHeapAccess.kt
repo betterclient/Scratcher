@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.translation.visitor.RemoveEmptyAllocations
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class ConvertToHeapAccess(
     val functions: List<Function>
@@ -50,8 +51,12 @@ class ConvertToHeapAccess(
         }
         newFuncs.keys.forEach { function ->
             visit(function, object : ASTVisitor() {
-                override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
-                    return if (defaultValue == null) null else super.visitVariableStatement(defaultValue, variable)
+                override fun visitVariableStatement(
+                    defaultValue: Expression?,
+                    variable: LocalVariable,
+                    position: Position?
+                ): Statement? {
+                    return if (defaultValue == null) null else super.visitVariableStatement(defaultValue, variable, position)
                 }
             })
         }

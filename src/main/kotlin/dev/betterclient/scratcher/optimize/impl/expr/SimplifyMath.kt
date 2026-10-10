@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.simple
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 object SimplifyMath : Optimization("Simplify math") {
@@ -21,20 +22,21 @@ object SimplifyMath : Optimization("Simplify math") {
             override fun visitBinaryExpression(
                 left: Expression,
                 right: Expression,
-                operator: BinaryOperator
+                operator: BinaryOperator,
+                position: Position?
             ): Expression {
-                val simplified = simplify(left, right, operator)
+                val simplified = simplify(left, right, operator, position)
                 if (simplified != null) {
                     modified = true
                     return simplified
                 }
-                return super.visitBinaryExpression(left, right, operator)
+                return super.visitBinaryExpression(left, right, operator, position)
             }
         })
         return modified
     }
 
-    private fun simplify(left: Expression, right: Expression, operator: BinaryOperator): Expression? {
+    private fun simplify(left: Expression, right: Expression, operator: BinaryOperator, position: Position?): Expression? {
         val leftZero = left is IntLiteral && left.value == BigInteger.ZERO
         val rightZero = right is IntLiteral && right.value == BigInteger.ZERO
 
@@ -54,7 +56,7 @@ object SimplifyMath : Optimization("Simplify math") {
             }
             BinaryOperator.SUBTRACT -> when {
                 rightZero -> left
-                leftZero -> UnaryExpression(UnaryOperator.MINUS, right)
+                leftZero -> UnaryExpression(UnaryOperator.MINUS, right, position)
                 else -> null
             }
             BinaryOperator.DIVIDE -> when {
@@ -66,7 +68,7 @@ object SimplifyMath : Optimization("Simplify math") {
             BinaryOperator.MODULO -> when {
                 rightZero -> null
                 leftZero && right is IntLiteral -> left
-                rightOne && left is IntLiteral -> IntLiteral(BigInteger.ZERO)
+                rightOne && left is IntLiteral -> IntLiteral(BigInteger.ZERO, position)
                 else -> null
             }
             BinaryOperator.MULTIPLY -> when {

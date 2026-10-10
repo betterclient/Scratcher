@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.Statement
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object OptimizationUtils {
     fun isRecursive(target: Function, callGraph: TCallGraph): Boolean {
@@ -110,9 +111,13 @@ object OptimizationUtils {
                 return VisitMode.READ_ONLY
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 vars.add(variable)
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
         })
 

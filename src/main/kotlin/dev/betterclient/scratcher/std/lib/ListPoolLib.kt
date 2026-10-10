@@ -70,8 +70,10 @@ object ListPoolLib {
                 add(ExpressionStatement(
                     CallExpression(
                         func = ExceptionLib.panic,
-                        arguments = listOf(StringLiteral("Cannot allocate a list as pool is empty!"))
-                    )
+                        arguments = listOf(StringLiteral("Cannot allocate a list as pool is empty!", null)),
+                        position = null
+                    ),
+                    null
                 ))
             }
         })
@@ -91,7 +93,7 @@ object ListPoolLib {
                 find(pool, pooledList)
 
                 //null
-                add(ReturnStatement(NullExpression))
+                add(ReturnStatement(NullExpression, null))
             }
         })
 
@@ -143,24 +145,24 @@ object ListPoolLib {
             name = "add",
             Parameter("item", PrimitiveType.Str),
             turbowarpAction = { dynList, pars ->
-                TemporaryScratchStmt(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                TemporaryScratchStmt(listOf(dynList, ParameterExpression(pars[0], null)), { args ->
                     listOf(TurboWarpListStatements.Add(args[0], args[1]))
-                }
+                }, null)
             },
             fallbackAction = { list, par ->
-                StaticListAddStatement(list, ParameterExpression(par[0]))
+                StaticListAddStatement(list, ParameterExpression(par[0], null), null)
             }
         )
 
         val clearFunc = singleStmtList(
             name = "clear",
             turbowarpAction = { dynList, _ ->
-                TemporaryScratchStmt(listOf(dynList)) { args ->
+                TemporaryScratchStmt(listOf(dynList), { args ->
                     listOf(TurboWarpListStatements.Clear(args[0]))
-                }
+                }, null)
             },
             fallbackAction = { list, _ ->
-                StaticListClearStatement(list)
+                StaticListClearStatement(list, null)
             }
         )
 
@@ -170,18 +172,20 @@ object ListPoolLib {
             operator = true,
             returnType = PrimitiveType.Str,
             turbowarpAction = { dynList, pars ->
-                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                val index1Based = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null)
                 ReturnStatement(
-                    TemporaryScratchExpr(listOf(dynList, index1Based)) { args ->
+                    TemporaryScratchExpr(listOf(dynList, index1Based), { args ->
                         TurboWarpListExpressions.GetItem(args[0], args[1])
-                    }
+                    }, null),
+                    null
                 )
             },
             fallbackAction = { list, pars ->
                 ReturnStatement(StaticListItemExpression(
                     list = list,
-                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
-                ))
+                    index = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null),
+                    position = null
+                ), null)
             }
         )
 
@@ -190,13 +194,14 @@ object ListPoolLib {
             returnType = PrimitiveType.Integer,
             turbowarpAction = { dynList, _ ->
                 ReturnStatement(
-                    TemporaryScratchExpr(listOf(dynList)) { args ->
+                    TemporaryScratchExpr(listOf(dynList), { args ->
                         TurboWarpListExpressions.Length(args[0])
-                    }
+                    }, null),
+                    null
                 )
             },
             fallbackAction = { list, _ ->
-                ReturnStatement(StaticListLengthExpression(list))
+                ReturnStatement(StaticListLengthExpression(list, null), null)
             }
         )
 
@@ -206,16 +211,17 @@ object ListPoolLib {
             Parameter("value", PrimitiveType.Str),
             operator = true,
             turbowarpAction = { dynList, pars ->
-                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
-                TemporaryScratchStmt(listOf(dynList, index1Based, ParameterExpression(pars[1]))) { args ->
+                val index1Based = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null)
+                TemporaryScratchStmt(listOf(dynList, index1Based, ParameterExpression(pars[1], null)), { args ->
                     listOf(TurboWarpListStatements.Replace(args[0], args[1], args[2]))
-                }
+                }, null)
             },
             fallbackAction = { list, pars ->
                 StaticListSetStatement(
                     list = list,
-                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE)),
-                    value = ParameterExpression(pars[1])
+                    index = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null),
+                    value = ParameterExpression(pars[1], null),
+                    position = null
                 )
             }
         )
@@ -224,15 +230,16 @@ object ListPoolLib {
             name = "removeAt",
             Parameter("index", PrimitiveType.Integer),
             turbowarpAction = { dynList, pars ->
-                val index1Based = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
-                TemporaryScratchStmt(listOf(dynList, index1Based)) { args ->
+                val index1Based = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null)
+                TemporaryScratchStmt(listOf(dynList, index1Based), { args ->
                     listOf(TurboWarpListStatements.Delete(args[0], args[1]))
-                }
+                }, null)
             },
             fallbackAction = { list, pars ->
                 StaticListRemoveStatement(
                     list = list,
-                    index = BinaryExpression(ParameterExpression(pars[0]), BinaryOperator.ADD, IntLiteral(BigInteger.ONE))
+                    index = BinaryExpression(ParameterExpression(pars[0], null), BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null),
+                    position = null
                 )
             }
         )
@@ -245,11 +252,13 @@ object ListPoolLib {
             StaticListInsertStatement(
                 list = list,
                 index = BinaryExpression(
-                    left = ParameterExpression(pars[0]),
-                    right = IntLiteral(1.toBigInteger()),
-                    operator = BinaryOperator.ADD
+                    left = ParameterExpression(pars[0], null),
+                    right = IntLiteral(1.toBigInteger(), null),
+                    operator = BinaryOperator.ADD,
+                    position = null
                 ),
-                value = ParameterExpression(pars[1])
+                value = ParameterExpression(pars[1], null),
+                position = null
             )
         }
 
@@ -259,13 +268,14 @@ object ListPoolLib {
             returnType = PrimitiveType.Bool,
             turbowarpAction = { dynList, pars ->
                 ReturnStatement(
-                    TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                    TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0], null)), { args ->
                         TurboWarpBoolExpressions.ListContains(args[0], args[1])
-                    }
+                    }, null),
+                    null
                 )
             },
             fallbackAction = { list, pars ->
-                ReturnStatement(StaticListContainsExpression(list, ParameterExpression(pars[0])))
+                ReturnStatement(StaticListContainsExpression(list, ParameterExpression(pars[0], null), null), null)
             }
         )
 
@@ -277,21 +287,25 @@ object ListPoolLib {
             turbowarpAction = { dynList, pars ->
                 ReturnStatement(
                     BinaryExpression(
-                        left = TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0]))) { args ->
+                        left = TemporaryScratchExpr(listOf(dynList, ParameterExpression(pars[0], null)), { args ->
                             TurboWarpListExpressions.IndexOf(args[0], args[1])
-                        },
-                        right = IntLiteral(BigInteger.ONE),
-                        operator = BinaryOperator.SUBTRACT
-                    )
+                        }, null),
+                        right = IntLiteral(BigInteger.ONE, null),
+                        operator = BinaryOperator.SUBTRACT,
+                        position = null
+                    ),
+                    null
                 )
             },
             fallbackAction = { list, pars ->
                 ReturnStatement(
                     BinaryExpression(
-                        left = StaticListItemIndexExpression(list, ParameterExpression(pars[0])),
-                        right = IntLiteral(BigInteger.ONE),
-                        operator = BinaryOperator.SUBTRACT
-                    )
+                        left = StaticListItemIndexExpression(list, ParameterExpression(pars[0], null), null),
+                        right = IntLiteral(BigInteger.ONE, null),
+                        operator = BinaryOperator.SUBTRACT,
+                        position = null
+                    ),
+                    null
                 )
             }
         )
@@ -316,14 +330,16 @@ object ListPoolLib {
                 //list.clear();
                 add(ExpressionStatement(CallExpression(
                     func = clearFunc,
-                    arguments = listOf(ParameterExpression(listParam))
-                )))
+                    arguments = listOf(ParameterExpression(listParam, null)),
+                    position = null
+                ), null))
 
                 //pool[list.index] = "0";
                 add(StaticListSetStatement(
                     list = pool,
-                    index = MemberExpression(ParameterExpression(listParam), member = pooledList.parameters.find { it.name == "index" }!!, pooledList),
-                    value = StringLiteral("0")
+                    index = MemberExpression(ParameterExpression(listParam, null), member = pooledList.parameters.find { it.name == "index" }!!, pooledList, null),
+                    value = StringLiteral("0", null),
+                    position = null
                 ))
             }
         })
@@ -356,23 +372,25 @@ object ListPoolLib {
         )
 
         val targetIndexExpr = MemberExpression(
-            ParameterExpression(listParam),
+            ParameterExpression(listParam, null),
             member = pooledList.parameters.first { it.name == "index" },
-            struct = pooledList
+            struct = pooledList,
+            position = null
         )
 
         if (CompilationConstants.TURBOWARP && turbowarpAction != null) {
             val dynamicListName = ConcatExpression(
-                StringLiteral("list_pool::Pool"),
-                targetIndexExpr
+                StringLiteral("list_pool::Pool", null),
+                targetIndexExpr,
+                null
             )
             out.code.code.addAll(turbowarpAction(dynamicListName))
         } else {
             val cachedIndex = LocalVariable("dispatch_idx", PrimitiveType.Integer)
-            out.code.code.add(VariableStatement(targetIndexExpr, cachedIndex))
+            out.code.code.add(VariableStatement(targetIndexExpr, cachedIndex, null))
 
             val dispatchTree = generateBinarySearch(
-                targetIndex = LocalVariableExpression(cachedIndex),
+                targetIndex = LocalVariableExpression(cachedIndex, null),
                 low = 1,
                 high = CompilationConstants.LIST_POOL_SIZE,
                 pool = pool,
@@ -390,47 +408,55 @@ object ListPoolLib {
     ) {
         //int index = 1;
         val index = LocalVariable("index", PrimitiveType.Integer)
-        add(VariableStatement(IntLiteral(1.toBigInteger()), index))
+        add(VariableStatement(IntLiteral(1.toBigInteger(), null), index, null))
 
         //repeat(pool size)
         add(RepeatStatement(
-            amount = IntLiteral(CompilationConstants.LIST_POOL_SIZE.toBigInteger()),
+            amount = IntLiteral(CompilationConstants.LIST_POOL_SIZE.toBigInteger(), null),
             block = CodeBlock().apply {
                 //if(pool[index] == "0")
                 add(
                     IfStatement(
                         condition = BinaryExpression(
-                            left = StaticListItemExpression(pool, LocalVariableExpression(index)),
-                            right = StringLiteral("0"),
-                            operator = BinaryOperator.EQUAL
+                            left = StaticListItemExpression(pool, LocalVariableExpression(index, null), null),
+                            right = StringLiteral("0", null),
+                            operator = BinaryOperator.EQUAL,
+                            position = null
                         ),
                         thenBlock = CodeBlock().apply {
                             //pool[index] = "1";
                             add(StaticListSetStatement(
                                 list = pool,
-                                index = LocalVariableExpression(index),
-                                value = StringLiteral("1")
+                                index = LocalVariableExpression(index, null),
+                                value = StringLiteral("1", null),
+                                position = null
                             ))
 
                             //return PooledList(index);
                             add(ReturnStatement(
                                 CallExpression(
                                     func = pooledList.allocFunc,
-                                    arguments = listOf(LocalVariableExpression(index)),
-                                )
+                                    arguments = listOf(LocalVariableExpression(index, null)),
+                                    position = null
+                                ),
+                                null
                             ))
-                        }
+                        },
+                        position = null
                     ))
 
                 //index++;
                 add(LocalVariableAssignmentStatement(
                     index, BinaryExpression(
-                        left = LocalVariableExpression(index),
-                        right = IntLiteral(1.toBigInteger()),
-                        operator = BinaryOperator.ADD
-                    )
+                        left = LocalVariableExpression(index, null),
+                        right = IntLiteral(1.toBigInteger(), null),
+                        operator = BinaryOperator.ADD,
+                        position = null
+                    ),
+                    null
                 ))
-            }
+            },
+            position = null
         ))
     }
 
@@ -456,8 +482,9 @@ object ListPoolLib {
 
         val condition = BinaryExpression(
             left = targetIndex,
-            right = IntLiteral(mid.toBigInteger()),
-            operator = BinaryOperator.LESS_EQUAL
+            right = IntLiteral(mid.toBigInteger(), null),
+            operator = BinaryOperator.LESS_EQUAL,
+            position = null
         )
 
         return listOf(
@@ -468,7 +495,8 @@ object ListPoolLib {
                 },
                 elseBlock = CodeBlock().apply {
                     elseBranch.forEach { this.code.add(it) }
-                }
+                },
+                position = null
             )
         )
     }

@@ -147,7 +147,7 @@ object GCLib {
             useLocal = false,
             warp = true,
             realCode = {
-                ExpressionLowerResult(BooleanLiteral(CompilationConstants.REFLECT_GC))
+                ExpressionLowerResult(BooleanLiteral(CompilationConstants.REFLECT_GC, null))
             }
         ))
 
@@ -286,10 +286,10 @@ object GCLib {
                             markStructFunc
                         },
                         arguments = listOf(
-                            VariableExpression(variable, variable.sourceAST),
-                            StringLiteral(typeStr)
-                        )
-                    )
+                            VariableExpression(variable, variable.sourceAST, null),
+                            StringLiteral(typeStr, null)
+                        ), null
+                    ), null
                 )
             }
         )

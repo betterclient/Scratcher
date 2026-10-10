@@ -13,21 +13,37 @@ import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object SealedEnumDesugaring : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {
         visit(func, object : ASTVisitor() {
-            override fun visitCheckSealedEnumTypeExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int): Expression {
+            override fun visitCheckSealedEnumTypeExpression(
+                expr: Expression,
+                targetVariant: Struct,
+                sealedEnum: SealedEnum,
+                tag: Int,
+                position: Position?
+            ): Expression {
                 val visitedExpr = visit(expr)
                 val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
                 val tagHeap = TemporaryHeapGetExpression(
-                    if (tagOffset == 0) visitedExpr
-                    else BinaryExpression(visitedExpr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger()))
+                    index = if (tagOffset == 0) visitedExpr
+                    else BinaryExpression(visitedExpr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger(), position), position),
+                    type = null,
+                    position = position
                 )
-                return BinaryExpression(tagHeap, BinaryOperator.EQUAL, IntLiteral(tag.toBigInteger()))
+                return BinaryExpression(tagHeap, BinaryOperator.EQUAL, IntLiteral(tag.toBigInteger(), position), position)
             }
 
-            override fun visitSealedEnumCastExpression(expr: Expression, targetVariant: Struct, sealedEnum: SealedEnum, tag: Int, safe: Boolean): Expression {
+            override fun visitSealedEnumCastExpression(
+                expr: Expression,
+                targetVariant: Struct,
+                sealedEnum: SealedEnum,
+                tag: Int,
+                safe: Boolean,
+                position: Position?
+            ): Expression {
                 val visitedExpr = visit(expr)
                 val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
                 val ptrOffset = tagOffset + 1
@@ -35,9 +51,11 @@ object SealedEnumDesugaring : CompilerSugar() {
                     "sealedEnumCast@${getUniqueName()}",
                     ExpressionTypes.getExpressionType(visitedExpr)
                 )
-                val enumValueExpression = LocalVariableExpression(enumValue)
+                val enumValueExpression = LocalVariableExpression(enumValue, position)
                 val tagExpression = TemporaryHeapGetExpression(
-                    BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger()))
+                    index = BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger(), position), position),
+                    type = null,
+                    position = position
                 )
 
                 if (safe) {
@@ -45,64 +63,83 @@ object SealedEnumDesugaring : CompilerSugar() {
 
                     return StatementExpression(
                         statements = listOf(
-                            VariableStatement(visitedExpr, enumValue),
-                            VariableStatement(NullExpression, outValue),
+                            VariableStatement(visitedExpr, enumValue, position),
+                            VariableStatement(NullExpression, outValue, position),
                             IfStatement(
                                 condition = BinaryExpression(
                                     tagExpression,
                                     BinaryOperator.EQUAL,
-                                    IntLiteral(tag.toBigInteger())
+                                    IntLiteral(tag.toBigInteger(), position),
+                                    position
                                 ),
                                 thenBlock = CodeBlock().also {
                                     it.code.add(
-                                        LocalVariableAssignmentStatement(outValue, TemporaryHeapGetExpression(
-                                            BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
-                                            targetVariant.type
-                                        ))
+                                        LocalVariableAssignmentStatement(
+                                            variable = outValue,
+                                            assignment = TemporaryHeapGetExpression(
+                                                index = BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger(), position), position),
+                                                type = targetVariant.type,
+                                                position = position
+                                            ),
+                                            position = position
+                                        )
                                     )
-                                }
+                                },
+                                position = position
                             )
                         ),
-                        expression = LocalVariableExpression(outValue)
+                        expression = LocalVariableExpression(outValue, position),
+                        position = position
                     )
                 }
 
                 return StatementExpression(
                     statements = listOf(
-                        VariableStatement(visitedExpr, enumValue),
+                        VariableStatement(visitedExpr, enumValue, position),
                         IfStatement(
                             condition = BinaryExpression(
                                 tagExpression,
                                 BinaryOperator.NOT_EQUAL,
-                                IntLiteral(tag.toBigInteger())
+                                IntLiteral(tag.toBigInteger(), position),
+                                position
                             ),
                             thenBlock = CodeBlock().also {
                                 it.code.add(
                                     ExpressionStatement(
                                         CallExpression(
-                                            ExceptionLib.panic,
-                                            listOf(StringLiteral(if (CompilationConstants.OBFUSCATION) {
+                                            func = ExceptionLib.panic,
+                                            arguments = listOf(StringLiteral(if (CompilationConstants.OBFUSCATION) {
                                                 "Scratcher runtime error: Cast"
                                             } else {
                                                 "Scratcher runtime error: Type error when casting to: ${targetVariant.sourceAST.simplePath}::${targetVariant.name}"
-                                            }))
-                                        )
+                                            }, position)),
+                                            position = position
+                                        ),
+                                        position
                                     )
                                 )
-                            }
+                            },
+                            position = position
                         )
                     ),
                     expression = TemporaryHeapGetExpression(
-                        BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
-                        targetVariant.type
-                    )
+                        index = BinaryExpression(enumValueExpression, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger(), position), position),
+                        type = targetVariant.type,
+                        position = position
+                    ),
+                    position = position
                 )
             }
 
-            override fun visitSealedEnumConstructionExpression(sealedEnum: SealedEnum, targetVariant: Struct, args: List<Expression>): Expression {
+            override fun visitSealedEnumConstructionExpression(
+                sealedEnum: SealedEnum,
+                targetVariant: Struct,
+                args: List<Expression>,
+                position: Position?
+            ): Expression {
                 val visitedArgs = args.map { visit(it) }
                 val wrapper = MemoryLib.ensureVariantAllocFunc(StandardLibASTGenerator.memLib, sealedEnum, targetVariant)
-                return CallExpression(wrapper, visitedArgs)
+                return CallExpression(wrapper, visitedArgs, position)
             }
         })
     }

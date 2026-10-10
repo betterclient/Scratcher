@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.ast.Statement
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class ReParseLocalVariables(val func: Function) : ASTVisitor() {
     fun run() {
@@ -31,8 +32,12 @@ class ReParseLocalVariables(val func: Function) : ASTVisitor() {
         return block
     }
 
-    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+    override fun visitVariableStatement(
+        defaultValue: Expression?,
+        variable: LocalVariable,
+        position: Position?
+    ): Statement? {
         currentCollector?.add(variable)
-        return super.visitVariableStatement(defaultValue, variable)
+        return super.visitVariableStatement(defaultValue, variable, position)
     }
 }

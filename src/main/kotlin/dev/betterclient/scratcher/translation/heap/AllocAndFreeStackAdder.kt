@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class AllocAndFreeStackAdder(
     val stackParameter: Parameter,
@@ -26,73 +27,81 @@ class AllocAndFreeStackAdder(
 
         val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
             BinaryExpression(
-                left = ParameterExpression(stackParameter),
-                right = IntLiteral(java.math.BigInteger.ONE),
-                operator = BinaryOperator.SUBTRACT
+                left = ParameterExpression(stackParameter, null),
+                right = IntLiteral(java.math.BigInteger.ONE, null),
+                operator = BinaryOperator.SUBTRACT,
+                position = null
             )
         } else {
-            ParameterExpression(stackParameter)
+            ParameterExpression(stackParameter, null)
         }
 
         val freeSize: Expression = TemporaryStackSizeExpression(
             func,
-            includeGcHeader = CompilationConstants.MARK_AND_SWEEP_GC
+            includeGcHeader = CompilationConstants.MARK_AND_SWEEP_GC,
+            position = null
         )
 
         val freeStmt = TemporaryCallStatement(
             MemoryLib.free,
-            args = mutableListOf(freePtr, freeSize)
+            args = mutableListOf(freePtr, freeSize),
+            position = null
         )
-        val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(stackParameter))) { scratchExpressions ->
+        val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(stackParameter, null)), { scratchExpressions ->
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
                 listOf(ListStatements.DeleteItem(
                     GCLib.rootsList,
                     ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])
                 ))
             } else emptyList()
-        }
+        }, null)
         return listOf(deleteStmt, freeStmt)
     }
 
-    override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+    override fun visitTemporaryCallStatement(
+        func: Function,
+        args: MutableList<Expression>,
+        position: Position?
+    ): Statement? {
         if (func is StandardLibASTFunction) {
-            return super.visitTemporaryCallStatement(func, args)
+            return super.visitTemporaryCallStatement(func, args, position)
         }
 
         if (hasLocalsMap[func] != true) {
-            return TemporaryCallStatement(func, (listOf(NullExpression) + args).toMutableList())
+            return TemporaryCallStatement(func, (listOf(NullExpression) + args).toMutableList(), position)
         } else {
             val result = mutableListOf<Statement>()
             val allocVar = LocalVariable(obfuscate("stackAllocationFor${func.name}Call"), PrimitiveType.Integer)
-            result.add(VariableStatement(null, allocVar))
+            result.add(VariableStatement(null, allocVar, null))
             result.add(TemporaryCallStatement(
                 MemoryLib.alloc,
                 mutableListOf<Expression>(
-                    TemporaryStackSizeExpression(func),
-                    TemporaryLocalVariableIndexExpression(allocVar)
+                    TemporaryStackSizeExpression(func, position = null),
+                    TemporaryLocalVariableIndexExpression(allocVar, null)
                 ).also {
                     if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                        it.add(1, TemporaryStackNameExpression(func))
+                        it.add(1, TemporaryStackNameExpression(func, null))
                     }
-                }
+                },
+                position = null
             ))
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar))) { scratchArgs ->
+                result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar, null)), { scratchArgs ->
                     listOf(
                         ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])
                     )
-                })
+                }, null))
             }
-            result.add(TemporaryCallStatement(func, (listOf(LocalVariableExpression(allocVar)) + args).toMutableList()))
+            result.add(TemporaryCallStatement(func, (listOf(LocalVariableExpression(allocVar, null)) + args).toMutableList(), null))
 
             addStatements(result)
             return null
         }
     }
 
-    override fun visitReturnStatement(expression: Expression?): Statement {
+    override fun visitReturnStatement(expression: Expression?, position: Position?): Statement {
         val cleanups = createExitStatements()
-        return CompositeStatement(cleanups + ReturnStatement(expression))
+        return CompositeStatement(cleanups + ReturnStatement(expression, position), position)
     }
 
     override fun visitCodeBlock(block: CodeBlock): CodeBlock {

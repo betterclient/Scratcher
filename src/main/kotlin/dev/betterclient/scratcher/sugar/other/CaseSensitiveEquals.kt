@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object CaseSensitiveEquals : CompilerSugar() {
     override fun apply(
@@ -20,38 +21,51 @@ object CaseSensitiveEquals : CompilerSugar() {
         context: CompilationContext
     ) {
         visit(func, object : ASTVisitor() {
-            override fun visitBinaryExpression(left: Expression, right: Expression, operator: BinaryOperator): Expression {
+            override fun visitBinaryExpression(
+                left: Expression,
+                right: Expression,
+                operator: BinaryOperator,
+                position: Position?
+            ): Expression {
                 if (CompilationConstants.TURBOWARP) {
                     if (operator == BinaryOperator.STRICT_EQUAL) {
-                        return TemporaryScratchExpr(listOf(left, right)) { args ->
-                            TurboWarpBoolExpressions.StringsIdentical(args[0], args[1])
-                        }
+                        return TemporaryScratchExpr(
+                            inputExprs = listOf(left, right),
+                            expression = { args -> TurboWarpBoolExpressions.StringsIdentical(args[0], args[1]) },
+                            position = position
+                        )
                     } else if (operator == BinaryOperator.STRICT_NOT_EQUAL) {
-                        return TemporaryScratchExpr(listOf(left, right)) { args ->
-                            BoolOperatorExpressions.SNotExpression(
-                                TurboWarpBoolExpressions.StringsIdentical(args[0], args[1])
-                            )
-                        }
+                        return TemporaryScratchExpr(
+                            inputExprs = listOf(left, right),
+                            expression = { args ->
+                                BoolOperatorExpressions.SNotExpression(
+                                    TurboWarpBoolExpressions.StringsIdentical(args[0], args[1])
+                                )
+                            },
+                            position = position
+                        )
                     }
                 } else {
                     if (operator == BinaryOperator.STRICT_EQUAL) {
-                        return strictEqual(left, right)
+                        return strictEqual(left, right, position)
                     } else if (operator == BinaryOperator.STRICT_NOT_EQUAL) {
                         return UnaryExpression(
                             operator = UnaryOperator.NOT,
-                            expression = strictEqual(left, right),
+                            expression = strictEqual(left, right, position),
+                            position = position
                         )
                     }
                 }
 
-                return super.visitBinaryExpression(left, right, operator)
+                return super.visitBinaryExpression(left, right, operator, position)
             }
         })
     }
 
     private fun strictEqual(
         left: Expression,
-        right: Expression
+        right: Expression,
+        position: Position? = null
     ): Expression {
         val leftType = left.type
         val rightType = right.type
@@ -62,7 +76,8 @@ object CaseSensitiveEquals : CompilerSugar() {
                     func = StandardLibASTGenerator.strict_equals.functions.find {
                         it.name == "equalsCC"
                     }!!,
-                    arguments = listOf(left, right)
+                    arguments = listOf(left, right),
+                    position = position
                 )
             }
             else -> {
@@ -70,7 +85,8 @@ object CaseSensitiveEquals : CompilerSugar() {
                     func = StandardLibASTGenerator.strict_equals.functions.find {
                         it.name == "equalsSS"
                     }!!,
-                    arguments = listOf(left, right)
+                    arguments = listOf(left, right),
+                    position = position
                 )
             }
         }

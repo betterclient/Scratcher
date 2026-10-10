@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.ast.VariableStatement
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object LambdaParameterCapture : ASTVisitor() {
     fun run(func: Function) {
@@ -30,19 +31,20 @@ object LambdaParameterCapture : ASTVisitor() {
             override fun visitLambdaExpression(
                 block: CodeBlock,
                 arguments: List<LocalVariable>,
-                captured: MutableSet<LocalVariable>
+                captured: MutableSet<LocalVariable>,
+                position: Position?
             ): Expression {
                 lambdaDepth++
-                super.visitLambdaExpression(block, arguments, captured)
+                super.visitLambdaExpression(block, arguments, captured, position)
                 lambdaDepth--
-                return LambdaExpression(arguments, block, captured)
+                return LambdaExpression(arguments, block, captured, position)
             }
 
-            override fun visitParameterExpression(parameter: Parameter): Expression {
+            override fun visitParameterExpression(parameter: Parameter, position: Position?): Expression {
                 if (lambdaDepth > 0 && function.parameters.contains(parameter)) {
                     capturedParams.add(parameter)
                 }
-                return super.visitParameterExpression(parameter)
+                return super.visitParameterExpression(parameter, position)
             }
         }
         visit(function, collector)
@@ -54,17 +56,17 @@ object LambdaParameterCapture : ASTVisitor() {
         }
 
         val rewriter = object : ASTVisitor() {
-            override fun visitParameterExpression(parameter: Parameter): Expression {
+            override fun visitParameterExpression(parameter: Parameter, position: Position?): Expression {
                 paramToLocal[parameter]?.let { local ->
-                    return LocalVariableExpression(local)
+                    return LocalVariableExpression(local, position)
                 }
-                return super.visitParameterExpression(parameter)
+                return super.visitParameterExpression(parameter, position)
             }
         }
         visit(function, rewriter)
 
         val declarations = paramToLocal.map { (param, local) ->
-            VariableStatement(ParameterExpression(param), local)
+            VariableStatement(ParameterExpression(param, null), local, null)
         }
         function.code.code.addAll(0, declarations)
         function.code.localVariables.addAll(paramToLocal.values)
@@ -73,7 +75,8 @@ object LambdaParameterCapture : ASTVisitor() {
     override fun visitLambdaExpression(
         block: CodeBlock,
         arguments: List<LocalVariable>,
-        captured: MutableSet<LocalVariable>
+        captured: MutableSet<LocalVariable>,
+        position: Position?
     ): Expression {
         val capturedLambdaArgs = mutableSetOf<LocalVariable>()
 
@@ -85,19 +88,20 @@ object LambdaParameterCapture : ASTVisitor() {
             override fun visitLambdaExpression(
                 block: CodeBlock,
                 arguments: List<LocalVariable>,
-                captured: MutableSet<LocalVariable>
+                captured: MutableSet<LocalVariable>,
+                position: Position?
             ): Expression {
                 innerLambdaDepth++
-                super.visitLambdaExpression(block, arguments, captured)
+                super.visitLambdaExpression(block, arguments, captured, position)
                 innerLambdaDepth--
-                return LambdaExpression(arguments, block, captured)
+                return LambdaExpression(arguments, block, captured, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 if (innerLambdaDepth > 0 && arguments.contains(variable)) {
                     capturedLambdaArgs.add(variable)
                 }
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
         }
         visit(block, collector)
@@ -108,22 +112,22 @@ object LambdaParameterCapture : ASTVisitor() {
             }
 
             val rewriter = object : ASTVisitor() {
-                override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+                override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                     argToLocal[variable]?.let { local ->
-                        return LocalVariableExpression(local)
+                        return LocalVariableExpression(local, position)
                     }
-                    return super.visitLocalVariableExpression(variable)
+                    return super.visitLocalVariableExpression(variable, position)
                 }
             }
             visit(block, rewriter)
 
             val declarations = argToLocal.map { (arg, local) ->
-                VariableStatement(LocalVariableExpression(arg), local)
+                VariableStatement(LocalVariableExpression(arg, position), local, position)
             }
             block.code.addAll(0, declarations)
             block.localVariables.addAll(argToLocal.values)
         }
 
-        return super.visitLambdaExpression(block, arguments, captured)
+        return super.visitLambdaExpression(block, arguments, captured, position)
     }
 }

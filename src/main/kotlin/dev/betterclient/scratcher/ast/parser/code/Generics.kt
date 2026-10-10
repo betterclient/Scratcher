@@ -27,6 +27,7 @@ import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object Generics {
     fun substituteType(reporter: ErrorReporter, context: CompilationContext, type: Type, bindings: Map<String, Type>): Type {
@@ -168,7 +169,8 @@ object Generics {
         args: List<Expression>,
         parser: Stage1Parser,
         expectedType: Type? = null,
-        filter: (Function) -> Boolean = { true }
+        filter: (Function) -> Boolean = { true },
+        position: Position? = null
     ): CallExpression? {
         val candidateTemplates = sequence {
             yieldAll(sourceAST.templates.filter { it.name == funcName })
@@ -236,7 +238,7 @@ object Generics {
             val convertedArgs = args.mapIndexed { i, arg ->
                 StringBoxing.autoConvert(arg, resolvedFunc.parameters.getOrNull(i)?.type)
             }
-            CallExpression(resolvedFunc, convertedArgs)
+            CallExpression(resolvedFunc, convertedArgs, position ?: args.firstOrNull()?.position)
         }
     }
 

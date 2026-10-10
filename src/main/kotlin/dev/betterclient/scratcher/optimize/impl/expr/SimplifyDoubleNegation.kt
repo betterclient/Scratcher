@@ -9,12 +9,17 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object SimplifyDoubleNegation : Optimization("Simplify double negation") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {
-            override fun visitUnaryExpression(operator: UnaryOperator, expression: Expression): Expression {
+            override fun visitUnaryExpression(
+                operator: UnaryOperator,
+                expression: Expression,
+                position: Position?
+            ): Expression {
                 if (operator == UnaryOperator.PLUS) {
                     modified = true
                     return expression
@@ -30,7 +35,7 @@ object SimplifyDoubleNegation : Optimization("Simplify double negation") {
                     return expression.expression
                 }
 
-                return super.visitUnaryExpression(operator, expression)
+                return super.visitUnaryExpression(operator, expression, position)
             }
         })
         return modified

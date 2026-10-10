@@ -7,6 +7,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object ConstantFolding : Optimization("Constant Folding") {
     override fun apply(
@@ -19,49 +20,54 @@ object ConstantFolding : Optimization("Constant Folding") {
             override fun visitBinaryExpression(
                 left: Expression,
                 right: Expression,
-                operator: BinaryOperator
+                operator: BinaryOperator,
+                position: Position?
             ): Expression {
                 if (left is Literal && right is Literal) {
                     modified = true
                     return when(operator) {
-                        BinaryOperator.MULTIPLY -> foldConstantSimpleMath(left, right, BinaryOperator.MULTIPLY)
-                        BinaryOperator.DIVIDE -> foldConstantSimpleMath(left, right, BinaryOperator.DIVIDE)
-                        BinaryOperator.MODULO -> foldConstantSimpleMath(left, right, BinaryOperator.MODULO)
-                        BinaryOperator.ADD -> foldConstantSimpleMath(left, right, BinaryOperator.ADD)
-                        BinaryOperator.SUBTRACT -> foldConstantSimpleMath(left, right, BinaryOperator.SUBTRACT)
-                        BinaryOperator.LESS_THAN -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.LESS_THAN)
-                        BinaryOperator.GREATER_THAN -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_THAN)
-                        BinaryOperator.LESS_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.LESS_EQUAL)
-                        BinaryOperator.GREATER_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_EQUAL)
-                        BinaryOperator.EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.EQUAL)
-                        BinaryOperator.NOT_EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.NOT_EQUAL)
-                        BinaryOperator.STRICT_EQUAL -> foldStrictEqual(left, right, false)
-                        BinaryOperator.STRICT_NOT_EQUAL -> foldStrictEqual(left, right, true)
-                        BinaryOperator.AND -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.AND)
-                        BinaryOperator.OR -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.OR)
+                        BinaryOperator.MULTIPLY -> foldConstantSimpleMath(left, right, BinaryOperator.MULTIPLY, position)
+                        BinaryOperator.DIVIDE -> foldConstantSimpleMath(left, right, BinaryOperator.DIVIDE, position)
+                        BinaryOperator.MODULO -> foldConstantSimpleMath(left, right, BinaryOperator.MODULO, position)
+                        BinaryOperator.ADD -> foldConstantSimpleMath(left, right, BinaryOperator.ADD, position)
+                        BinaryOperator.SUBTRACT -> foldConstantSimpleMath(left, right, BinaryOperator.SUBTRACT, position)
+                        BinaryOperator.LESS_THAN -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.LESS_THAN, position)
+                        BinaryOperator.GREATER_THAN -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_THAN, position)
+                        BinaryOperator.LESS_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.LESS_EQUAL, position)
+                        BinaryOperator.GREATER_EQUAL -> foldConstantNumberComparisonOperation(left, right, BinaryOperator.GREATER_EQUAL, position)
+                        BinaryOperator.EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.EQUAL, position)
+                        BinaryOperator.NOT_EQUAL -> foldEqualNotEqual(left, right, BinaryOperator.NOT_EQUAL, position)
+                        BinaryOperator.STRICT_EQUAL -> foldStrictEqual(left, right, false, position)
+                        BinaryOperator.STRICT_NOT_EQUAL -> foldStrictEqual(left, right, true, position)
+                        BinaryOperator.AND -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.AND, position)
+                        BinaryOperator.OR -> foldConstantBoolComparisonOperation(left, right, BinaryOperator.OR, position)
                     }
                 }
 
-                return super.visitBinaryExpression(left, right, operator)
+                return super.visitBinaryExpression(left, right, operator, position)
             }
 
-            override fun visitUnaryExpression(operator: UnaryOperator, expression: Expression): Expression {
+            override fun visitUnaryExpression(
+                operator: UnaryOperator,
+                expression: Expression,
+                position: Position?
+            ): Expression {
                 if (expression is Literal) {
                     return when (operator) {
                         UnaryOperator.PLUS -> expression
                         UnaryOperator.MINUS -> if (expression is FloatLiteral) {
-                            FloatLiteral(0.toBigDecimal() - expression.value)
+                            FloatLiteral(0.toBigDecimal() - expression.value, position)
                         } else {
-                            IntLiteral(0.toBigInteger() - (expression as IntLiteral).value)
+                            IntLiteral(0.toBigInteger() - (expression as IntLiteral).value, position)
                         }
-                        UnaryOperator.NOT -> BooleanLiteral((expression as BooleanLiteral).value.not())
+                        UnaryOperator.NOT -> BooleanLiteral((expression as BooleanLiteral).value.not(), position)
                     }
                 }
 
-                return super.visitUnaryExpression(operator, expression)
+                return super.visitUnaryExpression(operator, expression, position)
             }
 
-            override fun visitConcatExpression(left: Expression, right: Expression): Expression {
+            override fun visitConcatExpression(left: Expression, right: Expression, position: Position?): Expression {
                 fun Literal.toStr(): String? = when(this) {
                     is BooleanLiteral -> this.value.toString()
                     is CharLiteral -> this.value.toString()
@@ -78,7 +84,7 @@ object ConstantFolding : Optimization("Constant Folding") {
                 val rightAsStr = (right as? Literal)?.toStr()
 
                 if (leftAsStr != null && rightAsStr != null) {
-                    return StringLiteral(leftAsStr + rightAsStr)
+                    return StringLiteral(leftAsStr + rightAsStr, position)
                 } else if (leftAsStr == "" || rightAsStr == "") {
                     return if (leftAsStr != null) {
                         right
@@ -87,25 +93,29 @@ object ConstantFolding : Optimization("Constant Folding") {
                     }
                 }
 
-                return super.visitConcatExpression(left, right)
+                return super.visitConcatExpression(left, right, position)
             }
 
-            override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+            override fun visitStatementExpression(
+                statements: List<Statement>,
+                expression: Expression,
+                position: Position?
+            ): Expression {
                 if (statements.isEmpty()) {
                     modified = true
                     return expression
                 }
                 if (expression is StatementExpression) {
                     modified = true
-                    return StatementExpression(statements + expression.statements, expression.expression)
+                    return StatementExpression(statements + expression.statements, expression.expression, position)
                 }
-                return super.visitStatementExpression(statements, expression)
+                return super.visitStatementExpression(statements, expression, position)
             }
         })
         return modified
     }
 
-    private fun foldEqualNotEqual(left: Expression, right: Expression, operator: BinaryOperator): BooleanLiteral {
+    private fun foldEqualNotEqual(left: Expression, right: Expression, operator: BinaryOperator, position: Position?): BooleanLiteral {
         val isEqual = when {
             left is BooleanLiteral && right is BooleanLiteral -> {
                 left.value == right.value
@@ -137,11 +147,12 @@ object ConstantFolding : Optimization("Constant Folding") {
                 BinaryOperator.EQUAL -> isEqual
                 BinaryOperator.NOT_EQUAL -> !isEqual
                 else -> throw UnreachableException()
-            }
+            },
+            position
         )
     }
 
-    private fun foldConstantNumberComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator): BooleanLiteral {
+    private fun foldConstantNumberComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): BooleanLiteral {
         val leftValue = (left as? IntLiteral)?.value?.toBigDecimal()?: (left as FloatLiteral).value
         val rightValue = (right as? IntLiteral)?.value?.toBigDecimal()?: (right as FloatLiteral).value
         //^^ if these fail the typechecker is to blame, not us
@@ -153,49 +164,53 @@ object ConstantFolding : Optimization("Constant Folding") {
                 BinaryOperator.LESS_EQUAL -> leftValue <= rightValue
                 BinaryOperator.GREATER_EQUAL -> leftValue >= rightValue
                 else -> throw UnreachableException()
-            }
+            },
+            position
         )
     }
 
-    private fun foldConstantSimpleMath(left: Literal, right: Literal, operator: BinaryOperator): Literal {
+    private fun foldConstantSimpleMath(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): Literal {
         val returnFloat = left is FloatLiteral || right is FloatLiteral
         return if (returnFloat) {
             val leftValue = (left as? IntLiteral)?.value?.toBigDecimal()?: (left as FloatLiteral).value
             val rightValue = (right as? IntLiteral)?.value?.toBigDecimal()?: (right as FloatLiteral).value
             when (operator) {
-                BinaryOperator.MULTIPLY -> FloatLiteral(leftValue * rightValue)
-                BinaryOperator.DIVIDE -> FloatLiteral(leftValue / rightValue)
-                BinaryOperator.MODULO -> FloatLiteral(leftValue % rightValue)
-                BinaryOperator.ADD -> FloatLiteral(leftValue + rightValue)
-                BinaryOperator.SUBTRACT -> FloatLiteral(leftValue - rightValue)
+                BinaryOperator.MULTIPLY -> FloatLiteral(leftValue * rightValue, position)
+                BinaryOperator.DIVIDE -> FloatLiteral(leftValue / rightValue, position)
+                BinaryOperator.MODULO -> FloatLiteral(leftValue % rightValue, position)
+                BinaryOperator.ADD -> FloatLiteral(leftValue + rightValue, position)
+                BinaryOperator.SUBTRACT -> FloatLiteral(leftValue - rightValue, position)
                 else -> throw UnreachableException()
             }
         } else {
             val leftValue = (left as IntLiteral).value
             val rightValue = (right as IntLiteral).value
             when (operator) {
-                BinaryOperator.MULTIPLY -> IntLiteral(leftValue * rightValue)
-                BinaryOperator.DIVIDE -> IntLiteral(leftValue / rightValue)
-                BinaryOperator.MODULO -> IntLiteral(leftValue % rightValue)
-                BinaryOperator.ADD -> IntLiteral(leftValue + rightValue)
-                BinaryOperator.SUBTRACT -> IntLiteral(leftValue - rightValue)
+                BinaryOperator.MULTIPLY -> IntLiteral(leftValue * rightValue, position)
+                BinaryOperator.DIVIDE -> IntLiteral(leftValue / rightValue, position)
+                BinaryOperator.MODULO -> IntLiteral(leftValue % rightValue, position)
+                BinaryOperator.ADD -> IntLiteral(leftValue + rightValue, position)
+                BinaryOperator.SUBTRACT -> IntLiteral(leftValue - rightValue, position)
                 else -> throw UnreachableException()
             }
         }
     }
 
-    private fun foldConstantBoolComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator): BooleanLiteral {
+    private fun foldConstantBoolComparisonOperation(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): BooleanLiteral {
         val leftValue = (left as BooleanLiteral).value
         val rightValue = (right as BooleanLiteral).value
 
-        return BooleanLiteral(when (operator) {
-            BinaryOperator.AND -> leftValue && rightValue
-            BinaryOperator.OR -> leftValue || rightValue
-            else -> throw UnreachableException()
-        })
+        return BooleanLiteral(
+            when (operator) {
+                BinaryOperator.AND -> leftValue && rightValue
+                BinaryOperator.OR -> leftValue || rightValue
+                else -> throw UnreachableException()
+            },
+            position
+        )
     }
 
-    private fun foldStrictEqual(left: Literal, right: Literal, negate: Boolean): BooleanLiteral {
+    private fun foldStrictEqual(left: Literal, right: Literal, negate: Boolean, position: Position?): BooleanLiteral {
         return BooleanLiteral(
             when (left) {
                 is StringLiteral if right is StringLiteral -> {
@@ -213,7 +228,8 @@ object ConstantFolding : Optimization("Constant Folding") {
                 else -> throw UnreachableException()
             }.let {
                 if (negate) !it else it
-            }
+            },
+            position
         )
     }
 }

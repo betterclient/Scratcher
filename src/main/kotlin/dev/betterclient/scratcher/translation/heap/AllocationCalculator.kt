@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.gc.*
 import dev.betterclient.scratcher.optimize.*
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class FunctionLocalsInfo(
     val size: Int,
@@ -34,38 +35,46 @@ class LocalAllocationCalculator(val func: Function) {
                 }
             }
 
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 loops.add(loopStack.removeAt(loopStack.lastIndex) to pos)
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, position)
             }
 
-            override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement? {
+            override fun visitRepeatStatement(amount: Expression, block: CodeBlock, position: Position?): Statement? {
                 loops.add(loopStack.removeAt(loopStack.lastIndex) to pos)
-                return super.visitRepeatStatement(amount, block)
+                return super.visitRepeatStatement(amount, block, position)
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 defPos.putIfAbsent(variable, pos)
                 lastUse[variable] = maxOf(lastUse[variable] ?: pos, pos)
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 lastUse[variable] = maxOf(lastUse[variable] ?: pos, pos)
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 lastUse[variable] = maxOf(lastUse[variable] ?: pos, pos)
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+            override fun visitTemporaryLocalVariableIndexExpression(
+                variable: LocalVariable,
+                position: Position?
+            ): Expression {
                 lastUse[variable] = maxOf(lastUse[variable] ?: pos, pos)
-                return super.visitTemporaryLocalVariableIndexExpression(variable)
+                return super.visitTemporaryLocalVariableIndexExpression(variable, position)
             }
         })
 

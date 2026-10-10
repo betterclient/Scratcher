@@ -21,6 +21,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 object RepeatToWhile : CompilerSugar() {
@@ -32,7 +33,7 @@ object RepeatToWhile : CompilerSugar() {
         context: CompilationContext
     ) {
         visit(func, object : ASTVisitor() {
-            override fun visitRepeatStatement(amount: Expression, block: CodeBlock): Statement {
+            override fun visitRepeatStatement(amount: Expression, block: CodeBlock, position: Position?): Statement {
                 val outerBlock = currentBlock ?: throw GeneralCompilerException("currentBlock is null") //should be unreachable
 
                 val counterVar = LocalVariable(
@@ -44,27 +45,27 @@ object RepeatToWhile : CompilerSugar() {
 
                 val visitedBlock = visitCodeBlock(block)
                 currentBlock = outerBlock
-                val initStmt = VariableStatement(amount, counterVar)
+                val initStmt = VariableStatement(amount, counterVar, position)
                 val decrementStmt = LocalVariableAssignmentStatement(
                     counterVar,
                     BinaryExpression(
-                        LocalVariableExpression(counterVar),
+                        LocalVariableExpression(counterVar, position),
                         BinaryOperator.SUBTRACT,
-                        IntLiteral(BigInteger.ONE)
-                    )
+                        IntLiteral(BigInteger.ONE, position), position
+                    ), position
                 )
 
                 visitedBlock.code.add(0, decrementStmt)
 
                 val condition = BinaryExpression(
-                    LocalVariableExpression(counterVar),
+                    LocalVariableExpression(counterVar, position),
                     BinaryOperator.GREATER_THAN,
-                    IntLiteral(BigInteger.ZERO)
+                    IntLiteral(BigInteger.ZERO, position), position
                 )
 
-                val whileStmt = WhileStatement(condition, visitedBlock)
+                val whileStmt = WhileStatement(condition, visitedBlock, position)
 
-                return CompositeStatement(listOf(initStmt, whileStmt))
+                return CompositeStatement(listOf(initStmt, whileStmt), position)
             }
         })
     }

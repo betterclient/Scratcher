@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ExceptionLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class CallExpressionLowering(
     val func: Function
@@ -25,23 +26,23 @@ class CallExpressionLowering(
         visit(func, this)
     }
 
-    override fun visitExpressionStatement(expression: Expression): Statement? {
+    override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
         return null //expr is lowered, and the "prepend" is already done, so just remove this statement...
     }
 
-    override fun visitReturnStatement(expression: Expression?): Statement {
+    override fun visitReturnStatement(expression: Expression?, position: Position?): Statement {
         if (doingReturnLowering) {
             val returnExpr = expression ?: NullExpression
             addStatements(listOf(
-                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter), returnExpr)
+                TemporaryHeapSetStatement(ParameterExpression(returnIndexParameter, null), returnExpr, null)
             ))
-            return ReturnStatement(null) //codegen still needs a return statement to generate stop(this-script)
+            return ReturnStatement(null, position) //codegen still needs a return statement to generate stop(this-script)
         }
 
-        return ReturnStatement(null)
+        return ReturnStatement(null, position)
     }
 
-    override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+    override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
         val ignoreReturn = rootCallFlags.removeAt(rootCallFlags.lastIndex)
         val isVoid = func.returnType == PrimitiveType.Void
         val prepend = mutableListOf<Statement>()
@@ -55,15 +56,15 @@ class CallExpressionLowering(
             } else {
                 if (func.useLocal) {
                     val local = LocalVariable(obfuscate("returnFor${func.name}"), func.returnType)
-                    prepend.add(VariableStatement(null, local))
+                    prepend.add(VariableStatement(null, local, null))
 
-                    val code = func.realCode(args + TemporaryLocalVariableIndexExpression(local))
+                    val code = func.realCode(args + TemporaryLocalVariableIndexExpression(local, null))
 
                     prepend.addAll(code.prepend)
-                    prepend.add(LocalVariableAssignmentStatement(local, code.expression!!))
+                    prepend.add(LocalVariableAssignmentStatement(local, code.expression!!, null))
 
                     addStatements(prepend)
-                    LocalVariableExpression(local)
+                    LocalVariableExpression(local, position)
                 } else {
                     val code = func.realCode(args)
                     addStatements(code.prepend)
@@ -73,15 +74,15 @@ class CallExpressionLowering(
         }
 
         if (isVoid) {
-            prepend.add(TemporaryCallStatement(func, args.toMutableList()))
+            prepend.add(TemporaryCallStatement(func, args.toMutableList(), position))
         } else {
             if (ignoreReturn) {
-                prepend.add(TemporaryCallStatement(func, (args + IntLiteral((-1).toBigInteger())).toMutableList()))
+                prepend.add(TemporaryCallStatement(func, (args + IntLiteral((-1).toBigInteger(), null)).toMutableList(), position))
             } else {
                 val local = LocalVariable(obfuscate("returnFor${func.name}"), func.returnType)
-                prepend.add(VariableStatement(null, local))
-                prepend.add(TemporaryCallStatement(func, (args + TemporaryLocalVariableIndexExpression(local)).toMutableList()))
-                expr = LocalVariableExpression(local)
+                prepend.add(VariableStatement(null, local, null))
+                prepend.add(TemporaryCallStatement(func, (args + TemporaryLocalVariableIndexExpression(local, null)).toMutableList(), position))
+                expr = LocalVariableExpression(local, position)
             }
         }
 
@@ -89,12 +90,12 @@ class CallExpressionLowering(
         return expr?: NullExpression
     }
 
-    override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+    override fun visitStatementExpression(statements: List<Statement>, expression: Expression, position: Position?): Expression {
         addStatements(statements)
         return expression
     }
 
-    override fun visitNonNullAssertExpression(expression: Expression): Expression {
+    override fun visitNonNullAssertExpression(expression: Expression, position: Position?): Expression {
         val type = ExpressionTypes.getExpressionType(expression)
         val checked = visit(CallExpression(
             func = ExceptionLib.assertNonNull,
@@ -102,21 +103,23 @@ class CallExpressionLowering(
                 "Scratcher runtime error: NullPointerException"
             } else {
                 "Scratcher runtime error: NullPointerException at ${func.name}"
-            }))
+            }, position)),
+            position = position
         ))
         return if (type is NullableType && type.asNonNull().toString() == "str") {
             MemberExpression(
                 checked,
                 StringBoxing.stringBoxStruct.parameters.first { it.name == "str" },
-                StringBoxing.stringBoxStruct
+                StringBoxing.stringBoxStruct,
+                position
             )
         } else {
             checked
         }
     }
 
-    override fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int): Expression {
-        return IntLiteral(ordinal.toBigInteger())
+    override fun visitEnumLiteral(enum: ASTEnum, value: String, ordinal: Int, position: Position?): Expression {
+        return IntLiteral(ordinal.toBigInteger(), position)
     }
 
     //shit for ignoreReturn (in visitCallExpression)

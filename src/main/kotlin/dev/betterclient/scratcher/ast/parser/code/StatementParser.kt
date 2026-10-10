@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 class StatementParser(
@@ -30,23 +31,24 @@ class StatementParser(
                 if (variable.type == PrimitiveType.Void || variable.type == PrimitiveType.StaticList) throw VoidVariableException("Variable ${ast.simplePath}::${parser.currentFunction?.name}::${variable.name} is type void.")
                 if (parser.localVariables.find { it.name == variable.name } != null) throw DuplicateDefinitionException("Variable ${variable.name} already exists in ${ast.simplePath}::${parser.currentFunction?.name}")
                 parser.localVariables.add(variable)
-                VariableStatement(value, variable)
+                VariableStatement(value, variable, child.position)
             }
-            is ScratcherLangParser.ExprStmtContext -> ExpressionStatement(exprParser.parseExpression(child.expression()))
+            is ScratcherLangParser.ExprStmtContext -> ExpressionStatement(exprParser.parseExpression(child.expression()), child.position)
             is ScratcherLangParser.AssignIndexStmtContext -> {
                 val list = exprParser.parseExpression(child.expression(0)!!)
                 val index = exprParser.parseExpression(child.expression(1)!!)
                 val item = exprParser.parseExpression(child.expression(2)!!)
                 if (list is StaticListExpression) {
                     return ExpressionStatement(
-                        parser.functionResolver.resolveStaticListFunction(list, "set", listOf(index, item))
+                        parser.functionResolver.resolveStaticListFunction(list, "set", listOf(index, item), child.position),
+                        child.position
                     )
                 }
 
                 val type = ExpressionTypes.getExpressionType(list)
-                val call = parser.functionResolver.resolveReceiverFunction(list, "set", listOf(index, item), filter = { it.operator })
+                val call = parser.functionResolver.resolveReceiverFunction(list, "set", listOf(index, item), filter = { it.operator }, position = child.position)
                     ?: throw NotFoundException("Cannot resolve $type.set(${ExpressionTypes.getExpressionType(index)}, ${ExpressionTypes.getExpressionType(item)})")
-                ExpressionStatement(call)
+                ExpressionStatement(call, child.position)
             }
             is ScratcherLangParser.AssignStmtContext -> {
                 parseAssignStatement(child)
@@ -57,13 +59,13 @@ class StatementParser(
             is ScratcherLangParser.WhileStmtContext -> {
                 val cond = exprParser.parseExpression(child.expression())
                 val whileBlock = CodeBlock().also { parseBlock(it, child.block()) }
-                WhileStatement(cond, whileBlock)
+                WhileStatement(cond, whileBlock, child.position)
             }
             is ScratcherLangParser.RepeatStmtContext -> {
                 val amount = exprParser.parseExpression(child.expression())
                 if (child.indexedBlock().block() != null) {
                     val repeatBlock = CodeBlock().also { parseBlock(it, child.indexedBlock().block()!!) }
-                    RepeatStatement(amount, repeatBlock)
+                    RepeatStatement(amount, repeatBlock, child.position)
                 } else {
                     val block = child.indexedBlock()
                     val indexVar = LocalVariable(block.IDENTIFIER()!!.text, PrimitiveType.Integer)
@@ -72,29 +74,33 @@ class StatementParser(
                     }
                     val amountVar = LocalVariable("repeat_stmt_amount_${getUniqueName()}", PrimitiveType.Integer)
                     CompositeStatement(listOf(
-                        VariableStatement(IntLiteral((-1).toBigInteger()), indexVar),
-                        VariableStatement(amount, amountVar),
+                        VariableStatement(IntLiteral((-1).toBigInteger(), child.position), indexVar, child.position),
+                        VariableStatement(amount, amountVar, child.position),
                         WhileStatement(
                             condition = BinaryExpression(
                                 left = BinaryExpression(
-                                    left = LocalVariableExpression(indexVar),
-                                    right = IntLiteral(BigInteger.ONE),
+                                    left = LocalVariableExpression(indexVar, child.position),
+                                    right = IntLiteral(BigInteger.ONE, child.position),
                                     operator = BinaryOperator.ADD,
+                                    position = child.position
                                 ),
-                                right = LocalVariableExpression(amountVar),
-                                operator = BinaryOperator.LESS_THAN
+                                right = LocalVariableExpression(amountVar, child.position),
+                                operator = BinaryOperator.LESS_THAN,
+                                position = child.position
                             ),
                             block = CodeBlock().also { blc ->
                                 blc.code.add(LocalVariableAssignmentStatement(indexVar, BinaryExpression(
-                                    left = LocalVariableExpression(indexVar),
-                                    right = IntLiteral(BigInteger.ONE),
+                                    left = LocalVariableExpression(indexVar, child.position),
+                                    right = IntLiteral(BigInteger.ONE, child.position),
                                     operator = BinaryOperator.ADD,
-                                )))
+                                    position = child.position
+                                ), child.position))
 
                                 parseIndexedBlock(block, indexVar, blc)
-                            }
+                            },
+                            position = child.position
                         )
-                    ))
+                    ), child.position)
                 }
             }
             is ScratcherLangParser.ReturnIfStmtContext -> {
@@ -102,8 +108,8 @@ class StatementParser(
                 val cond = exprParser.parseExpression(child.expression().last())
 
                 IfStatement(cond, CodeBlock().also {
-                    it.code.add(ReturnStatement(returnExpr?.let { StringBoxing.autoConvert(it, parser.currentFunction?.returnType) }))
-                })
+                    it.code.add(ReturnStatement(returnExpr?.let { StringBoxing.autoConvert(it, parser.currentFunction?.returnType) }, child.position))
+                }, child.position)
             }
             is ScratcherLangParser.ForStmtContext -> {
                 parseForStatement(child)
@@ -112,26 +118,28 @@ class StatementParser(
                 parsePostIncStmt(child)
             }
             is ScratcherLangParser.WhenStmtContext -> {
-                ExpressionStatement(exprParser.parseWhenExpr(child.whenExpression()))
+                ExpressionStatement(exprParser.parseWhenExpr(child.whenExpression()), child.position)
             }
             is ScratcherLangParser.LoopControlStmtContext -> {
                 when(child) {
                     is ScratcherLangParser.ContinueStmtContext -> {
-                        ContinueStatement()
+                        ContinueStatement(child.position)
                     }
                     is ScratcherLangParser.BreakStmtContext -> {
-                        BreakStatement()
+                        BreakStatement(child.position)
                     }
                     is ScratcherLangParser.BreakIfStmtContext -> {
                         IfStatement(
                             condition = exprParser.parseExpression(child.expression()!!),
-                            thenBlock = CodeBlock().also { it.code.add(BreakStatement()) }
+                            thenBlock = CodeBlock().also { it.code.add(BreakStatement(child.position)) },
+                            position = child.position
                         )
                     }
                     is ScratcherLangParser.ContinueIfStmtContext -> {
                         IfStatement(
                             condition = exprParser.parseExpression(child.expression()!!),
-                            thenBlock = CodeBlock().also { it.code.add(ContinueStatement()) }
+                            thenBlock = CodeBlock().also { it.code.add(ContinueStatement(child.position)) },
+                            position = child.position
                         )
                     }
                     else -> throw NotImplementedException("Unknown loop control statement ${child.text}")
@@ -159,7 +167,7 @@ class StatementParser(
             blc.code.add(ReturnStatement(it.expression()?.let { expr ->
                 val parsed = exprParser.parseExpression(expr, parser.currentFunction?.returnType)
                 StringBoxing.autoConvert(parsed, parser.currentFunction?.returnType)
-            }))
+            }, it.position))
         }
 
         blc.localVariables.add(indexVar)
@@ -184,7 +192,7 @@ class StatementParser(
             else -> throw GeneralCompilerException("Unknown assignment type $assignmentType")
         }
 
-        return buildAssignment(variableExpr, op, assignmentExpr)
+        return buildAssignment(variableExpr, op, assignmentExpr, child.position)
     }
 
     private fun parseStmtBlock(statementBlockContext: ScratcherLangParser.StmtBlockContext, code: CodeBlock) {
@@ -210,9 +218,9 @@ class StatementParser(
             } else {
                 CodeBlock().also { parseStmtBlock(child.stmtBlock(1)!!, it) }
             }
-            IfElseStatement(cond, thenBlock, elseBlock)
+            IfElseStatement(cond, thenBlock, elseBlock, child.position)
         } else {
-            IfStatement(cond, thenBlock)
+            IfStatement(cond, thenBlock, child.position)
         }
     }
 
@@ -228,7 +236,7 @@ class StatementParser(
 
         if (type !is ArrayType) {
             this.parser.reporter.logError(ast, child.expression().position!!, "For statement doesn't have an array, found $type")
-            return IfStatement(ErrorExpression, CodeBlock())
+            return IfStatement(ErrorExpression, CodeBlock(), child.position)
         }
 
         val listVar = LocalVariable(
@@ -249,28 +257,31 @@ class StatementParser(
         //is there a way to unsee code that you wrote?
         //this is a hack for both: hiding these variables from user code and bypassing the single statement limit
         return IfStatement(
-            condition = BooleanLiteral(true),
+            condition = BooleanLiteral(true, child.position),
             thenBlock = CodeBlock().also {
                 val prevLocalVariables = parser.localVariables.map { variable -> variable }
                 parser.localVariables.add(listVar)
                 parser.localVariables.add(indexVariable)
-                it.code.add(VariableStatement(list, listVar))
-                it.code.add(VariableStatement(IntLiteral((-1).toBigInteger()), indexVariable))
-                it.code.add(VariableStatement(null, variable))
+                it.code.add(VariableStatement(list, listVar, child.position))
+                it.code.add(VariableStatement(IntLiteral((-1).toBigInteger(), child.position), indexVariable, child.position))
+                it.code.add(VariableStatement(null, variable, child.position))
                 it.code.add(
                     RepeatStatement(
                         amount = CallExpression(
                             func = ArrayLib.length,
-                            arguments = listOf(LocalVariableExpression(listVar))
+                            arguments = listOf(LocalVariableExpression(listVar, child.position)),
+                            position = child.position
                         ),
                         block = CodeBlock().also { inner ->
                             inner.code.add(
                                 LocalVariableAssignmentStatement(
                                     indexVariable, BinaryExpression(
-                                        left = LocalVariableExpression(indexVariable),
-                                        right = IntLiteral(1.toBigInteger()),
-                                        operator = BinaryOperator.ADD
-                                    )
+                                        left = LocalVariableExpression(indexVariable, child.position),
+                                        right = IntLiteral(1.toBigInteger(), child.position),
+                                        operator = BinaryOperator.ADD,
+                                        position = child.position
+                                    ),
+                                    child.position
                                 )
                             )
 
@@ -278,8 +289,10 @@ class StatementParser(
                                 LocalVariableAssignmentStatement(
                                     variable, CallExpression(
                                         func = ArrayLib.itemAt,
-                                        listOf(LocalVariableExpression(listVar), LocalVariableExpression(indexVariable))
-                                    )
+                                        listOf(LocalVariableExpression(listVar, child.position), LocalVariableExpression(indexVariable, child.position)),
+                                        position = child.position
+                                    ),
+                                    child.position
                                 )
                             )
 
@@ -288,17 +301,19 @@ class StatementParser(
                             } else {
                                 val indexVar0 = LocalVariable(child.indexedBlock().IDENTIFIER()!!.text, PrimitiveType.Integer)
                                 inner.code.add(
-                                    VariableStatement(LocalVariableExpression(indexVariable), indexVar0)
+                                    VariableStatement(LocalVariableExpression(indexVariable, child.position), indexVar0, child.position)
                                 )
 
                                 parseIndexedBlock(child.indexedBlock(), indexVar0, inner, injectVariables = listOf(variable))
                             }
-                        }
+                        },
+                        position = child.position
                     ))
                 it.localVariables.addAll(parser.localVariables)
                 parser.localVariables.clear()
                 parser.localVariables.addAll(prevLocalVariables)
-            }
+            },
+            position = child.position
         )
     }
 
@@ -323,24 +338,27 @@ class StatementParser(
         val currentObjVar = LocalVariable(child.IDENTIFIER().text, listType)
         val listVar = LocalVariable("list@for@list", listStruct.type)
 
-        return IfStatement(BooleanLiteral(true), CodeBlock().also {
-            it.code.add(VariableStatement(IntLiteral((-1).toBigInteger()), indexVar))
-            it.code.add(VariableStatement(null, currentObjVar))
-            it.code.add(VariableStatement(list, listVar))
+        return IfStatement(BooleanLiteral(true, child.position), CodeBlock().also {
+            it.code.add(VariableStatement(IntLiteral((-1).toBigInteger(), child.position), indexVar, child.position))
+            it.code.add(VariableStatement(null, currentObjVar, child.position))
+            it.code.add(VariableStatement(list, listVar, child.position))
             it.code.add(RepeatStatement(
                 amount = MemberExpression(
-                    expression = LocalVariableExpression(listVar),
+                    expression = LocalVariableExpression(listVar, child.position),
                     member = listStruct.parameters.find { it.type == PrimitiveType.Integer }!!, //length
-                    struct = listStruct
+                    struct = listStruct,
+                    position = child.position
                 ),
                 block = CodeBlock().also { block ->
                     block.code.add(LocalVariableAssignmentStatement(
                         variable = indexVar,
                         assignment = BinaryExpression(
-                            left = LocalVariableExpression(indexVar),
-                            right = IntLiteral(BigInteger.ONE),
-                            operator = BinaryOperator.ADD
-                        )
+                            left = LocalVariableExpression(indexVar, child.position),
+                            right = IntLiteral(BigInteger.ONE, child.position),
+                            operator = BinaryOperator.ADD,
+                            position = child.position
+                        ),
+                        position = child.position
                     ))
 
                     block.code.add(LocalVariableAssignmentStatement(
@@ -349,15 +367,18 @@ class StatementParser(
                             func = ArrayLib.itemAt,
                             arguments = listOf(
                                 MemberExpression(
-                                    expression = LocalVariableExpression(listVar),
+                                    expression = LocalVariableExpression(listVar, child.position),
                                     member = ptrMember,
-                                    struct = listStruct
+                                    struct = listStruct,
+                                    position = child.position
                                 ),
-                                LocalVariableExpression(indexVar)
-                            )
+                                LocalVariableExpression(indexVar, child.position)
+                            ),
+                            position = child.position
                         ).let { itemAt ->
-                            if (listType is NullableType) itemAt else NonNullAssertExpression(itemAt)
-                        }
+                            if (listType is NullableType) itemAt else NonNullAssertExpression(itemAt, child.position)
+                        },
+                        position = child.position
                     ))
 
                     if (child.indexedBlock().block() != null) {
@@ -365,14 +386,15 @@ class StatementParser(
                     } else {
                         val variable = LocalVariable(child.indexedBlock().IDENTIFIER()!!.text, PrimitiveType.Integer)
                         block.code.add(
-                            VariableStatement(LocalVariableExpression(indexVar), variable)
+                            VariableStatement(LocalVariableExpression(indexVar, child.position), variable, child.position)
                         )
 
                         parseIndexedBlock(child.indexedBlock(), variable, block, injectVariables = listOf(currentObjVar))
                     }
-                }
+                },
+                position = child.position
             ))
-        })
+        }, child.position)
     }
 
     private fun parsePostIncStmt(ctx: ScratcherLangParser.PostIncStmtContext): Statement {
@@ -383,27 +405,30 @@ class StatementParser(
         }
 
         val amount = if (ctx is ScratcherLangParser.PlusPlusContext) 1 else -1
-        val amountExpr = IntLiteral(amount.toBigInteger())
+        val amountExpr = IntLiteral(amount.toBigInteger(), ctx.position)
 
-        return buildAssignment(targetExpr, BinaryOperator.ADD, amountExpr)
+        return buildAssignment(targetExpr, BinaryOperator.ADD, amountExpr, ctx.position)
     }
 
     private fun buildAssignment(
         targetExpr: Expression,
         op: BinaryOperator?,
-        valueExpr: Expression
+        valueExpr: Expression,
+        position: Position? = targetExpr.position
     ): Statement {
         if (op == null) {
             return when (targetExpr) {
                 is LocalVariableExpression -> LocalVariableAssignmentStatement(
                     targetExpr.variable,
-                    StringBoxing.autoConvert(valueExpr, targetExpr.variable.type)
+                    StringBoxing.autoConvert(valueExpr, targetExpr.variable.type),
+                    position
                 )
                 is MemberExpression -> VariableAssignmentStatement(
                     targetExpr.expression,
                     targetExpr.member,
                     targetExpr.struct,
-                    StringBoxing.autoConvert(valueExpr, targetExpr.member.type)
+                    StringBoxing.autoConvert(valueExpr, targetExpr.member.type),
+                    position
                 )
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) {
@@ -414,7 +439,8 @@ class StatementParser(
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
                         targetExpr.sourceAST,
-                        StringBoxing.autoConvert(valueExpr, targetExpr.variable.type)
+                        StringBoxing.autoConvert(valueExpr, targetExpr.variable.type),
+                        position
                     )
                 }
                 else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
@@ -422,19 +448,21 @@ class StatementParser(
         } else {
             return when (targetExpr) {
                 is LocalVariableExpression -> {
-                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr)
+                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr, position)
                     LocalVariableAssignmentStatement(
                         targetExpr.variable,
-                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type)
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type),
+                        position
                     )
                 }
                 is VariableExpression -> {
                     if (!targetExpr.variable.mutable) throw GeneralCompilerException("Tried to assign to immutable field ${targetExpr.sourceAST.simplePath}::${targetExpr.variable.name}")
-                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr)
+                    val actualAssignment = exprParser.buildBinaryExpression(targetExpr, op, valueExpr, position)
                     TLVariableAssignmentStatement(
                         targetExpr.variable,
                         targetExpr.sourceAST,
-                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type)
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.variable.type),
+                        position
                     )
                 }
                 is MemberExpression -> {
@@ -445,25 +473,27 @@ class StatementParser(
                     )
                     parser.localVariables.add(tempBaseVar)
 
-                    val declareStmt = VariableStatement(targetExpr.expression, tempBaseVar)
-                    val tempBaseExpr = LocalVariableExpression(tempBaseVar)
-                    val readExpr = MemberExpression(tempBaseExpr, targetExpr.member, targetExpr.struct)
-                    val actualAssignment = exprParser.buildBinaryExpression(readExpr, op, valueExpr)
+                    val declareStmt = VariableStatement(targetExpr.expression, tempBaseVar, position)
+                    val tempBaseExpr = LocalVariableExpression(tempBaseVar, position)
+                    val readExpr = MemberExpression(tempBaseExpr, targetExpr.member, targetExpr.struct, position)
+                    val actualAssignment = exprParser.buildBinaryExpression(readExpr, op, valueExpr, position)
 
                     val assignStmt = VariableAssignmentStatement(
                         tempBaseExpr,
                         targetExpr.member,
                         targetExpr.struct,
-                        StringBoxing.autoConvert(actualAssignment, targetExpr.member.type)
+                        StringBoxing.autoConvert(actualAssignment, targetExpr.member.type),
+                        position
                     )
 
                     IfStatement(
-                        condition = BooleanLiteral(true),
+                        condition = BooleanLiteral(true, position),
                         thenBlock = CodeBlock().also {
                             it.code.add(declareStmt)
                             it.code.add(assignStmt)
                             it.localVariables.add(tempBaseVar)
-                        }
+                        },
+                        position = position
                     )
                 }
                 else -> throw GeneralCompilerException("Not mutable, tried to assign to non assignable expression $targetExpr")
@@ -483,7 +513,7 @@ class StatementParser(
             block.code.add(ReturnStatement(it.expression()?.let { expr ->
                 val parsed = exprParser.parseExpression(expr, parser.currentFunction?.returnType)
                 StringBoxing.autoConvert(parsed, parser.currentFunction?.returnType)
-            }))
+            }, it.position))
         }
 
         block.localVariables.addAll(injectVariables)

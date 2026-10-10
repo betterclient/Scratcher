@@ -77,11 +77,13 @@ object TypeCheckParameters {
         return ExpressionStatement(
             CallExpression(
                 func, listOfNotNull(
-                    ParameterExpression(parameter),
+                    ParameterExpression(parameter, null),
                     if (CompilationConstants.OBFUSCATION) null else
-                        StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not $typeInError!")
-                ).toMutableList()
-            )
+                        StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not $typeInError!", null)
+                ).toMutableList(),
+                null
+            ),
+            null
         )
     }
 }

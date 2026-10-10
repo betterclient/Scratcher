@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
     override fun apply(
@@ -17,7 +18,12 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
     ): Boolean {
         var modified = false
         visit(func, object : ASTVisitor() {
-            override fun visitBinaryExpression(left: Expression, right: Expression, operator: BinaryOperator): Expression {
+            override fun visitBinaryExpression(
+                left: Expression,
+                right: Expression,
+                operator: BinaryOperator,
+                position: Position?
+            ): Expression {
                 if (operator == BinaryOperator.EQUAL || operator == BinaryOperator.NOT_EQUAL) {
                     if (left is BooleanLiteral || right is BooleanLiteral) {
                         val boolVal = (left as? BooleanLiteral ?: right as BooleanLiteral).value
@@ -27,9 +33,9 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                         if (type == PrimitiveType.Bool) {
                             modified = true
                             return if (operator == BinaryOperator.EQUAL) {
-                                if (boolVal) value else UnaryExpression(UnaryOperator.NOT, value)
+                                if (boolVal) value else UnaryExpression(UnaryOperator.NOT, value, position)
                             } else {
-                                if (boolVal) UnaryExpression(UnaryOperator.NOT, value) else value
+                                if (boolVal) UnaryExpression(UnaryOperator.NOT, value, position) else value
                             }
                         }
                     }
@@ -48,7 +54,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                                 } else {
                                     if (!hasSideEffects(value)) {
                                         modified = true
-                                        return BooleanLiteral(false)
+                                        return BooleanLiteral(false, position)
                                     }
                                 }
                             } else {
@@ -58,7 +64,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                                 } else {
                                     if (!hasSideEffects(value)) {
                                         modified = true
-                                        return BooleanLiteral(true)
+                                        return BooleanLiteral(true, position)
                                     }
                                 }
                             }
@@ -66,7 +72,7 @@ object SimplifyBooleanEquality : Optimization("Simplify boolean equality") {
                     }
                 }
 
-                return super.visitBinaryExpression(left, right, operator)
+                return super.visitBinaryExpression(left, right, operator, position)
             }
         })
         return modified

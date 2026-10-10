@@ -10,6 +10,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object DirectCallInline : Optimization("Direct call inlining") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
@@ -18,17 +19,18 @@ object DirectCallInline : Optimization("Direct call inlining") {
             override fun visitDynamicCallExpression(
                 function: Expression,
                 args: List<Expression>,
-                type: FunctionType
+                type: FunctionType,
+                position: Position?
             ): Expression {
                 if (function is FunctionLiteral) {
                     modified = true
                     return CallExpression(
                         func = function.function,
-                        arguments = args
+                        arguments = args, position
                     )
                 }
 
-                return super.visitDynamicCallExpression(function, args, type)
+                return super.visitDynamicCallExpression(function, args, type, position)
             }
         })
         return modified

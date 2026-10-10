@@ -6,7 +6,6 @@ import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.obfuscate
-import org.antlr.v4.kotlinruntime.StringCharStream
 import org.antlr.v4.kotlinruntime.ast.Position
 import java.io.File
 
@@ -36,7 +35,8 @@ class ASTFile(
 class ASTEventListener(
     val event: EventListener,
     val code: CodeBlock,
-    val sourceAST: ASTFile
+    val sourceAST: ASTFile,
+    val position: Position?
 ) {
     var ctx: Function? = null
 }

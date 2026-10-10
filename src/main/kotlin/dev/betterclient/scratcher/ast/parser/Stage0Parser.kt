@@ -416,7 +416,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
 
                 ast.functions.add(func)
                 ast.eventListeners.add(ASTEventListener(
-                    listener, CodeBlock(), ast
+                    listener, CodeBlock(), ast, event.position
                 ).also {
                     it.ctx = func
                 })

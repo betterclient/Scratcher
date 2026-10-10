@@ -31,14 +31,16 @@ class ExpressionParser(
                     ctx.BANG() != null -> UnaryOperator.NOT
                     else -> throw NotImplementedException("Unknown or missing unary operator in expression: ${ctx.text}")
                 },
-                expression = parseExpression(ctx.expression())
+                expression = parseExpression(ctx.expression()),
+                position = ctx.position
             )
             is ScratcherLangParser.LiteralExprContext -> literalParser.parseLiteral(ctx.literal())
-            is ScratcherLangParser.IdExprContext -> parseIdentifier(ctx.text)
+            is ScratcherLangParser.IdExprContext -> parseIdentifier(ctx.text, ctx.position)
             is ScratcherLangParser.ThisExprContext -> {
                 if (parser.currentFunction?.parameters?.any { it.name == "this" } == true) {
                     return ParameterExpression(
-                        parser.currentFunction?.parameters?.find { it.name == "this" }!!
+                        parser.currentFunction?.parameters?.find { it.name == "this" }!!,
+                        ctx.position
                     )
                 }
                 throw NotFoundException("Not a receiver function!")
@@ -51,7 +53,8 @@ class ExpressionParser(
                     ctx.STAR() != null -> BinaryOperator.MULTIPLY
                     else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
-                right = parseExpression(ctx.expression(1)!!)
+                right = parseExpression(ctx.expression(1)!!),
+                position = ctx.position
             )
             is ScratcherLangParser.AddExprContext -> buildBinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
@@ -60,7 +63,8 @@ class ExpressionParser(
                     ctx.MINUS() != null -> BinaryOperator.SUBTRACT
                     else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
-                right = parseExpression(ctx.expression(1)!!)
+                right = parseExpression(ctx.expression(1)!!),
+                position = ctx.position
             )
 
             is ScratcherLangParser.RelExprContext -> BinaryExpression(
@@ -72,30 +76,34 @@ class ExpressionParser(
                     ctx.LT() != null -> BinaryOperator.LESS_THAN
                     else -> throw NotImplementedException("Unknown binary operator in expression: ${ctx.text}")
                 },
-                right = parseExpression(ctx.expression(1)!!)
+                right = parseExpression(ctx.expression(1)!!),
+                position = ctx.position
             )
             is ScratcherLangParser.EqExprContext -> parseEqExpr(ctx)
             is ScratcherLangParser.ExactEqualsExprContext -> parseExactEqualsExpr(ctx)
             is ScratcherLangParser.AndExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = BinaryOperator.AND,
-                right = parseExpression(ctx.expression(1)!!)
+                right = parseExpression(ctx.expression(1)!!),
+                position = ctx.position
             )
             is ScratcherLangParser.OrExprContext -> BinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
                 operator = BinaryOperator.OR,
-                right = parseExpression(ctx.expression(1)!!)
+                right = parseExpression(ctx.expression(1)!!),
+                position = ctx.position
             )
             is ScratcherLangParser.ScopeExprContext -> parseScopeExpr(ctx)
             is ScratcherLangParser.MemberExprContext -> parseMemberExpr(ctx, expectedType)
             is ScratcherLangParser.NullExprContext -> NullExpression
             is ScratcherLangParser.AssertNonNullContext -> {
-                NonNullAssertExpression(parseExpression(ctx.expression()))
+                NonNullAssertExpression(parseExpression(ctx.expression()), ctx.position)
             }
             is ScratcherLangParser.NonNullOrElseContext -> {
                 NonNullOrElseExpression(
                     parseExpression(ctx.expression(0)!!),
-                    parseExpression(ctx.expression(1)!!)
+                    parseExpression(ctx.expression(1)!!),
+                    ctx.position
                 )
             }
             is ScratcherLangParser.SafeDotExprContext -> {
@@ -111,7 +119,7 @@ class ExpressionParser(
                     throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
                 }
 
-                return SafeDotExpression(struct, structExpr, member)
+                return SafeDotExpression(struct, structExpr, member, ctx.position)
             }
             is ScratcherLangParser.IndexExprContext -> {
                 val list = parseExpression(ctx.expression(0)!!)
@@ -130,12 +138,14 @@ class ExpressionParser(
             is ScratcherLangParser.IfExprContext -> {
                 WhenExpression(
                     null,
-                    parseIfExpr(ctx.ifExpression())
+                    parseIfExpr(ctx.ifExpression()),
+                    ctx.position
                 )
             }
             is ScratcherLangParser.FuncRefExprContext -> {
                 FunctionLiteral(
-                    parser.functionResolver.figureOutFunctionSimple(ctx.functionIdentifier())
+                    parser.functionResolver.figureOutFunctionSimple(ctx.functionIdentifier()),
+                    ctx.position
                 )
             }
             is ScratcherLangParser.DynamicCallExprContext -> {
@@ -166,12 +176,12 @@ class ExpressionParser(
         val directComp = listOf(PrimitiveType.Str, PrimitiveType.Char)
 
         if (lt.asNonNull() !in directComp && rt.asNonNull() !in directComp)
-            return BinaryExpression(left, normalOp, right)
+            return BinaryExpression(left, normalOp, right, ctx.position)
         if (lt.asNonNull() in directComp && rt.asNonNull() in directComp)
-            return BinaryExpression(left, strictOp, right)
+            return BinaryExpression(left, strictOp, right, ctx.position)
 
         val sb = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }
-            ?: return BinaryExpression(left, normalOp, right)
+            ?: return BinaryExpression(left, normalOp, right, ctx.position)
 
         val lb = isStringBox(lt, sb)
         val rb = isStringBox(rt, sb)
@@ -179,14 +189,14 @@ class ExpressionParser(
         if (lb || rb) {
             val boxExpr = if (lb) left else right
             val strExpr = if (lb) right else left
-            return bindBoxOnce(boxExpr) { b ->
-                val u = unboxStringBox(b, sb)
-                if (isEq) and(neq(b, NullExpression), BinaryExpression(u, strictOp, strExpr))
-                else or(eq(b, NullExpression), BinaryExpression(u, strictOp, strExpr))
+            return bindBoxOnce(boxExpr, ctx.position) { b ->
+                val u = unboxStringBox(b, sb, ctx.position)
+                if (isEq) and(neq(b, NullExpression, ctx.position), BinaryExpression(u, strictOp, strExpr, ctx.position), ctx.position)
+                else or(eq(b, NullExpression, ctx.position), BinaryExpression(u, strictOp, strExpr, ctx.position), ctx.position)
             }
         }
 
-        return BinaryExpression(left, normalOp, right)
+        return BinaryExpression(left, normalOp, right, ctx.position)
     }
 
     private fun parseArrayExpr(ctx: ScratcherLangParser.NewArrayExprContext, expectedType: Type?): Expression {
@@ -220,30 +230,35 @@ class ExpressionParser(
         val allocCall = CallExpression(
             func = ArrayLib.newArray,
             arguments = listOf(
-                TypeLiteral(actualElemType),
-                IntLiteral(elements.size.toBigInteger())
-            )
+                TypeLiteral(actualElemType, ctx.position),
+                IntLiteral(elements.size.toBigInteger(), ctx.position)
+            ),
+            position = ctx.position
         )
-        prepend.add(VariableStatement(allocCall, outVar))
+        prepend.add(VariableStatement(allocCall, outVar, ctx.position))
 
         elements.forEachIndexed { index, elem ->
+            val elemPos = elem.position ?: ctx.position
             prepend.add(
                 ExpressionStatement(
                     CallExpression(
                         func = ArrayLib.replace,
                         arguments = listOf(
-                            LocalVariableExpression(outVar),
+                            LocalVariableExpression(outVar, elemPos),
                             StringBoxing.autoConvert(elem, actualElemType),
-                            IntLiteral(index.toBigInteger())
-                        )
-                    )
+                            IntLiteral(index.toBigInteger(), elemPos)
+                        ),
+                        position = elemPos
+                    ),
+                    elemPos
                 )
             )
         }
 
         return StatementExpression(
             statements = prepend,
-            expression = LocalVariableExpression(outVar)
+            expression = LocalVariableExpression(outVar, ctx.position),
+            position = ctx.position
         )
     }
 
@@ -257,7 +272,8 @@ class ExpressionParser(
                 innerExpr.text,
                 innerExpr.text,
                 ctx.argList(),
-                expectedType
+                expectedType,
+                ctx.position
             )
         }
 
@@ -269,7 +285,8 @@ class ExpressionParser(
                 funcName,
                 ctx.text,
                 ctx.argList(),
-                expectedType
+                expectedType,
+                ctx.position
             )
         }
 
@@ -290,20 +307,21 @@ class ExpressionParser(
                 val inflated = args.mapIndexed { i, arg ->
                     StringBoxing.autoConvert(arg, variant.parameters[i].type)
                 }
-                return SealedEnumConstructionExpression(sealed, variant, inflated)
+                return SealedEnumConstructionExpression(sealed, variant, inflated, ctx.position)
             }
 
             val receiverExpr = parseExpression(innerExpr.expression())
             val methodName = innerExpr.IDENTIFIER().text
 
             if (receiverExpr is StaticListExpression) {
-                return parser.functionResolver.resolveStaticListFunction(receiverExpr, methodName, args)
+                return parser.functionResolver.resolveStaticListFunction(receiverExpr, methodName, args, ctx.position)
             }
 
             val callExpr = parser.functionResolver.resolveReceiverFunction(
                 receiverExpr = receiverExpr,
                 methodName = methodName,
-                arguments = args
+                arguments = args,
+                position = ctx.position
             )
 
             try {
@@ -322,7 +340,8 @@ class ExpressionParser(
                 DynamicCallExpression(
                     function = memberExpr,
                     type = funcType!!,
-                    arguments = args
+                    arguments = args,
+                    position = ctx.position
                 )
             }
         }
@@ -339,7 +358,8 @@ class ExpressionParser(
                     ?: throw GeneralCompilerException(
                         "Dynamic call without a function?"
                     ),
-                arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+                arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf(),
+                position = ctx.position
             )
         }
     }
@@ -357,7 +377,8 @@ class ExpressionParser(
                 return DynamicCallExpression(
                     function = fnExpr,
                     type = fnType,
-                    arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
+                    arguments = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf(),
+                    position = ctx.position
                 )
             }
         }
@@ -366,9 +387,10 @@ class ExpressionParser(
         val userArgs = ctx.argList()?.expression()?.map { parseExpression(it) } ?: listOf()
 
         val resolved = this.parser.functionResolver.resolveReceiverFunction(
-            NonNullAssertExpression(receiver),
+            NonNullAssertExpression(receiver, innerExpr.position),
             innerExpr.IDENTIFIER().text,
-            userArgs
+            userArgs,
+            position = innerExpr.position
         ) ?: throw (original.exceptionOrNull() ?: NotFoundException("Receiver function ${innerExpr.IDENTIFIER().text} not found"))
 
         val receiverVar = LocalVariable(
@@ -377,7 +399,7 @@ class ExpressionParser(
         )
         val actualResolved = resolved.copy(
             arguments = resolved.arguments.mapIndexed { index, expression ->
-                if (index == 0) NonNullAssertExpression(LocalVariableExpression(receiverVar))
+                if (index == 0) NonNullAssertExpression(LocalVariableExpression(receiverVar, innerExpr.position), innerExpr.position)
                 else expression
             }
         )
@@ -385,15 +407,17 @@ class ExpressionParser(
         if (actualResolved.func.returnType == PrimitiveType.Void) {
             return StatementExpression(
                 statements = listOf(
-                    VariableStatement(receiver, receiverVar),
+                    VariableStatement(receiver, receiverVar, ctx.position),
                     IfStatement(
-                        condition = neq(LocalVariableExpression(receiverVar), NullExpression),
+                        condition = neq(LocalVariableExpression(receiverVar, ctx.position), NullExpression, ctx.position),
                         thenBlock = CodeBlock().also {
-                            it.code.add(ExpressionStatement(actualResolved))
-                        }
+                            it.code.add(ExpressionStatement(actualResolved, ctx.position))
+                        },
+                        position = ctx.position
                     )
                 ),
-                expression = NullExpression
+                expression = NullExpression,
+                position = ctx.position
             )
         }
 
@@ -401,19 +425,22 @@ class ExpressionParser(
         val out = LocalVariable("safeDotCall@out@${getUniqueName()}", outType)
         return StatementExpression(
             statements = listOf(
-                VariableStatement(NullExpression, out),
-                VariableStatement(receiver, receiverVar),
+                VariableStatement(NullExpression, out, ctx.position),
+                VariableStatement(receiver, receiverVar, ctx.position),
                 IfStatement(
-                    condition = neq(LocalVariableExpression(receiverVar), NullExpression),
+                    condition = neq(LocalVariableExpression(receiverVar, ctx.position), NullExpression, ctx.position),
                     thenBlock = CodeBlock().also {
                         it.code.add(LocalVariableAssignmentStatement(
                             out,
-                            StringBoxing.autoConvert(actualResolved, outType)
+                            StringBoxing.autoConvert(actualResolved, outType),
+                            ctx.position
                         ))
-                    }
+                    },
+                    position = ctx.position
                 )
             ),
-            expression = LocalVariableExpression(out)
+            expression = LocalVariableExpression(out, ctx.position),
+            position = ctx.position
         )
     }
 
@@ -447,7 +474,8 @@ class ExpressionParser(
                     if (block.LBRACE() == null) {
                         val prevLocalVariables = parser.localVariables.toList()
                         parser.localVariables.addAll(args)
-                        code.code.add(ReturnStatement(parseExpression(block.expression())))
+                        val returnExpr = parseExpression(block.expression())
+                        code.code.add(ReturnStatement(returnExpr, block.expression().position ?: block.position))
                         parser.localVariables.clear()
                         parser.localVariables.addAll(prevLocalVariables)
                     } else {
@@ -457,7 +485,7 @@ class ExpressionParser(
 
                         block.statement().map { parser.statementParser.parseStatement(it) }.forEach(code.code::add)
                         val result = parseExpression(block.expression())
-                        code.code.add(ReturnStatement(result))
+                        code.code.add(ReturnStatement(result, block.expression().position ?: block.position))
 
                         code.localVariables.addAll(args)
                         code.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
@@ -472,7 +500,8 @@ class ExpressionParser(
 
         return LambdaExpression(
             parameters = args,
-            block = block
+            block = block,
+            position = ctx.position
         )
     }
 
@@ -484,18 +513,18 @@ class ExpressionParser(
         val rightType = ExpressionTypes.getExpressionType(right)
 
         if (leftType == PrimitiveType.Null || rightType == PrimitiveType.Null) {
-            return BinaryExpression(left, op, right)
+            return BinaryExpression(left, op, right, ctx.position)
         }
 
-        val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" } ?: return BinaryExpression(left, op, right)
+        val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" } ?: return BinaryExpression(left, op, right, ctx.position)
         val leftIsBox = isStringBox(leftType, stringBoxStruct)
         val rightIsBox = isStringBox(rightType, stringBoxStruct)
 
         return when {
-            leftIsBox && rightIsBox -> boxVsBoxEquality(left, right, op, stringBoxStruct)
-            leftIsBox && rightType == PrimitiveType.Str -> boxVsStrEquality(left, right, op, stringBoxStruct)
-            rightIsBox && leftType == PrimitiveType.Str -> boxVsStrEquality(right, left, op, stringBoxStruct)
-            else -> BinaryExpression(left, op, right)
+            leftIsBox && rightIsBox -> boxVsBoxEquality(left, right, op, stringBoxStruct, ctx.position)
+            leftIsBox && rightType == PrimitiveType.Str -> boxVsStrEquality(left, right, op, stringBoxStruct, ctx.position)
+            rightIsBox && leftType == PrimitiveType.Str -> boxVsStrEquality(right, left, op, stringBoxStruct, ctx.position)
+            else -> BinaryExpression(left, op, right, ctx.position)
         }
     }
 
@@ -503,75 +532,78 @@ class ExpressionParser(
         return type is NullableType && type.inner == stringBoxStruct.type
     }
 
-    private fun boxVsStrEquality(boxExpr: Expression, strExpr: Expression, op: BinaryOperator, stringBoxStruct: Struct): Expression {
-        return bindBoxOnce(boxExpr) { box ->
-            val unboxed = unboxStringBox(box, stringBoxStruct)
+    private fun boxVsStrEquality(boxExpr: Expression, strExpr: Expression, op: BinaryOperator, stringBoxStruct: Struct, position: Position?): Expression {
+        return bindBoxOnce(boxExpr, position) { box ->
+            val unboxed = unboxStringBox(box, stringBoxStruct, position)
 
             when (op) {
-                BinaryOperator.EQUAL -> and(neq(box, NullExpression), eq(unboxed, strExpr))
-                else -> or(eq(box, NullExpression), neq(unboxed, strExpr))
+                BinaryOperator.EQUAL -> and(neq(box, NullExpression, position), eq(unboxed, strExpr, position), position)
+                else -> or(eq(box, NullExpression, position), neq(unboxed, strExpr, position), position)
             }
         }
     }
 
-    private fun boxVsBoxEquality(left: Expression, right: Expression, op: BinaryOperator, stringBoxStruct: Struct): Expression {
-        return bindBoxTwice(left, right) { l, r ->
-            val lIsNull = eq(l, NullExpression)
-            val rIsNull = eq(r, NullExpression)
-            val lNotNull = neq(l, NullExpression)
-            val rNotNull = neq(r, NullExpression)
-            val stringsEqual = eq(unboxStringBox(l, stringBoxStruct), unboxStringBox(r, stringBoxStruct))
-            val stringsNotEqual = neq(unboxStringBox(l, stringBoxStruct), unboxStringBox(r, stringBoxStruct))
+    private fun boxVsBoxEquality(left: Expression, right: Expression, op: BinaryOperator, stringBoxStruct: Struct, position: Position?): Expression {
+        return bindBoxTwice(left, right, position) { l, r ->
+            val lIsNull = eq(l, NullExpression, position)
+            val rIsNull = eq(r, NullExpression, position)
+            val lNotNull = neq(l, NullExpression, position)
+            val rNotNull = neq(r, NullExpression, position)
+            val stringsEqual = eq(unboxStringBox(l, stringBoxStruct, position), unboxStringBox(r, stringBoxStruct, position), position)
+            val stringsNotEqual = neq(unboxStringBox(l, stringBoxStruct, position), unboxStringBox(r, stringBoxStruct, position), position)
 
             when (op) {
                 BinaryOperator.EQUAL -> or(
-                    and(lIsNull, rIsNull),
-                    and(lNotNull, and(rNotNull, stringsEqual))
+                    and(lIsNull, rIsNull, position),
+                    and(lNotNull, and(rNotNull, stringsEqual, position), position),
+                    position
                 )
                 else -> or(
-                    and(lIsNull, rNotNull),
-                    or(and(lNotNull, rIsNull), and(lNotNull, and(rNotNull, stringsNotEqual)))
+                    and(lIsNull, rNotNull, position),
+                    or(and(lNotNull, rIsNull, position), and(lNotNull, and(rNotNull, stringsNotEqual, position), position), position),
+                    position
                 )
             }
         }
     }
 
-    private fun bindBoxOnce(boxExpr: Expression, use: (Expression) -> Expression): Expression {
+    private fun bindBoxOnce(boxExpr: Expression, position: Position? = null, use: (Expression) -> Expression): Expression {
         if (boxExpr.simple) return use(boxExpr)
 
         val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(boxExpr))
-        return StatementExpression(listOf(VariableStatement(boxExpr, temp)), use(LocalVariableExpression(temp)))
+        val targetPos = position ?: boxExpr.position
+        return StatementExpression(listOf(VariableStatement(boxExpr, temp, targetPos)), use(LocalVariableExpression(temp, position)), position)
     }
 
-    private fun bindBoxTwice(left: Expression, right: Expression, use: (Expression, Expression) -> Expression): Expression {
+    private fun bindBoxTwice(left: Expression, right: Expression, position: Position? = null, use: (Expression, Expression) -> Expression): Expression {
         val stmts = mutableListOf<Statement>()
         val leftRef = if (left.simple) {
             left
         } else {
             val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(left))
-            stmts.add(VariableStatement(left, temp))
-            LocalVariableExpression(temp)
+            stmts.add(VariableStatement(left, temp, position ?: left.position))
+            LocalVariableExpression(temp, position)
         }
         val rightRef = if (right.simple) {
             right
         } else {
             val temp = LocalVariable("eq@box@${getUniqueName()}", ExpressionTypes.getExpressionType(right))
-            stmts.add(VariableStatement(right, temp))
-            LocalVariableExpression(temp)
+            stmts.add(VariableStatement(right, temp, position ?: right.position))
+            LocalVariableExpression(temp, position)
         }
         val body = use(leftRef, rightRef)
 
-        return if (stmts.isEmpty()) body else StatementExpression(stmts, body)
+        return if (stmts.isEmpty()) body else StatementExpression(stmts, body, position)
     }
 
-    private fun unboxStringBox(expr: Expression, stringBoxStruct: Struct): Expression {
-        return MemberExpression(expr, stringBoxStruct.parameters.first { it.name == "str" }, stringBoxStruct)
+    private fun unboxStringBox(expr: Expression, stringBoxStruct: Struct, position: Position? = expr.position): Expression {
+        return MemberExpression(expr, stringBoxStruct.parameters.first { it.name == "str" }, stringBoxStruct, position)
     }
 
-    private fun eq(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.EQUAL, right)
-    private fun neq(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.NOT_EQUAL, right)
-    private fun and(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.AND, right)
-    private fun or(left: Expression, right: Expression): Expression = BinaryExpression(left, BinaryOperator.OR, right)
+    private fun eq(left: Expression, right: Expression, position: Position? = null): Expression = BinaryExpression(left, BinaryOperator.EQUAL, right, position)
+    private fun neq(left: Expression, right: Expression, position: Position? = null): Expression = BinaryExpression(left, BinaryOperator.NOT_EQUAL, right, position)
+    private fun and(left: Expression, right: Expression, position: Position? = null): Expression = BinaryExpression(left, BinaryOperator.AND, right, position)
+    private fun or(left: Expression, right: Expression, position: Position? = null): Expression = BinaryExpression(left, BinaryOperator.OR, right, position)
 
     fun parseIfExpr(ctx: ScratcherLangParser.IfExpressionContext): List<WhenBranch> {
         val branch = mutableListOf<WhenBranch>()
@@ -579,12 +611,12 @@ class ExpressionParser(
         val thenCond = parseExpression(ctx.expression())
         val thenBlock = parseExprBlock(ctx.exprBlock(0)!!)
         branch.add(WhenBranch(
-            thenCond, thenBlock
+            thenCond, thenBlock, position = ctx.position
         ))
         if (ctx.ifExpression() == null) {
             val elseBlock = parseExprBlock(ctx.exprBlock(1)!!)
             branch.add(WhenBranch(
-                BooleanLiteral(true), elseBlock, isElse = true
+                BooleanLiteral(true, ctx.position), elseBlock, isElse = true, position = ctx.position
             ))
         } else {
             branch.addAll(parseIfExpr(ctx.ifExpression()!!))
@@ -600,7 +632,8 @@ class ExpressionParser(
         val out = CodeBlock()
 
         if (block.LBRACE() == null) {
-            out.code.add(ExpressionStatement(parseExpression(block.expression())))
+            val expr = parseExpression(block.expression())
+            out.code.add(ExpressionStatement(expr, block.expression().position ?: block.position))
             return out
         }
 
@@ -609,7 +642,7 @@ class ExpressionParser(
 
         block.statement().map { parser.statementParser.parseStatement(it) }.forEach(out.code::add)
         val result = parseExpression(block.expression())
-        out.code.add(ExpressionStatement(result))
+        out.code.add(ExpressionStatement(result, block.expression().position ?: block.position))
 
         out.localVariables.addAll(parser.localVariables.subList(startIndex, parser.localVariables.size))
         parser.localVariables.clear()
@@ -622,7 +655,7 @@ class ExpressionParser(
         val subject = ctx.expression()?.let { parseExpression(it) }
         val subjectVar = subject?.let { LocalVariable("whenStatement@subject${getUniqueName()}", ExpressionTypes.getExpressionType(
             it)) }
-        val subjectAssignment = subjectVar?.let { VariableStatement(subject, it) }
+        val subjectAssignment = subjectVar?.let { VariableStatement(subject, it, ctx.expression()?.position ?: ctx.position) }
         val entries = ctx.whenEntry()
         if (entries.isEmpty()) {
             throw GeneralCompilerException("When expression must have at least one branch at ${ctx.position?.start}")
@@ -665,23 +698,25 @@ class ExpressionParser(
                             val expr = parseExpression(it)
                             if (subjectVar != null) {
                                 BinaryExpression(
-                                    left = LocalVariableExpression(subjectVar),
+                                    left = LocalVariableExpression(subjectVar, condition.position),
                                     right = expr,
-                                    operator = BinaryOperator.EQUAL
+                                    operator = BinaryOperator.EQUAL,
+                                    position = condition.position
                                 )
                             } else expr
                         }
                     }
                     is ScratcherLangParser.ElseCondContext -> {
-                        BooleanLiteral(true)
+                        BooleanLiteral(true, condition.position)
                     }
                     is ScratcherLangParser.SmartCastConditionContext -> {
                         val (sealed, variant, effectiveTag) = smartCastInfo!!
                         CheckSealedEnumTypeExpression(
-                            expr = LocalVariableExpression(subjectVar!!),
+                            expr = LocalVariableExpression(subjectVar!!, condition.position),
                             targetVariant = variant,
                             sealedEnum = sealed,
-                            tag = effectiveTag
+                            tag = effectiveTag,
+                            position = condition.position
                         )
                     }
                     else -> throw NotImplementedException("No implementation found for ${entry.text}")
@@ -696,18 +731,20 @@ class ExpressionParser(
                 if (castedObj != null) {
                     val (sealed, variant, effectiveTag) = smartCastInfo!!
                     branchBlock.code.add(VariableStatement(SealedEnumCastExpression(
-                        expr = LocalVariableExpression(subjectVar!!),
+                        expr = LocalVariableExpression(subjectVar!!, condition.position),
                         targetVariant = variant,
                         sealedEnum = sealed,
                         tag = effectiveTag,
-                        safe = false
-                    ), castedObj))
+                        safe = false,
+                        position = condition.position
+                    ), castedObj, condition.position))
 
                     parser.localVariables.add(castedObj)
                 }
 
                 if (entry.expression() != null) {
-                    branchBlock.code.add(ExpressionStatement(parseExpression(entry.expression()!!)))
+                    val expr = parseExpression(entry.expression()!!)
+                    branchBlock.code.add(ExpressionStatement(expr, entry.expression()?.position ?: entry.position))
                 } else if (entry.codeBlock() != null) {
                     val block = entry.codeBlock()!!
                     block.block()?.let {
@@ -724,9 +761,11 @@ class ExpressionParser(
                 WhenBranch(
                     cond,
                     branchBlock,
-                    isElse
+                    isElse,
+                    entry.position
                 )
-            }
+            },
+            ctx.position
         )
     }
 
@@ -740,7 +779,7 @@ class ExpressionParser(
             if (sealed.sourceAST != parser.ast && sealed.private) {
                 throw NotFoundException("Sealed enum ${sealed.name} is private! and cannot be accessed from ${parser.ast.simplePath}")
             }
-            return SealedEnumConstructionExpression(sealed, variant, emptyList())
+            return SealedEnumConstructionExpression(sealed, variant, emptyList(), ctx.position)
         }
 
         val enum = when (val leftExpr = ctx.expression()) {
@@ -771,7 +810,7 @@ class ExpressionParser(
             if (enum.private && enum.sourceAST != this.parser.ast) {
                 throw NotFoundException("Enum ${enum.name} is private!")
             }
-            return EnumLiteral(enum, memberName, ordinal)
+            return EnumLiteral(enum, memberName, ordinal, ctx.position)
         }
 
         val structExpr = parseExpression(ctx.expression())
@@ -787,7 +826,7 @@ class ExpressionParser(
             throw NotFoundException("Struct ${struct.name}'s member \"${member.name}\" is private!")
         }
 
-        return MemberExpression(structExpr, member, struct)
+        return MemberExpression(structExpr, member, struct, ctx.position)
     }
 
     private fun parseScopeExpr(ctx: ScratcherLangParser.ScopeExprContext): Expression {
@@ -798,7 +837,7 @@ class ExpressionParser(
 
         importedAST.staticLists.find { it.name == variable }?.let {
             if (it.private && importedAST != ast) throw NotFoundException("Static list $variable is private and cannot be accessed from ${ast.simplePath}")
-            return StaticListExpression(it)
+            return StaticListExpression(it, ctx.position)
         }
 
         val tlVar = importedAST.variables.find { it.name == variable }
@@ -808,23 +847,23 @@ class ExpressionParser(
             throw NotFoundException("Variable ${ctx.text} is private and cannot be accessed from ${ast.simplePath}")
         }
 
-        return VariableExpression(tlVar, importedAST)
+        return VariableExpression(tlVar, importedAST, ctx.position)
     }
 
-    private fun parseIdentifier(text: String): Expression {
+    private fun parseIdentifier(text: String, position: Position? = null): Expression {
         //either top level variable or local variable or parameter
         val variableFinding = parser.localVariables.find { it.name == text }
         if (variableFinding != null) {
-            return LocalVariableExpression(variableFinding)
+            return LocalVariableExpression(variableFinding, position)
         }
 
         val parameterFinding = parser.currentFunction?.parameters?.find { it.name == text }
         if (parameterFinding != null) {
-            return ParameterExpression(parameterFinding)
+            return ParameterExpression(parameterFinding, position)
         }
 
-        ast.staticLists.find { it.name == text }?.let { return StaticListExpression(it) }
-        ast.variables.find { it.name == text }?.let { return VariableExpression(it, ast) }
+        ast.staticLists.find { it.name == text }?.let { return StaticListExpression(it, position) }
+        ast.variables.find { it.name == text }?.let { return VariableExpression(it, ast, position) }
 
         val flatSource = ast.flatImportNames[text]
         if (flatSource != null) {
@@ -832,14 +871,14 @@ class ExpressionParser(
                 if (it.private && flatSource != ast) {
                     throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
                 }
-                return StaticListExpression(it)
+                return StaticListExpression(it, position)
             }
             val importedVar = flatSource.variables.find { it.name == text }
             if (importedVar != null) {
                 if (importedVar.private && flatSource != ast) {
                     throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
                 }
-                return VariableExpression(importedVar, flatSource)
+                return VariableExpression(importedVar, flatSource, position)
             }
         }
 
@@ -849,7 +888,7 @@ class ExpressionParser(
                 throw NotFoundException("Static list $text is private and cannot be accessed from ${ast.simplePath}")
             }
             wildcardAst.staticLists.find { it.name == text && !it.private }?.let {
-                return StaticListExpression(it)
+                return StaticListExpression(it, position)
             }
         }
 
@@ -859,7 +898,7 @@ class ExpressionParser(
                 throw NotFoundException("Variable $text is private and cannot be accessed from ${ast.simplePath}")
             }
             val importedVar = wildcardAst.variables.find { it.name == text && !it.private }
-            if (importedVar != null) return VariableExpression(importedVar, wildcardAst)
+            if (importedVar != null) return VariableExpression(importedVar, wildcardAst, position)
         }
 
         throw NotFoundException("Variable $text not found")
@@ -1055,7 +1094,7 @@ class ExpressionParser(
         } ?: return null
         val tag = sealed.types.indexOf(variant)
         val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-        return CheckSealedEnumTypeExpression(LocalVariableExpression(subjectVar), variant, sealed, effectiveTag)
+        return CheckSealedEnumTypeExpression(LocalVariableExpression(subjectVar, condCtx.position), variant, sealed, effectiveTag, condCtx.position)
     }
 
     private fun parseIsExpr(ctx: ScratcherLangParser.CheckSealedEnumTypeExprContext): Expression {
@@ -1068,7 +1107,7 @@ class ExpressionParser(
             if (inferred != null) {
                 val (sealed, variant, tag) = inferred
                 val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-                return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag)
+                return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag, ctx.position)
             }
         }
         val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
@@ -1084,7 +1123,7 @@ class ExpressionParser(
                 throw TypeAnalysisException("IS check left type $leftType is not ${sealed.type} at ${ctx.position}")
             }
         }
-        return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag)
+        return CheckSealedEnumTypeExpression(left, variant, sealed, effectiveTag, ctx.position)
     }
 
     private fun parseCastExpr(ctx: ScratcherLangParser.CastSealedEnumExprContext): Expression {
@@ -1097,7 +1136,7 @@ class ExpressionParser(
             if (inferred != null) {
                 val (sealed, variant, tag) = inferred
                 val effectiveTag = if (variant.parameters.isEmpty()) -tag-1 else tag
-                return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe)
+                return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe, ctx.position)
             }
         }
         val targetType = figureOutType(reporter, parser.ctx, ast, ctx.type(), localTypeBindings = parser.currentTypeBindings)
@@ -1113,7 +1152,7 @@ class ExpressionParser(
                 throw TypeAnalysisException("AS cast left type $leftType is not ${sealed.type} at ${ctx.position}")
             }
         }
-        return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe)
+        return SealedEnumCastExpression(left, variant, sealed, effectiveTag, safe, ctx.position)
     }
 
     private fun tryResolveIsAsFromLeft(leftSealedType: SealedEnumType, targetTypeCtx: ScratcherLangParser.TypeContext): Triple<SealedEnum, Struct, Int>? {
@@ -1149,7 +1188,7 @@ class ExpressionParser(
         return Triple(sealed, variant, idx)
     }
 
-    fun buildBinaryExpression(left: Expression, op: BinaryOperator, right: Expression): Expression {
+    fun buildBinaryExpression(left: Expression, op: BinaryOperator, right: Expression, position: Position? = null): Expression {
         val opName = when (op) {
             BinaryOperator.ADD -> "plus"
             BinaryOperator.SUBTRACT -> "minus"
@@ -1172,7 +1211,7 @@ class ExpressionParser(
             }
         }
 
-        return BinaryExpression(left, op, right)
+        return BinaryExpression(left, op, right, position)
     }
 
     fun error(position: Position, ast: ASTFile, text: String): ErrorExpression {

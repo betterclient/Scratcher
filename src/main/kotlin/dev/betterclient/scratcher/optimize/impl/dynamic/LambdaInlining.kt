@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.impl.control.FunctionInlining
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object LambdaInlining : Optimization("Lambda inlining") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
@@ -17,7 +18,8 @@ object LambdaInlining : Optimization("Lambda inlining") {
             override fun visitDynamicCallExpression(
                 function: Expression,
                 args: List<Expression>,
-                type: FunctionType
+                type: FunctionType,
+                position: Position?
             ): Expression {
                 if (function is LambdaExpression) {
                     modified = true
@@ -25,7 +27,7 @@ object LambdaInlining : Optimization("Lambda inlining") {
                     return inlineLambda(function, args, func, type)
                 }
 
-                return super.visitDynamicCallExpression(function, args, type)
+                return super.visitDynamicCallExpression(function, args, type, position)
             }
         })
         return modified
@@ -42,23 +44,24 @@ object LambdaInlining : Optimization("Lambda inlining") {
 
         //rewrite lambda with args into func
         visit(function.block, object : ASTVisitor() {
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 argsZip[variable]?.let {
-                    return ParameterExpression(it)
+                    return ParameterExpression(it, position)
                 }
 
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 if (argsZip[variable] != null) {
                     throw GeneralCompilerException("Lambda parameter ${variable.name} cannot be re-assigned")
                 }
 
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
         })
 

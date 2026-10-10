@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 object FunctionInlining : Optimization("Function inlining") {
@@ -22,59 +23,60 @@ object FunctionInlining : Optimization("Function inlining") {
 
         var modified = false
         visit(func, object : ASTVisitor() {
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
                 if (eligible.contains(func) && args.size == func.parameters.size) {
                     modified = true
-                    val out = inline(func, args)
+                    val out = inline(func, args, position)
                     return out
                 }
 
-                return super.visitCallExpression(func, args)
+                return super.visitCallExpression(func, args, position)
             }
         })
         return modified
     }
 
-    fun inline(func: Function, args: List<Expression>): Expression {
+    fun inline(func: Function, args: List<Expression>, position: Position? = null): Expression {
         val prepend = mutableListOf<Statement>()
 
         //put args in variables (this will be inlined in later optimizations if only used once)
         val argVars = func.parameters.associateWith { LocalVariable("FunctionInlining@${it.name}${getUniqueName()}", it.type) }
         args.forEachIndexed { index, arg ->
-            prepend.add(VariableStatement(arg, argVars.values.toList()[index]))
+            prepend.add(VariableStatement(arg, argVars.values.toList()[index], arg.position))
         }
         val returnVar = LocalVariable("FunctionInlining@${func.name}@return${getUniqueName()}", func.returnType)
         if (func.returnType != PrimitiveType.Void) {
-            prepend.add(VariableStatement(null, returnVar))
+            prepend.add(VariableStatement(null, returnVar, null))
         }
         val hasReturned = LocalVariable("FunctionInlining@${func.name}@hasReturned${getUniqueName()}", PrimitiveType.Bool)
-        prepend.add(VariableStatement(BooleanLiteral(false), hasReturned))
+        prepend.add(VariableStatement(BooleanLiteral(false, null), hasReturned, null))
 
         //returns are something...
         val out = visitCopy(func, EarlyReturnRewriter(hasReturned))
         visit(out, object : ASTVisitor() {
-            override fun visitParameterExpression(parameter: Parameter): Expression {
-                return LocalVariableExpression(argVars[parameter]!!)
+            override fun visitParameterExpression(parameter: Parameter, position: Position?): Expression {
+                return LocalVariableExpression(argVars[parameter]!!, position)
             }
 
-            override fun visitReturnStatement(expression: Expression?): Statement? {
+            override fun visitReturnStatement(expression: Expression?, position: Position?): Statement? {
                 expression?.let {
-                    return LocalVariableAssignmentStatement(returnVar, it)
+                    return LocalVariableAssignmentStatement(returnVar, it, position)
                 }
                 return null
             }
 
-            override fun visitExpressionStatement(expression: Expression): Statement? {
+            override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
                 if (expression is CallExpression && expression.func.sourceAST == StandardLibASTGenerator.typeChecker) return null
 
-                return super.visitExpressionStatement(expression)
+                return super.visitExpressionStatement(expression, position)
             }
         })
         prepend.addAll(out.code)
 
         return StatementExpression(
             statements = prepend,
-            expression = if (func.returnType == PrimitiveType.Void) NullExpression else LocalVariableExpression(returnVar)
+            expression = if (func.returnType == PrimitiveType.Void) NullExpression else LocalVariableExpression(returnVar, position),
+            position = position
         )
     }
 }
@@ -83,10 +85,10 @@ object InlineEligibility {
     fun findEligible(targetFunc: Function, graph: TCallGraph): List<Function> {
         val costs = mutableMapOf<Function, BigInteger>() //need big integer to not overflow when we hit a recursive function and try to inline it!
         visit(targetFunc, object : ASTVisitor() {
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
                 costs[func] = (costs[func]?: 0.toBigInteger()) + calculateCost(targetFunc, func, graph).toBigInteger()
 
-                return super.visitCallExpression(func, args)
+                return super.visitCallExpression(func, args, position)
             }
         })
 
@@ -110,28 +112,29 @@ object InlineEligibility {
 
         visit(targetFunc, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
-            override fun visitReturnStatement(expression: Expression?): Statement? {
+            override fun visitReturnStatement(expression: Expression?, position: Position?): Statement? {
                 currentCost += if (hasSingleReturnNonVoid) 50 else 600
-                return super.visitReturnStatement(expression)
+                return super.visitReturnStatement(expression, position)
             }
 
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 currentCost += 300
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, position)
             }
 
-            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {
+            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock, position: Position?): Statement? {
                 currentCost += 50
-                return super.visitIfStatement(condition, thenBlock)
+                return super.visitIfStatement(condition, thenBlock, position)
             }
 
             override fun visitIfElseStatement(
                 condition: Expression,
                 thenBlock: CodeBlock,
-                elseBlock: CodeBlock
+                elseBlock: CodeBlock,
+                position: Position?
             ): Statement? {
                 currentCost += 100
-                return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+                return super.visitIfElseStatement(condition, thenBlock, elseBlock, position)
             }
 
             override fun visitExpr(expression: Expression) {
@@ -142,13 +145,13 @@ object InlineEligibility {
                 currentCost += 50
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable, position: Position?): Statement? {
                 currentCost += 100
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
-                if (func.sourceAST == StandardLibASTGenerator.typeChecker) return super.visitCallExpression(func, args)
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
+                if (func.sourceAST == StandardLibASTGenerator.typeChecker) return super.visitCallExpression(func, args, position)
 
                 currentCost += when (func) {
                     is InlineStandardLibFunction -> 100
@@ -156,18 +159,18 @@ object InlineEligibility {
                     else -> 20
                 }
 
-                return super.visitCallExpression(func, args)
+                return super.visitCallExpression(func, args, position)
             }
 
-            override fun visitNonNullAssertExpression(expression: Expression): Expression {
+            override fun visitNonNullAssertExpression(expression: Expression, position: Position?): Expression {
                 currentCost += 100
-                return super.visitNonNullAssertExpression(expression)
+                return super.visitNonNullAssertExpression(expression, position)
             }
 
-            override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
+            override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression, position: Position?): Expression {
                 currentCost += 200
 
-                return super.visitNonNullOrElseExpression(operand1, operand2)
+                return super.visitNonNullOrElseExpression(operand1, operand2, position)
             }
 
             override fun visitCodeBlock(block: CodeBlock): CodeBlock {
@@ -197,9 +200,9 @@ object InlineEligibility {
                 return VisitMode.READ_ONLY
             }
 
-            override fun visitReturnStatement(expression: Expression?): Statement? {
+            override fun visitReturnStatement(expression: Expression?, position: Position?): Statement? {
                 count++
-                return super.visitReturnStatement(expression)
+                return super.visitReturnStatement(expression, position)
             }
         })
         return count
@@ -248,29 +251,30 @@ class EarlyReturnRewriter(
         if (currentDeferred.isNotEmpty()) {
             val processedDeferred = sequentiallyWrap(currentDeferred)
             val innerBlock = CodeBlock(processedDeferred.toMutableList())
-            val condition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned))
-            rewrittenStatements.add(IfStatement(condition, innerBlock))
+            val condition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned, null), null)
+            rewrittenStatements.add(IfStatement(condition, innerBlock, null))
         }
 
         return rewrittenStatements
     }
 
-    override fun visitReturnStatement(expression: Expression?): Statement {
+    override fun visitReturnStatement(expression: Expression?, position: Position?): Statement {
         val list = mutableListOf<Statement>()
-        list.add(ReturnStatement(expression?.let { visit(it) }))
-        list.add(LocalVariableAssignmentStatement(hasReturned, BooleanLiteral(true)))
-        return CompositeStatement(list)
+        list.add(ReturnStatement(expression?.let { visit(it) }, position))
+        list.add(LocalVariableAssignmentStatement(hasReturned, BooleanLiteral(true, null), null))
+        return CompositeStatement(list, position)
     }
 
-    override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement {
-        val visited = super.visitWhileStatement(condition, block) as WhileStatement
+    override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement {
+        val visited = super.visitWhileStatement(condition, block, position) as WhileStatement
         if (containsHasReturnedSet(visited.block)) {
             val loopCondition = BinaryExpression(
                 visited.condition,
                 BinaryOperator.AND,
-                UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned))
+                UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(hasReturned, null), null),
+                visited.condition.position
             )
-            return WhileStatement(loopCondition, visited.block)
+            return WhileStatement(loopCondition, visited.block, position)
         }
         return visited
     }

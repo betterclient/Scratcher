@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object ReleaseDeadTemporaries {
     fun run(functions: Collection<Function>, decFuncs: Set<Function>, incFunc: Function): Int {
@@ -37,41 +38,53 @@ object ReleaseDeadTemporaries {
         visit(func, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 stats.decls[variable] = (stats.decls[variable] ?: 0) + 1
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 stats.assigns[variable] = (stats.assigns[variable] ?: 0) + 1
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 stats.reads[variable] = (stats.reads[variable] ?: 0) + 1
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+            override fun visitTemporaryLocalVariableIndexExpression(
+                variable: LocalVariable,
+                position: Position?
+            ): Expression {
                 stats.reads[variable] = (stats.reads[variable] ?: 0) + 1
                 stats.addrs[variable] = (stats.addrs[variable] ?: 0) + 1
-                return super.visitTemporaryLocalVariableIndexExpression(variable)
+                return super.visitTemporaryLocalVariableIndexExpression(variable, position)
             }
 
-            override fun visitExpressionStatement(expression: Expression): Statement? {
+            override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
                 countDecCall(expression, decFuncs, stats)
-                return super.visitExpressionStatement(expression)
+                return super.visitExpressionStatement(expression, position)
             }
 
-            override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+            override fun visitTemporaryCallStatement(
+                func: Function,
+                args: MutableList<Expression>,
+                position: Position?
+            ): Statement? {
                 if (func in decFuncs && args.size == 1 && args[0] is LocalVariableExpression) {
                     val target = (args[0] as LocalVariableExpression).variable
                     stats.decs[target] = (stats.decs[target] ?: 0) + 1
                 }
-                return super.visitTemporaryCallStatement(func, args)
+                return super.visitTemporaryCallStatement(func, args, position)
             }
         })
     }
@@ -105,32 +118,40 @@ object ReleaseDeadTemporaries {
         visit(func, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 universe.add(variable)
                 val src = (defaultValue as? LocalVariableExpression)?.variable
                 if (src != null) {
                     universe.add(src)
                     union(variable, src)
                 }
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 universe.add(variable)
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 universe.add(variable)
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+            override fun visitTemporaryLocalVariableIndexExpression(
+                variable: LocalVariable,
+                position: Position?
+            ): Expression {
                 universe.add(variable)
-                return super.visitTemporaryLocalVariableIndexExpression(variable)
+                return super.visitTemporaryLocalVariableIndexExpression(variable, position)
             }
         })
         val byRoot = mutableMapOf<LocalVariable, MutableSet<LocalVariable>>()
@@ -153,73 +174,92 @@ object ReleaseDeadTemporaries {
 
         override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-        override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+        override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
             if (storing) out.add(variable)
-            return super.visitLocalVariableExpression(variable)
+            return super.visitLocalVariableExpression(variable, position)
         }
 
-        override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+        override fun visitTemporaryLocalVariableIndexExpression(
+            variable: LocalVariable,
+            position: Position?
+        ): Expression {
             if (storing) out.add(variable)
-            return super.visitTemporaryLocalVariableIndexExpression(variable)
+            return super.visitTemporaryLocalVariableIndexExpression(variable, position)
         }
 
         override fun visitVariableAssignmentStatement(
             target: Expression,
             variable: Parameter,
             struct: Struct,
-            assignment: Expression
+            assignment: Expression,
+            position: Position?
         ): Statement? {
             val saved = storing
             visit(target)
             storing = true
             visit(assignment)
             storing = saved
-            return super.visitVariableAssignmentStatement(target, variable, struct, assignment)
+            return super.visitVariableAssignmentStatement(target, variable, struct, assignment, position)
         }
 
         override fun visitTLVariableAssignmentStatement(
             variable: TLVariable,
             sourceAST: ASTFile,
-            assignment: Expression
+            assignment: Expression,
+            position: Position?
         ): Statement? {
             val saved = storing
             storing = true
             visit(assignment)
             storing = saved
-            return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment)
+            return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment, position)
         }
 
-        override fun visitStaticListSetStatement(list: TLStaticList, index: Expression, item: Expression): Statement? {
+        override fun visitStaticListSetStatement(
+            list: TLStaticList,
+            index: Expression,
+            item: Expression,
+            position: Position?
+        ): Statement? {
             val saved = storing
             visit(index)
             storing = true
             visit(item)
             storing = saved
-            return super.visitStaticListSetStatement(list, index, item)
+            return super.visitStaticListSetStatement(list, index, item, position)
         }
 
-        override fun visitStaticListAddStatement(list: TLStaticList, item: Expression): Statement? {
+        override fun visitStaticListAddStatement(
+            list: TLStaticList,
+            item: Expression,
+            position: Position?
+        ): Statement? {
             val saved = storing
             storing = true
             visit(item)
             storing = saved
-            return super.visitStaticListAddStatement(list, item)
+            return super.visitStaticListAddStatement(list, item, position)
         }
 
         override fun visitStaticListInsertStatement(
             list: TLStaticList,
             index: Expression,
-            value: Expression
+            value: Expression,
+            position: Position?
         ): Statement? {
             val saved = storing
             visit(index)
             storing = true
             visit(value)
             storing = saved
-            return super.visitStaticListInsertStatement(list, index, value)
+            return super.visitStaticListInsertStatement(list, index, value, position)
         }
 
-        override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+        override fun visitTemporaryCallStatement(
+            func: Function,
+            args: MutableList<Expression>,
+            position: Position?
+        ): Statement? {
             val saved = storing
             args.forEachIndexed { idx, arg ->
                 storing = if (replaceStoresIdx(func, idx)) {
@@ -230,10 +270,10 @@ object ReleaseDeadTemporaries {
                 visit(arg)
             }
             storing = saved
-            return super.visitTemporaryCallStatement(func, args)
+            return super.visitTemporaryCallStatement(func, args, position)
         }
 
-        override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+        override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
             val saved = storing
             args.forEachIndexed { idx, arg ->
                 storing = if (func == ArrayLib.replace && idx != 1) {
@@ -244,7 +284,7 @@ object ReleaseDeadTemporaries {
                 visit(arg)
             }
             storing = saved
-            return super.visitCallExpression(func, args)
+            return super.visitCallExpression(func, args, position)
         }
     }
 
@@ -261,14 +301,17 @@ object ReleaseDeadTemporaries {
     ) : ASTVisitor() {
         override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-        override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+        override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
             if (variable in group) out.getOrPut(variable) { mutableListOf() }.add(top)
-            return super.visitLocalVariableExpression(variable)
+            return super.visitLocalVariableExpression(variable, position)
         }
 
-        override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+        override fun visitTemporaryLocalVariableIndexExpression(
+            variable: LocalVariable,
+            position: Position?
+        ): Expression {
             if (variable in group) out.getOrPut(variable) { mutableListOf() }.add(top)
-            return super.visitTemporaryLocalVariableIndexExpression(variable)
+            return super.visitTemporaryLocalVariableIndexExpression(variable, position)
         }
     }
 
@@ -286,9 +329,9 @@ object ReleaseDeadTemporaries {
     private class ReturnFinder : ASTVisitor() {
         var found = false
         override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
-        override fun visitReturnStatement(expression: Expression?): Statement? {
+        override fun visitReturnStatement(expression: Expression?, position: Position?): Statement? {
             found = true
-            return super.visitReturnStatement(expression)
+            return super.visitReturnStatement(expression, position)
         }
     }
 
@@ -451,10 +494,14 @@ object ReleaseDeadTemporaries {
             return super.visitCodeBlock(block)
         }
 
-        override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+        override fun visitStatementExpression(
+            statements: List<Statement>,
+            expression: Expression,
+            position: Position?
+        ): Expression {
             val code = statements.toMutableList()
             sunk += processList(code, stats, groups, decFuncs, incFunc, stored)
-            return super.visitStatementExpression(code, expression)
+            return super.visitStatementExpression(code, expression, position)
         }
     }
 }

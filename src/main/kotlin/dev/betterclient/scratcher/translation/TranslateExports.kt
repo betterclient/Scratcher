@@ -29,17 +29,17 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                 )
             ),
             sourceAST = compilerLib,
-            code = CodeBlock()
+            code = CodeBlock(), position = null
         ).also { event ->
             compilerLib.eventListeners.add(event)
             val params = function.parameters.map { Parameter(it.name, it.type) }.toMutableList()
             event.ctx = Function(
                 name = "export_caller_${getUniqueName()}",
                 code = CodeBlock().also { block ->
-                    val callExpr = CallExpression(function, params.map { ParameterExpression(it) })
+                    val callExpr = CallExpression(function, params.map { ParameterExpression(it, position = null) }, position = null)
                     if (function.returnType == PrimitiveType.Void) {
                         block.code.add(ExpressionStatement(
-                            callExpr
+                            callExpr, position = null
                         ))
                     } else {
                         val outVar = TLVariable(
@@ -54,7 +54,7 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                         block.code.add(TLVariableAssignmentStatement(
                             variable = outVar,
                             sourceAST = compilerLib,
-                            assignment = callExpr
+                            assignment = callExpr, position = null
                         ))
                     }
                 },

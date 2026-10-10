@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.ast.parser.code
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class LiteralParser(
     val expressionParser: ExpressionParser,
@@ -10,18 +11,18 @@ class LiteralParser(
 ) {
     fun parseLiteral(ctx: ScratcherLangParser.LiteralContext): Expression {
         return when {
-            ctx.FALSE() != null -> BooleanLiteral(false)
-            ctx.TRUE() != null -> BooleanLiteral(true)
+            ctx.FALSE() != null -> BooleanLiteral(false, ctx.position)
+            ctx.TRUE() != null -> BooleanLiteral(true, ctx.position)
             ctx.FLOAT() != null -> {
-                ctx.FLOAT()!!.text.toBigDecimalOrNull()?.let { FloatLiteral(it) }
+                ctx.FLOAT()!!.text.toBigDecimalOrNull()?.let { FloatLiteral(it, ctx.position) }
                     ?: expressionParser.error(ctx.position!!, parser.ast, "Not a float!")
             }
             ctx.INT() != null -> {
-                ctx.INT()!!.text.toBigIntegerOrNull()?.let { IntLiteral(it) }
+                ctx.INT()!!.text.toBigIntegerOrNull()?.let { IntLiteral(it, ctx.position) }
                     ?: expressionParser.error(ctx.position!!, parser.ast, "Not an int!")
             }
-            ctx.stringLiteral() != null -> parseStringInterp(ctx.stringLiteral()!!.stringPart())
-            ctx.CHAR_LITERAL() != null -> CharLiteral(parseCharLiteral(ctx.CHAR_LITERAL()!!.text))
+            ctx.stringLiteral() != null -> parseStringInterp(ctx.position, ctx.stringLiteral()!!.stringPart())
+            ctx.CHAR_LITERAL() != null -> CharLiteral(parseCharLiteral(ctx.CHAR_LITERAL()!!.text), ctx.position)
             else -> throw NotImplementedException("$ctx is not one of the expected types.")
         }
     }
@@ -45,18 +46,18 @@ class LiteralParser(
         return content.firstOrNull() ?: ' '
     }
 
-    private fun parseStringInterp(parts: List<ScratcherLangParser.StringPartContext>): Expression {
-        if (parts.isEmpty()) return StringLiteral("")
+    private fun parseStringInterp(position: Position?, parts: List<ScratcherLangParser.StringPartContext>): Expression {
+        if (parts.isEmpty()) return StringLiteral("", position)
         val exprs = parts.map { part ->
             when {
                 part.STR_TEXT() != null -> {
-                    StringLiteral(part.STR_TEXT()!!.text)
+                    StringLiteral(part.STR_TEXT()!!.text, part.position)
                 }
                 part.STR_ESC() != null -> {
-                    StringLiteral(unescapeString(part.STR_ESC()!!.text))
+                    StringLiteral(unescapeString(part.STR_ESC()!!.text), part.position)
                 }
                 part.DOLLAR() != null -> {
-                    StringLiteral("$")
+                    StringLiteral("$", part.position)
                 }
                 part.interpolation() != null -> {
                     StringBoxing.unboxIfNeeded(
@@ -64,18 +65,18 @@ class LiteralParser(
                         PrimitiveType.Str
                     )
                 }
-                else -> StringLiteral("")
+                else -> StringLiteral("", part.position)
             }
         }
         val exprsReduced = if (exprs.size == 1) {
             if (ExpressionTypes.getExpressionType(exprs[0]) == PrimitiveType.Str) {
                 exprs[0]
             } else {
-                ConcatExpression(exprs[0], StringLiteral(""))
+                ConcatExpression(exprs[0], StringLiteral("", exprs[0].position), exprs[0].position)
             }
         } else {
             exprs.reduce { left, right ->
-                ConcatExpression(left, right)
+                ConcatExpression(left, right, left.position)
             }
         }
 

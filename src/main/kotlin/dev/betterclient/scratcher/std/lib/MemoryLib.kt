@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
+import java.math.BigInteger
 
 object MemoryLib {
     val heap = ScratchList(obfuscate("Scratcher Heap"))
@@ -264,33 +265,35 @@ object MemoryLib {
         val ptrVar = LocalVariable("compiler@ptr", struct.type)
         func.code.localVariables.add(ptrVar)
 
-        val allocArgs = mutableListOf<Expression>(IntLiteral(java.math.BigInteger.valueOf(struct.sizeOnHeap.toLong())))
+        val allocArgs = mutableListOf<Expression>(IntLiteral(BigInteger.valueOf(struct.sizeOnHeap.toLong()), null))
         if (CompilationConstants.MARK_AND_SWEEP_GC) {
-            allocArgs.add(StringLiteral(findGC(struct).toString()))
+            allocArgs.add(StringLiteral(findGC(struct).toString(), null))
         }
-        allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar))
+        allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar, null))
 
-        func.code.code.add(VariableStatement(null, ptrVar))
-        func.code.code.add(TemporaryCallStatement(alloc, allocArgs))
+        func.code.code.add(VariableStatement(null, ptrVar, null))
+        func.code.code.add(TemporaryCallStatement(alloc, allocArgs, null))
         if (CompilationConstants.REFCOUNT_GC) {
             func.code.code.add(TemporaryHeapSetStatement(
-                index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar)),
-                data = IntLiteral(java.math.BigInteger.ONE)
+                index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar, null), null, null),
+                data = IntLiteral(BigInteger.ONE, null),
+                position = null
             ))
         }
 
         allocParams.forEach { allocParam ->
             val structParam = struct.parameters.find { it.name == allocParam.name }!!
-            val argExpr = ParameterExpression(func.parameters.find { it.name == allocParam.name }!!)
+            val argExpr = ParameterExpression(func.parameters.find { it.name == allocParam.name }!!, null)
             func.code.code.add(VariableAssignmentStatement(
-                target = LocalVariableExpression(ptrVar),
+                target = LocalVariableExpression(ptrVar, null),
                 variable = structParam,
                 struct = struct,
-                assignment = argExpr
+                assignment = argExpr,
+                position = null
             ))
         }
 
-        func.code.code.add(ReturnStatement(LocalVariableExpression(ptrVar)))
+        func.code.code.add(ReturnStatement(LocalVariableExpression(ptrVar, null), null))
     }
 
     fun ensureVariantAllocFunc(lib: ASTFile, sealedEnum: SealedEnum, variantStruct: Struct): Function {
@@ -315,28 +318,28 @@ object MemoryLib {
 
             val isEmpty = variantStruct.parameters.isEmpty()
             val payloadExpr = if (!isEmpty) {
-                CallExpression(variantStruct.allocFunc, fn.parameters.map { ParameterExpression(it) })
+                CallExpression(variantStruct.allocFunc, fn.parameters.map { ParameterExpression(it, null) }, null)
             } else {
-                IntLiteral((-tag-1).toBigInteger())
+                IntLiteral((-tag-1).toBigInteger(), null)
             }
             val payloadVar = LocalVariable("compiler@payloadPtr", PrimitiveType.Integer)
             fn.code.localVariables.add(payloadVar)
-            fn.code.code.add(VariableStatement(payloadExpr, payloadVar))
+            fn.code.code.add(VariableStatement(payloadExpr, payloadVar, null))
 
             val enumSize = if (CompilationConstants.REFCOUNT_GC) 3 else 2
-            val allocArgs = mutableListOf<Expression>(IntLiteral(enumSize.toBigInteger()))
+            val allocArgs = mutableListOf<Expression>(IntLiteral(enumSize.toBigInteger(), null))
             if (CompilationConstants.MARK_AND_SWEEP_GC) {
-                allocArgs.add(StringLiteral(findGC(sealedEnum.type).toString()))
+                allocArgs.add(StringLiteral(findGC(sealedEnum.type).toString(), null))
             }
-            allocArgs.add(TemporaryLocalVariableIndexExpression(enumPtrVar))
+            allocArgs.add(TemporaryLocalVariableIndexExpression(enumPtrVar, null))
 
-            fn.code.code.add(VariableStatement(null, enumPtrVar))
-            fn.code.code.add(TemporaryCallStatement(alloc, allocArgs))
+            fn.code.code.add(VariableStatement(null, enumPtrVar, null))
+            fn.code.code.add(TemporaryCallStatement(alloc, allocArgs, null))
 
-            val enumAddr = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(enumPtrVar))
+            val enumAddr = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(enumPtrVar, null), null, null)
 
             if (CompilationConstants.REFCOUNT_GC) {
-                fn.code.code.add(TemporaryHeapSetStatement(enumAddr, IntLiteral(1.toBigInteger())))
+                fn.code.code.add(TemporaryHeapSetStatement(enumAddr, IntLiteral(1.toBigInteger(), null), null))
             }
 
             val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
@@ -345,15 +348,17 @@ object MemoryLib {
             val effectiveTag = if (isEmpty) -tag-1 else tag
 
             fn.code.code.add(TemporaryHeapSetStatement(
-                index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger())),
-                data = IntLiteral(effectiveTag.toBigInteger())
+                index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger(), null), null),
+                data = IntLiteral(effectiveTag.toBigInteger(), null),
+                position = null
             ))
             fn.code.code.add(TemporaryHeapSetStatement(
-                index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger())),
-                data = LocalVariableExpression(payloadVar)
+                index = BinaryExpression(enumAddr, BinaryOperator.ADD, IntLiteral(ptrOffset.toBigInteger(), null), null),
+                data = LocalVariableExpression(payloadVar, null),
+                position = null
             ))
 
-            fn.code.code.add(ReturnStatement(LocalVariableExpression(enumPtrVar)))
+            fn.code.code.add(ReturnStatement(LocalVariableExpression(enumPtrVar, null), null))
             lib.functions.add(fn)
         }
         sealedEnum.allocFuncs[variantStruct] = func

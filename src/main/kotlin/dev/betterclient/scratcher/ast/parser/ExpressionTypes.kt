@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.lib.ArrayLib
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object ExpressionTypes {
     val Expression.type: Type
@@ -104,7 +105,7 @@ object ExpressionTypes {
                 stmt.variable.name.startsWith("compiler@gc_ignored_ret_")
             ) {
                 val type = getExpressionType(stmt.defaultValue)
-                if (type != PrimitiveType.Void) return LocalVariableExpression(stmt.variable)
+                if (type != PrimitiveType.Void) return LocalVariableExpression(stmt.variable, stmt.position)
             }
         }
 
@@ -219,21 +220,22 @@ object ExpressionTypes {
         val returnTypes: MutableList<Type>
     ) : ASTVisitor() {
         override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
-        override fun visitReturnStatement(expression: Expression?): Statement? {
+        override fun visitReturnStatement(expression: Expression?, position: Position?): Statement? {
             if (expression != null) {
                 returnTypes.add(getExpressionType(expression))
             } else {
                 returnTypes.add(PrimitiveType.Void)
             }
-            return super.visitReturnStatement(expression)
+            return super.visitReturnStatement(expression, position)
         }
 
         override fun visitLambdaExpression(
             block: CodeBlock,
             arguments: List<LocalVariable>,
-            captured: MutableSet<LocalVariable>
+            captured: MutableSet<LocalVariable>,
+            position: Position?
         ): Expression {
-            return LambdaExpression(arguments, block, captured) //don't visit block
+            return LambdaExpression(arguments, block, captured, position) //don't visit block
         }
     }
 }

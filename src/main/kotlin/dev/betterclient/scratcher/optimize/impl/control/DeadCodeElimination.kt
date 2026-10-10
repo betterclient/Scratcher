@@ -19,6 +19,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination.hasSideEffects
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object DeadCodeElimination : Optimization("Dead code elimination") {
     override fun apply(
@@ -29,21 +30,25 @@ object DeadCodeElimination : Optimization("Dead code elimination") {
         var modified = false
 
         visit(func, object : ASTVisitor() {
-            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {
+            override fun visitIfStatement(
+                condition: Expression,
+                thenBlock: CodeBlock,
+                position: Position?
+            ): Statement? {
                 if (condition is BooleanLiteral) {
                     modified = true
                     return if (condition.value) {
                         //inline
-                        CompositeStatement(thenBlock.code)
+                        CompositeStatement(thenBlock.code, position)
                     } else {
                         null
                     }
                 }
 
-                return super.visitIfStatement(condition, thenBlock)
+                return super.visitIfStatement(condition, thenBlock, position)
             }
 
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 if (condition is BooleanLiteral) {
                     if (!condition.value) {
                         modified = true
@@ -51,36 +56,37 @@ object DeadCodeElimination : Optimization("Dead code elimination") {
                     }
                 }
 
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, position)
             }
 
             override fun visitIfElseStatement(
                 condition: Expression,
                 thenBlock: CodeBlock,
-                elseBlock: CodeBlock
+                elseBlock: CodeBlock,
+                position: Position?
             ): Statement? {
                 if (condition is BooleanLiteral) {
                     modified = true
                     return if (condition.value) {
-                        CompositeStatement(thenBlock.code)
+                        CompositeStatement(thenBlock.code, position)
                     } else {
-                        CompositeStatement(elseBlock.code)
+                        CompositeStatement(elseBlock.code, position)
                     }
                 }
 
-                return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+                return super.visitIfElseStatement(condition, thenBlock, elseBlock, position)
             }
 
-            override fun visitExpressionStatement(expression: Expression): Statement? {
+            override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
                 if (expression is StatementExpression) {
                     modified = true
                     val stmts = expression.statements.toMutableList()
                     if (hasSideEffects(expression.expression)) {
-                        stmts.add(ExpressionStatement(expression.expression))
+                        stmts.add(ExpressionStatement(expression.expression, position))
                     }
-                    return CompositeStatement(stmts)
+                    return CompositeStatement(stmts, position)
                 }
-                return super.visitExpressionStatement(expression)
+                return super.visitExpressionStatement(expression, position)
             }
         })
 

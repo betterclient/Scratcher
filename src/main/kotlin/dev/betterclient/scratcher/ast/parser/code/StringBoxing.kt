@@ -21,7 +21,7 @@ object StringBoxing {
         val exprType = ExpressionTypes.getExpressionType(expr)
 
         if (expectedType.asNonNull().toString() == "str" && expectedType is NullableType && exprType == PrimitiveType.Str) {
-            return CallExpression(stringBoxStruct.allocFunc, listOf(expr))
+            return CallExpression(stringBoxStruct.allocFunc, listOf(expr), expr.position)
         }
         return expr
     }
@@ -36,25 +36,28 @@ object StringBoxing {
             exprType.asNonNull().toString() == "str") {
 
             val temp = LocalVariable("unbox@${getUniqueName()}", exprType)
-            val boxRef = LocalVariableExpression(temp)
+            val pos = expr.position
+            val boxRef = LocalVariableExpression(temp, pos)
 
             return WhenExpression(
-                subject = VariableStatement(expr, temp),
+                subject = VariableStatement(expr, temp, pos),
                 branches = listOf(
                     WhenBranch(
-                        cond = BinaryExpression(boxRef, BinaryOperator.EQUAL, NullExpression),
+                        cond = BinaryExpression(boxRef, BinaryOperator.EQUAL, NullExpression, position = pos),
                         block = CodeBlock().also {
-                            it.code.add(ExpressionStatement(StringLiteral("null")))
-                        }
+                            it.code.add(ExpressionStatement(StringLiteral("null", position = pos), position = pos))
+                        }, position = pos
                     ),
                     WhenBranch(
-                        cond = BooleanLiteral(true),
+                        cond = BooleanLiteral(true, position = pos),
                         block = CodeBlock().also {
-                            it.code.add(ExpressionStatement(NonNullAssertExpression(boxRef)))
+                            it.code.add(ExpressionStatement(NonNullAssertExpression(boxRef, position = pos), position = pos))
                         },
-                        isElse = true
+                        isElse = true,
+                        position = pos
                     )
-                )
+                ),
+                pos
             )
         }
 

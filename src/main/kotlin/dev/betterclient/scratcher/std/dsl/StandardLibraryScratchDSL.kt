@@ -194,21 +194,21 @@ fun <T> compileInline(
             val prependList = mutableListOf<Statement>()
 
             if (prepend != null) {
-                prependList.add(TemporaryScratchStmt(args) { scratchArgs ->
+                prependList.add(TemporaryScratchStmt(args, position = null, stmt = { scratchArgs ->
                     val statements = prepend(scratchArgs)
                     statements
-                })
+                }))
             }
 
             if (returnType == PrimitiveType.Void) {
-                val stmt = TemporaryScratchStmt(args) { scratchArgs ->
+                val stmt = TemporaryScratchStmt(args, position = null, stmt = { scratchArgs ->
                     listOf(block(scratchArgs) as ScratchStatement)
-                }
+                })
                 ExpressionLowerResult(expression = null, prepend = prependList + stmt)
             } else {
-                val expr = TemporaryScratchExpr(args) { scratchArgs ->
+                val expr = TemporaryScratchExpr(args, position = null, expression = { scratchArgs ->
                     block(scratchArgs) as ScratchExpression
-                }
+                })
                 ExpressionLowerResult(expression = expr, prepend = prependList)
             }
         },

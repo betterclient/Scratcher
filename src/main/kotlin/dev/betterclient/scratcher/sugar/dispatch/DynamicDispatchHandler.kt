@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 object DynamicDispatchHandler : CompilerSugar() {
@@ -31,7 +32,8 @@ object DynamicDispatchHandler : CompilerSugar() {
             override fun visitDynamicCallExpression(
                 function: Expression,
                 args: List<Expression>,
-                type: FunctionType
+                type: FunctionType,
+                position: Position?
             ): Expression {
                 val dispatcher = dispatchers.entries.find { (literalType, _) ->
                     literalType.isAssignable(type)
@@ -39,12 +41,16 @@ object DynamicDispatchHandler : CompilerSugar() {
 
                 return CallExpression(
                     func = dispatcher.dispatcher,
-                    arguments = listOf(function) + args
+                    arguments = listOf(function) + args,
+                    position = position
                 )
             }
 
-            override fun visitFunctionLiteral(func: Function): Expression {
-                return IntLiteral(dispatchers[FunctionType.from(func)]!!.targets.indexOf(func).toBigInteger())
+            override fun visitFunctionLiteral(func: Function, position: Position?): Expression {
+                return IntLiteral(
+                    dispatchers[FunctionType.from(func)]!!.targets.indexOf(func).toBigInteger(),
+                    position
+                )
             }
         })
     }
@@ -82,9 +88,9 @@ object DynamicDispatchHandler : CompilerSugar() {
 
     private fun countLiterals(func: Function, out: MutableMap<FunctionType, MutableSet<Function>>) {
         visit(func, object : ASTVisitor() {
-            override fun visitFunctionLiteral(func: Function): Expression {
+            override fun visitFunctionLiteral(func: Function, position: Position?): Expression {
                 out.computeIfAbsent(FunctionType.from(func)) { mutableSetOf() }.add(func)
-                return super.visitFunctionLiteral(func)
+                return super.visitFunctionLiteral(func, position)
             }
         })
     }
@@ -97,14 +103,19 @@ object DynamicDispatchHandler : CompilerSugar() {
         hi: BigInteger = literals.lastIndex.toBigInteger()
     ): List<Statement> {
         if (lo == hi) {
-            return if(literals[lo.toInt()].returnType == PrimitiveType.Void) {
+            val call = CallExpression(
+                literals[lo.toInt()],
+                args.map { ParameterExpression(it, null) },
+                null
+            )
+            return if (literals[lo.toInt()].returnType == PrimitiveType.Void) {
                 listOf(
-                    ExpressionStatement(CallExpression(literals[lo.toInt()], args.map { ParameterExpression(it) })),
-                    ReturnStatement(null)
+                    ExpressionStatement(call, null),
+                    ReturnStatement(null, null)
                 )
             } else {
                 listOf(
-                    ReturnStatement(CallExpression(literals[lo.toInt()], args.map { ParameterExpression(it) }))
+                    ReturnStatement(call, null)
                 )
             }
         }
@@ -114,16 +125,18 @@ object DynamicDispatchHandler : CompilerSugar() {
         return listOf(
             IfElseStatement(
                 condition = BinaryExpression(
-                    left = ParameterExpression(indexToFind),
-                    right = IntLiteral(mid),
-                    operator = BinaryOperator.LESS_EQUAL
+                    left = ParameterExpression(indexToFind, null),
+                    right = IntLiteral(mid, null),
+                    operator = BinaryOperator.LESS_EQUAL,
+                    position = null
                 ),
                 thenBlock = CodeBlock().also {
                     it.code.addAll(generateTree(literals, indexToFind, args, lo, mid))
                 },
                 elseBlock = CodeBlock().also {
                     it.code.addAll(generateTree(literals, indexToFind, args, mid + BigInteger.ONE, hi))
-                }
+                },
+                position = null
             )
         )
     }

@@ -12,6 +12,7 @@ import dev.betterclient.scratcher.ast.TLVariable
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class FunctionReachability(val entrypoints: List<ASTEventListener>) {
 
@@ -39,86 +40,89 @@ class FunctionReachability(val entrypoints: List<ASTEventListener>) {
         val visitor = object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock): VisitMode = VisitMode.READ_ONLY
 
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
                 enqueueFunction(func)
-                return super.visitCallExpression(func, args)
+                return super.visitCallExpression(func, args, position)
             }
 
-            override fun visitFunctionLiteral(func: Function): Expression {
+            override fun visitFunctionLiteral(func: Function, position: Position?): Expression {
                 enqueueFunction(func)
-                return super.visitFunctionLiteral(func)
+                return super.visitFunctionLiteral(func, position)
             }
 
             override fun visitTLVariableAssignmentStatement(
                 variable: TLVariable,
                 sourceAST: ASTFile,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 enqueueVariable(variable)
-                return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment)
+                return super.visitTLVariableAssignmentStatement(variable, sourceAST, assignment, position)
             }
 
-            override fun visitVariableExpression(variable: TLVariable, sourceAST: ASTFile): Expression {
+            override fun visitVariableExpression(variable: TLVariable, sourceAST: ASTFile, position: Position?): Expression {
                 enqueueVariable(variable)
-                return super.visitVariableExpression(variable, sourceAST)
+                return super.visitVariableExpression(variable, sourceAST, position)
             }
 
-            override fun visitStaticListAddStatement(list: TLStaticList, item: Expression): Statement? {
+            override fun visitStaticListAddStatement(list: TLStaticList, item: Expression, position: Position?): Statement? {
                 reachableLists.add(list)
-                return super.visitStaticListAddStatement(list, item)
+                return super.visitStaticListAddStatement(list, item, position)
             }
 
-            override fun visitStaticListClearStatement(list: TLStaticList): Statement? {
+            override fun visitStaticListClearStatement(list: TLStaticList, position: Position?): Statement? {
                 reachableLists.add(list)
-                return super.visitStaticListClearStatement(list)
+                return super.visitStaticListClearStatement(list, position)
             }
 
-            override fun visitStaticListContainsExpression(list: TLStaticList, item: Expression): Expression {
+            override fun visitStaticListContainsExpression(list: TLStaticList, item: Expression, position: Position?): Expression {
                 reachableLists.add(list)
-                return super.visitStaticListContainsExpression(list, item)
+                return super.visitStaticListContainsExpression(list, item, position)
             }
 
             override fun visitStaticListInsertStatement(
                 list: TLStaticList,
                 index: Expression,
-                value: Expression
+                value: Expression,
+                position: Position?
             ): Statement? {
                 reachableLists.add(list)
-                return super.visitStaticListInsertStatement(list, index, value)
+                return super.visitStaticListInsertStatement(list, index, value, position)
             }
 
-            override fun visitStaticListItemExpression(list: TLStaticList, item: Expression): Expression {
+            override fun visitStaticListItemExpression(list: TLStaticList, item: Expression, position: Position?): Expression {
                 reachableLists.add(list)
-                return super.visitStaticListItemExpression(list, item)
+                return super.visitStaticListItemExpression(list, item, position)
             }
 
-            override fun visitStaticListItemIndexExpression(list: TLStaticList, item: Expression): Expression {
+            override fun visitStaticListItemIndexExpression(list: TLStaticList, item: Expression, position: Position?): Expression {
                 reachableLists.add(list)
-                return super.visitStaticListItemIndexExpression(list, item)
+                return super.visitStaticListItemIndexExpression(list, item, position)
             }
 
-            override fun visitStaticListLengthExpression(list: TLStaticList): Expression {
+            override fun visitStaticListLengthExpression(list: TLStaticList, position: Position?): Expression {
                 reachableLists.add(list)
-                return super.visitStaticListLengthExpression(list)
+                return super.visitStaticListLengthExpression(list, position)
             }
 
-            override fun visitStaticListRemoveStatement(list: TLStaticList, index: Expression): Statement? {
+            override fun visitStaticListRemoveStatement(list: TLStaticList, index: Expression, position: Position?): Statement? {
                 reachableLists.add(list)
-                return super.visitStaticListRemoveStatement(list, index)
+                return super.visitStaticListRemoveStatement(list, index, position)
             }
 
             override fun visitStaticListSetStatement(
                 list: TLStaticList,
                 index: Expression,
-                item: Expression
+                item: Expression,
+                position: Position?
             ): Statement? {
                 reachableLists.add(list)
-                return super.visitStaticListSetStatement(list, index, item)
+                return super.visitStaticListSetStatement(list, index, item, position)
             }
 
-            override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>): Statement? {
+            override fun visitTemporaryCallStatement(func: Function, args: MutableList<Expression>, position: Position?): Statement? {
                 enqueueFunction(func)
-                return super.visitTemporaryCallStatement(func, args)
+                return super.visitTemporaryCallStatement(func, args, position)
             }
         }
 

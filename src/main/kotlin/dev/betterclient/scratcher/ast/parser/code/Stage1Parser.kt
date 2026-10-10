@@ -50,7 +50,8 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
         ast.eventListeners.forEach { listener ->
             listener.ctx?.let {
                 listener.code.code.add(ExpressionStatement(
-                    CallExpression(it, mutableListOf())
+                    CallExpression(it, mutableListOf(), listener.position),
+                    listener.position
                 ))
             }
         }

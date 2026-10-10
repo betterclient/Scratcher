@@ -5,6 +5,7 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 class LambdaCaptureAnalysis : ASTVisitor() {
     private val scopeStack = ArrayDeque<Scope>()
@@ -28,44 +29,42 @@ class LambdaCaptureAnalysis : ASTVisitor() {
         return super.visitCodeBlock(block)
     }
 
-    override fun visitParameterExpression(parameter: Parameter): Expression {
-        return super.visitParameterExpression(parameter)
-    }
-
-    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+    override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable, position: Position?): Statement? {
         scopeStack.lastOrNull()?.declaredLocals?.add(variable)
-        return super.visitVariableStatement(defaultValue, variable)
+        return super.visitVariableStatement(defaultValue, variable, position)
     }
 
     override fun visitLambdaExpression(
         block: CodeBlock,
         arguments: List<LocalVariable>,
-        captured: MutableSet<LocalVariable>
+        captured: MutableSet<LocalVariable>,
+        position: Position?
     ): Expression {
         captured.clear()
 
-        val lambdaScope = Scope(LambdaExpression(arguments, block, captured))
+        val lambdaScope = Scope(LambdaExpression(arguments, block, captured, position))
         lambdaScope.declaredLocals.addAll(arguments)
         lambdaScope.declaredLocals.addAll(block.localVariables)
 
         scopeStack.addLast(lambdaScope)
-        super.visitLambdaExpression(block, arguments, captured)
+        super.visitLambdaExpression(block, arguments, captured, position)
         scopeStack.removeLast()
 
-        return LambdaExpression(arguments, block, captured)
+        return LambdaExpression(arguments, block, captured, position)
     }
 
-    override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+    override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
         recordVariableAccess(variable)
-        return super.visitLocalVariableExpression(variable)
+        return super.visitLocalVariableExpression(variable, position)
     }
 
     override fun visitLocalVariableAssignmentStatement(
         variable: LocalVariable,
-        assignment: Expression
+        assignment: Expression,
+        position: Position?
     ): Statement? {
         recordVariableAccess(variable)
-        return super.visitLocalVariableAssignmentStatement(variable, assignment)
+        return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
     }
 
     private fun recordVariableAccess(variable: LocalVariable) {

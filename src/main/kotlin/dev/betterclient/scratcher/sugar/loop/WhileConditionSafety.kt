@@ -9,29 +9,30 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.simple
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 
 //extract non-simple while conditions to a helper variable
 object WhileConditionSafety : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {
         visit(func, object : ASTVisitor() {
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 if (!condition.simple) {
                     //extract to variable
                     val whileCond = LocalVariable("while_condition_${getUniqueName()}", PrimitiveType.Bool)
                     addStatements(listOf(
-                        VariableStatement(condition, whileCond)
+                        VariableStatement(condition, whileCond, position)
                     ))
 
                     block.code.addLast(
                         LocalVariableAssignmentStatement(
-                            whileCond, condition
+                            whileCond, condition, position
                         )
                     )
 
-                    return WhileStatement(LocalVariableExpression(whileCond), block)
+                    return WhileStatement(LocalVariableExpression(whileCond, position), block, position)
                 }
 
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, position)
             }
         })
     }

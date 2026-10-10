@@ -8,6 +8,7 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object DeadStoreElimination : Optimization("Dead store elimination") {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext): Boolean {
@@ -18,41 +19,49 @@ object DeadStoreElimination : Optimization("Dead store elimination") {
         visit(func, object : ASTVisitor() {
             override fun shouldVisitCodeBlock(block: CodeBlock) = VisitMode.READ_ONLY
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 readCounts[variable] = (readCounts[variable] ?: 0) + 1
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitTemporaryLocalVariableIndexExpression(variable: LocalVariable): Expression {
+            override fun visitTemporaryLocalVariableIndexExpression(
+                variable: LocalVariable,
+                position: Position?
+            ): Expression {
                 readCounts[variable] = (readCounts[variable] ?: 0) + 1
-                return super.visitTemporaryLocalVariableIndexExpression(variable)
+                return super.visitTemporaryLocalVariableIndexExpression(variable, position)
             }
         })
 
         visit(func, object : ASTVisitor() {
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 if ((readCounts[variable] ?: 0) == 0) {
                     modified = true
                     if (defaultValue != null && hasSideEffects(defaultValue)) {
-                        return ExpressionStatement(defaultValue)
+                        return ExpressionStatement(defaultValue, position)
                     }
                     return null
                 }
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 if ((readCounts[variable] ?: 0) == 0) {
                     modified = true
                     if (hasSideEffects(assignment)) {
-                        return ExpressionStatement(assignment)
+                        return ExpressionStatement(assignment, position)
                     }
                     return null
                 }
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
         })
 

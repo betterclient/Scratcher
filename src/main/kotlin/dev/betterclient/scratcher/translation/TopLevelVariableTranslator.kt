@@ -33,11 +33,11 @@ class TopLevelVariableTranslator {
         vars.forEach { (variable, value) -> func.code.code.add(assign(variable, value)) }
 
         reachableLists.filter { it.scratchList.items.isEmpty() }
-            .forEach { func.code.code.add(StaticListClearStatement(it)) }
+            .forEach { func.code.code.add(StaticListClearStatement(it, null)) }
 
         return func
     }
 
     private fun assign(variable: TLVariable, value: Expression?) =
-        TLVariableAssignmentStatement(variable, variable.sourceAST, value ?: StringLiteral("null"))
+        TLVariableAssignmentStatement(variable, variable.sourceAST, value ?: StringLiteral("null", null), null)
 }

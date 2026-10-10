@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
 object RemoveRedundantHeapStores {
@@ -39,10 +40,14 @@ object RemoveRedundantHeapStores {
             return super.visitCodeBlock(block)
         }
 
-        override fun visitStatementExpression(statements: List<Statement>, expression: Expression): Expression {
+        override fun visitStatementExpression(
+            statements: List<Statement>,
+            expression: Expression,
+            position: Position?
+        ): Expression {
             val mutable = statements.toMutableList()
             removeInList(mutable)
-            return StatementExpression(mutable, expression)
+            return StatementExpression(mutable, expression, position)
         }
 
         private fun removeInList(code: MutableList<Statement>) {

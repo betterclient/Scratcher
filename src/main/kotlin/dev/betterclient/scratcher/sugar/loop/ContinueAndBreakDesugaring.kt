@@ -29,6 +29,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 import java.util.Stack
 
 object ContinueAndBreakDesugaring : CompilerSugar() {
@@ -44,21 +45,21 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
                 }
             }
 
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 //after
                 val myState = loopState.pop()
 
                 if (myState.hasSkipVar) {
                     addStatements(listOf(
-                        VariableStatement(BooleanLiteral(false), myState.doneVar),
-                        VariableStatement(BooleanLiteral(true), myState.skipVar),
+                        VariableStatement(BooleanLiteral(false, null), myState.doneVar, null),
+                        VariableStatement(BooleanLiteral(true, null), myState.skipVar, null),
                     ))
 
                     val wrappedCode = wrap(block.code, myState.skipVar)
                     block.code.clear()
                     block.code.addAll(wrappedCode)
 
-                    block.code.add(0, LocalVariableAssignmentStatement(myState.skipVar, BooleanLiteral(false)))
+                    block.code.add(0, LocalVariableAssignmentStatement(myState.skipVar, BooleanLiteral(false, null), null))
 
                     return super.visitWhileStatement(
                         condition = BinaryExpression(
@@ -66,44 +67,45 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
                             operator = BinaryOperator.AND,
                             right = UnaryExpression(
                                 operator = UnaryOperator.NOT,
-                                expression = LocalVariableExpression(myState.doneVar)
-                            )
+                                expression = LocalVariableExpression(myState.doneVar, null), null
+                            ), null
                         ),
-                        block = block
+                        block = block, null
                     )
                 }
 
                 //no continue or break, keep normal loop
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, null)
             }
 
-            override fun visitBreakStatement(): Statement {
+            override fun visitBreakStatement(position: Position?): Statement {
                 val state = loopState.last()
                 state.hasSkipVar = true
                 return CompositeStatement(listOf(
-                    LocalVariableAssignmentStatement(state.doneVar, BooleanLiteral(true)),
-                    LocalVariableAssignmentStatement(state.skipVar, BooleanLiteral(true))
-                ))
+                    LocalVariableAssignmentStatement(state.doneVar, BooleanLiteral(true, null), null),
+                    LocalVariableAssignmentStatement(state.skipVar, BooleanLiteral(true, null), null)
+                ), null)
             }
 
-            override fun visitContinueStatement(): Statement {
+            override fun visitContinueStatement(position: Position?): Statement {
                 val state = loopState.last()
                 state.hasSkipVar = true
                 return LocalVariableAssignmentStatement(
                     state.skipVar,
-                    BooleanLiteral(true)
+                    BooleanLiteral(true, null), null
                 )
             }
 
             override fun visitLambdaExpression(
                 block: CodeBlock,
                 arguments: List<LocalVariable>,
-                captured: MutableSet<LocalVariable>
+                captured: MutableSet<LocalVariable>,
+                position: Position?
             ): Expression {
                 val enclosingStates = loopState.toList()
                 loopState.clear()
                 return try {
-                    LambdaExpression(arguments, visitCodeBlock(block), captured)
+                    LambdaExpression(arguments, visitCodeBlock(block), captured, null)
                 } finally {
                     loopState.addAll(enclosingStates)
                 }
@@ -124,18 +126,18 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
 
         for (stmt in statements) {
             val processedStmt = when (stmt) {
-                is ExpressionStatement -> ExpressionStatement(processExpression(stmt.expression, skipVar))
+                is ExpressionStatement -> ExpressionStatement(processExpression(stmt.expression, skipVar), null)
                 is IfStatement -> IfStatement(
                     stmt.condition,
-                    CodeBlock(wrap(stmt.thenBlock.code, skipVar).toMutableList())
+                    CodeBlock(wrap(stmt.thenBlock.code, skipVar).toMutableList()), null
                 )
                 is IfElseStatement -> IfElseStatement(
                     stmt.condition,
                     CodeBlock(wrap(stmt.thenBlock.code, skipVar).toMutableList()),
-                    CodeBlock(wrap(stmt.elseBlock.code, skipVar).toMutableList())
+                    CodeBlock(wrap(stmt.elseBlock.code, skipVar).toMutableList()), null
                 )
                 is CompositeStatement -> CompositeStatement(
-                    wrap(stmt.statements, skipVar)
+                    wrap(stmt.statements, skipVar), null
                 )
                 else -> stmt
             }
@@ -153,8 +155,8 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
         if (currentDeferred.isNotEmpty()) {
             val processedDeferred = wrap(currentDeferred, skipVar)
             val innerBlock = CodeBlock(processedDeferred.toMutableList())
-            val condition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(skipVar))
-            rewrittenStatements.add(IfStatement(condition, innerBlock))
+            val condition = UnaryExpression(UnaryOperator.NOT, LocalVariableExpression(skipVar, null), null)
+            rewrittenStatements.add(IfStatement(condition, innerBlock, null))
         }
 
         return rewrittenStatements
@@ -168,13 +170,13 @@ object ContinueAndBreakDesugaring : CompilerSugar() {
                     WhenBranch(
                         branch.cond,
                         CodeBlock(wrap(branch.block.code, skipVar).toMutableList()),
-                        branch.isElse
+                        branch.isElse, null
                     )
-                }
+                }, null
             )
             is StatementExpression -> StatementExpression(
                 wrap(expression.statements, skipVar),
-                processExpression(expression.expression, skipVar)
+                processExpression(expression.expression, skipVar), null
             )
             else -> expression
         }

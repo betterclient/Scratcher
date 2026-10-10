@@ -6,6 +6,7 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.*
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object PromoteToGlobals : Optimization("Promote to globals") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
@@ -40,7 +41,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
         }
 
         visit(func, object : ASTVisitor() {
-            override fun visitExpressionStatement(expression: Expression): Statement? {
+            override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
                 if (expression is CallExpression &&
                     (expression.func.name.startsWith("dec@") || expression.func.name.startsWith("decList@")) &&
                     expression.arguments.size == 1
@@ -50,37 +51,42 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                         return null
                     }
                 }
-                return super.visitExpressionStatement(expression)
+                return super.visitExpressionStatement(expression, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 globals[variable]?.let {
-                    return TLVariableAssignmentStatement(it, it.sourceAST, assignment)
+                    return TLVariableAssignmentStatement(it, it.sourceAST, assignment, position)
                 }
 
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 globals[variable]?.let {
-                    return VariableExpression(it, it.sourceAST)
+                    return VariableExpression(it, it.sourceAST, position)
                 }
 
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 globals[variable]?.let { variable ->
                     defaultValue?.let {
-                        return TLVariableAssignmentStatement(variable, variable.sourceAST, it)
+                        return TLVariableAssignmentStatement(variable, variable.sourceAST, it, position)
                     }
                     return null
                 }
 
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
         })
 
@@ -111,34 +117,39 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 manuallyVisiting.remove(block)
             }
 
-            override fun visitVariableStatement(defaultValue: Expression?, variable: LocalVariable): Statement? {
+            override fun visitVariableStatement(
+                defaultValue: Expression?,
+                variable: LocalVariable,
+                position: Position?
+            ): Statement? {
                 if (defaultValue != null) {
                     variableStates[variable] = VariableState.DIRTY
                 }
 
-                return super.visitVariableStatement(defaultValue, variable)
+                return super.visitVariableStatement(defaultValue, variable, position)
             }
 
             override fun visitLocalVariableAssignmentStatement(
                 variable: LocalVariable,
-                assignment: Expression
+                assignment: Expression,
+                position: Position?
             ): Statement? {
                 if (variableStates[variable] != VariableState.UNSAFE) {
                     variableStates[variable] = VariableState.DIRTY
                 }
 
-                return super.visitLocalVariableAssignmentStatement(variable, assignment)
+                return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
             }
 
-            override fun visitLocalVariableExpression(variable: LocalVariable): Expression {
+            override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
                 if(variableStates[variable] == VariableState.USED) {
                     variableStates[variable] = VariableState.UNSAFE
                 }
 
-                return super.visitLocalVariableExpression(variable)
+                return super.visitLocalVariableExpression(variable, position)
             }
 
-            override fun visitCallExpression(func: Function, args: List<Expression>): Expression {
+            override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
                 if (OptimizationUtils.hasCalls(current, func, graph)) {
                     //recursive!
                     variableStates.replaceAll { _, state ->
@@ -148,10 +159,14 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                     }
                 }
 
-                return super.visitCallExpression(func, args)
+                return super.visitCallExpression(func, args, position)
             }
 
-            override fun visitWhenExpr(branches: List<WhenBranch>, subject: Statement?): Expression {
+            override fun visitWhenExpr(
+                branches: List<WhenBranch>,
+                subject: Statement?,
+                position: Position?
+            ): Expression {
                 subject?.let { visit(it) }
 
                 val preWhenStates = variableStates.toMap()
@@ -176,10 +191,14 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                     variableStates.putAll(preWhenStates)
                 }
 
-                return WhenExpression(subject, branches)
+                return WhenExpression(subject, branches, position)
             }
 
-            override fun visitIfStatement(condition: Expression, thenBlock: CodeBlock): Statement? {
+            override fun visitIfStatement(
+                condition: Expression,
+                thenBlock: CodeBlock,
+                position: Position?
+            ): Statement? {
                 val pre = variableStates.toMap()
                 visitBlockManually(thenBlock)
                 merge(pre, variableStates).let {
@@ -187,10 +206,15 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                     variableStates.putAll(it)
                 }
 
-                return super.visitIfStatement(condition, thenBlock)
+                return super.visitIfStatement(condition, thenBlock, position)
             }
 
-            override fun visitIfElseStatement(condition: Expression, thenBlock: CodeBlock, elseBlock: CodeBlock): Statement? {
+            override fun visitIfElseStatement(
+                condition: Expression,
+                thenBlock: CodeBlock,
+                elseBlock: CodeBlock,
+                position: Position?
+            ): Statement? {
                 val preBranchStates = variableStates.toMap()
 
                 visitBlockManually(thenBlock)
@@ -204,10 +228,10 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 variableStates.clear()
                 variableStates.putAll(merge(thenStates, elseStates))
 
-                return super.visitIfElseStatement(condition, thenBlock, elseBlock)
+                return super.visitIfElseStatement(condition, thenBlock, elseBlock, position)
             }
 
-            override fun visitWhileStatement(condition: Expression, block: CodeBlock): Statement? {
+            override fun visitWhileStatement(condition: Expression, block: CodeBlock, position: Position?): Statement? {
                 val preLoopStates = variableStates.toMap()
 
                 visitBlockManually(block)
@@ -224,7 +248,7 @@ object PromoteToGlobals : Optimization("Promote to globals") {
 
                 visit(condition)
 
-                return super.visitWhileStatement(condition, block)
+                return super.visitWhileStatement(condition, block, position)
             }
         })
 

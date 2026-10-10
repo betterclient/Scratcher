@@ -27,6 +27,7 @@ import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.sugar.CompilerSugar
+import org.antlr.v4.kotlinruntime.ast.Position
 
 object SafeNullOperations : CompilerSugar() {
     override fun apply(
@@ -35,23 +36,29 @@ object SafeNullOperations : CompilerSugar() {
         context: CompilationContext
     ) {
         visit(func, object : ASTVisitor() {
-            override fun visitSafeDotExpression(target: Expression, member: Parameter, struct: Struct): Expression {
+            override fun visitSafeDotExpression(
+                target: Expression,
+                member: Parameter,
+                struct: Struct,
+                position: Position?
+            ): Expression {
                 val targetType = ExpressionTypes.getExpressionType(target)
                 if (targetType !is NullableType)
-                    return MemberExpression(target, member, struct)
+                    return MemberExpression(target, member, struct, position)
 
                 val targetVar = LocalVariable("safedot@target@${getUniqueName()}", targetType)
                 val resultVar = LocalVariable("safedot@${getUniqueName()}", member.type.asNullable())
 
                 return StatementExpression(
                     statements = listOf(
-                        VariableStatement(target, targetVar),
-                        VariableStatement(NullExpression, resultVar),
+                        VariableStatement(target, targetVar, position),
+                        VariableStatement(NullExpression, resultVar, position),
                         IfStatement(
                             condition = BinaryExpression(
                                 left = NullExpression,
-                                right = LocalVariableExpression(targetVar),
-                                operator = BinaryOperator.NOT_EQUAL
+                                right = LocalVariableExpression(targetVar, position),
+                                operator = BinaryOperator.NOT_EQUAL,
+                                position = position
                             ),
                             thenBlock = CodeBlock().also {
                                 //target != null
@@ -60,22 +67,30 @@ object SafeNullOperations : CompilerSugar() {
                                         variable = resultVar,
                                         assignment = StringBoxing.autoConvert(
                                             expr = MemberExpression(
-                                                expression = LocalVariableExpression(targetVar),
+                                                expression = LocalVariableExpression(targetVar, position),
                                                 member = member,
-                                                struct = struct
+                                                struct = struct,
+                                                position = position
                                             ),
                                             expectedType = member.type.asNullable()
-                                        )
+                                        ),
+                                        position = position
                                     )
                                 )
-                            }
+                            },
+                            position = position
                         )
                     ),
-                    expression = LocalVariableExpression(resultVar)
+                    expression = LocalVariableExpression(resultVar, position),
+                    position = position
                 )
             }
 
-            override fun visitNonNullOrElseExpression(operand1: Expression, operand2: Expression): Expression {
+            override fun visitNonNullOrElseExpression(
+                operand1: Expression,
+                operand2: Expression,
+                position: Position?
+            ): Expression {
                 if (operand1 == NullExpression) return visit(operand2)
                 val op2Visited = visit(operand2)
                 if (op2Visited == NullExpression) return operand1
@@ -97,25 +112,29 @@ object SafeNullOperations : CompilerSugar() {
                 val lhs = LocalVariable("elvis@lhs@${getUniqueName()}", targetType)
                 return StatementExpression(
                     statements = listOf(
-                        VariableStatement(operand1, lhs),
+                        VariableStatement(operand1, lhs, position),
                         IfStatement(
                             condition = BinaryExpression(
-                                left = LocalVariableExpression(lhs),
+                                left = LocalVariableExpression(lhs, position),
                                 right = NullExpression,
-                                operator = BinaryOperator.EQUAL
+                                operator = BinaryOperator.EQUAL,
+                                position = position
                             ),
                             thenBlock = CodeBlock().also {
                                 //operand1 == null
                                 it.code.add(
                                     LocalVariableAssignmentStatement(
                                         variable = lhs,
-                                        assignment = StringBoxing.autoConvert(op2Visited, targetType)
+                                        assignment = StringBoxing.autoConvert(op2Visited, targetType),
+                                        position = position
                                     )
                                 )
-                            }
+                            },
+                            position = position
                         )
                     ),
-                    expression = LocalVariableExpression(lhs)
+                    expression = LocalVariableExpression(lhs, position),
+                    position = position
                 )
             }
         })
