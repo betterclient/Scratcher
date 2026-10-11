@@ -1,6 +1,7 @@
 package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
@@ -13,15 +14,13 @@ fun JSONArray.toObjectArray(): List<JSONObject> {
     return out
 }
 
-fun Random.rand(): String {
-    var out = ""
-    val possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?"
-
-    for (i in 0..CompilationConstants.NON_MINIFICATION_LENGTH) {
-        out += possible.random(this)
+fun Random.rand(length: Int): String {
+    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?"
+    return buildString {
+        repeat(length) {
+            append(alphabet.random(this@rand))
+        }
     }
-
-    return out
 }
 
 private var counter = 9999L
@@ -41,17 +40,16 @@ fun newMinification(): String {
     return sb.reverse().toString()
 }
 
-inline fun obfuscate(nonObfuscatedName: String): String {
-    return if (CompilationConstants.OBFUSCATION) {
+fun obfuscate(nonObfuscatedName: String): String {
+    return if (CompilationContext.options.obfuscation.enabled) {
         getUniqueName()
     } else nonObfuscatedName
 }
 
-inline fun getUniqueName(): String {
-    return if (CompilationConstants.OBFUSCATION_MINIFICATION) {
-        newMinification()
-    } else {
-        Random.rand()
+fun getUniqueName(): String {
+    return when(val strategy = CompilationContext.options.obfuscation.namingStrategy) {
+        NamingStrategy.Minify -> newMinification()
+        is NamingStrategy.Random -> Random.rand(strategy.length)
     }
 }
 

@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.codegen.opcode.StopMode
@@ -27,7 +27,7 @@ class ScratchFunctionTranslator(
             is TemporaryCallStatement -> {
                 if (stmt.func == ArrayLib.newArray) {
                     val elementType = (stmt.args[0] as TypeLiteral).type
-                    val gcString = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    val gcString = if (CompilationContext.options.gc.markAndSweepGC) {
                         val lCount = elementType.toString().count { it == '[' } + 1
                         "${"l".repeat(lCount)}${findGC(elementType)}"
                     } else null
@@ -191,7 +191,7 @@ class ScratchFunctionTranslator(
     }
 
     private fun translateBinaryExpression(expr: BinaryExpression): ScratchExpression {
-        if (CompilationConstants.TURBOWARP) {
+        if (CompilationContext.options.experimental.turbowarp) {
             when (expr.operator) {
                 BinaryOperator.GREATER_EQUAL -> return TurboWarpBoolExpressions.MathMoreOrEqual(
                     translateExpr(expr.left), translateExpr(expr.right)

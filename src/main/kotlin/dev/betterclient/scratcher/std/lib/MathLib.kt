@@ -1,10 +1,10 @@
 package dev.betterclient.scratcher.std.lib
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.OperatorExpressions
 import dev.betterclient.scratcher.codegen.ast.TurboWarpMathExpressions
@@ -35,7 +35,7 @@ object MathLib {
             ),
             returnType = PrimitiveType.Float
         ) { args ->
-            if (CompilationConstants.TURBOWARP) {
+            if (CompilationContext.options.experimental.turbowarp) {
                 TurboWarpMathExpressions.Exponent(args[0], args[1])
             } else {
                 OperatorExpressions.MathOperation(
@@ -58,7 +58,7 @@ object MathLib {
             ),
             returnType = PrimitiveType.Float
         ) { args ->
-            if (CompilationConstants.TURBOWARP) {
+            if (CompilationContext.options.experimental.turbowarp) {
                 TurboWarpMathExpressions.Root(args[0], args[1])
             } else {
                 OperatorExpressions.MathOperation(

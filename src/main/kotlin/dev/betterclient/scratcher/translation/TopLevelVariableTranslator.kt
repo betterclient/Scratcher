@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
@@ -27,7 +27,7 @@ class TopLevelVariableTranslator {
             sourceAST = StandardLibASTGenerator.compilerLib
         )
 
-        if (CompilationConstants.REFCOUNT_GC) {
+        if (CompilationContext.options.gc.refCountGC) {
             vars.keys.forEach { func.code.code.add(assign(it, null)) }
         }
         vars.forEach { (variable, value) -> func.code.code.add(assign(variable, value)) }

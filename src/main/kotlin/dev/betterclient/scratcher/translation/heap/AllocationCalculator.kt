@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.translation.heap
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.gc.*
 import dev.betterclient.scratcher.optimize.*
 import org.antlr.v4.kotlinruntime.ast.Position
@@ -167,7 +167,7 @@ class LocalAllocationCalculator(val func: Function) {
         if (type.isPrimitive) {
             return "p"
         }
-        if (!CompilationConstants.MARK_AND_SWEEP_GC) {
+        if (!CompilationContext.options.gc.markAndSweepGC) {
             return type.toSafeString()
         }
         return if (type is ArrayType) {

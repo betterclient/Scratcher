@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.translation.visitor
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.code.StringBoxing
 import dev.betterclient.scratcher.obfuscate
@@ -99,7 +99,7 @@ class CallExpressionLowering(
         val type = ExpressionTypes.getExpressionType(expression)
         val checked = visit(CallExpression(
             func = ExceptionLib.assertNonNull,
-            arguments = listOf(expression, StringLiteral(if (CompilationConstants.OBFUSCATION) {
+            arguments = listOf(expression, StringLiteral(if (CompilationContext.options.obfuscation.enabled) {
                 "Scratcher runtime error: NullPointerException"
             } else {
                 "Scratcher runtime error: NullPointerException at ${func.name}"

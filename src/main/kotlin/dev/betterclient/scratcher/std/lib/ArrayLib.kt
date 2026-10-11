@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.std.lib
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
@@ -21,10 +21,10 @@ object ArrayLib {
     }
 
     //offsets
-    val refCountOffset = if (CompilationConstants.REFCOUNT_GC) 0 else -1
+    val refCountOffset = if (CompilationContext.options.gc.refCountGC) 0 else -1
     val lengthOffset = refCountOffset + 1
     val dataOffset = lengthOffset + 1
-    val headerSize = if (CompilationConstants.REFCOUNT_GC) 2 else 1
+    val headerSize = if (CompilationContext.options.gc.refCountGC) 2 else 1
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
         generateFunctions(lib, editor)
@@ -39,11 +39,11 @@ object ArrayLib {
             "newArray"
         ) {
             val returnArg = returnArg(PrimitiveType.Integer)
-            val name = if (CompilationConstants.MARK_AND_SWEEP_GC) arg("name", PrimitiveType.Str) else null
+            val name = if (CompilationContext.options.gc.markAndSweepGC) arg("name", PrimitiveType.Str) else null
             val length = arg("length", PrimitiveType.Integer)
 
             val allocArgs = mutableListOf<DSLExpression>(headerSize.sc + length)
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 allocArgs.add(name!!)
             }
             allocArgs.add(returnArg)
@@ -51,13 +51,13 @@ object ArrayLib {
 
             val out = MemoryLib.heap[returnArg]
 
-            if (CompilationConstants.REFCOUNT_GC) {
+            if (CompilationContext.options.gc.refCountGC) {
                 MemoryLib.heap[out + refCountOffset.sc] = 1.sc
             }
             MemoryLib.heap[out + lengthOffset.sc] = length //length
         }
 
-        replace = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+        replace = if (CompilationContext.options.performance.disableIndexOutOfBounds) {
             compileInline(
                 lib,
                 "replace",
@@ -89,7 +89,7 @@ object ArrayLib {
                 val list = arg("list", PrimitiveType.Integer)
                 val item = arg("item", PrimitiveType.Integer)
                 val index = arg("index", PrimitiveType.Integer)
-                checkOutOfBounds(list, index, if (CompilationConstants.OBFUSCATION) {
+                checkOutOfBounds(list, index, if (CompilationContext.options.obfuscation.enabled) {
                     "".sc
                 } else {
                     "replace: Unable to find item ".sc concat index concat " in list: ".sc concat list concat " length: ".sc concat MemoryLib.heap[list + lengthOffset.sc]
@@ -99,7 +99,7 @@ object ArrayLib {
             }
         }
 
-        itemAt = if (CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+        itemAt = if (CompilationContext.options.performance.disableIndexOutOfBounds) {
             compileInline(
                 lib,
                 "itemAt",
@@ -130,7 +130,7 @@ object ArrayLib {
                 val list = arg("list", PrimitiveType.Integer)
                 val index = arg("index", PrimitiveType.Integer)
                 val returnVal = returnArg(PrimitiveType.Integer)
-                checkOutOfBounds(list, index, if (CompilationConstants.OBFUSCATION) {
+                checkOutOfBounds(list, index, if (CompilationContext.options.obfuscation.enabled) {
                     "".sc
                 } else {
                     "itemAt: Unable to find item ".sc concat index concat " in list: ".sc concat list concat " length: ".sc concat MemoryLib.heap[list + lengthOffset.sc]

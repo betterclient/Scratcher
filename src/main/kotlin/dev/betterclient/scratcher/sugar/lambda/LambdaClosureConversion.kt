@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.sugar.lambda
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
@@ -87,7 +86,7 @@ class LambdaClosureConversion(
             StandardLibASTGenerator.lambdaLib.structs.add(it)
             lambdaCapturesEnum.types.add(it)
             ctx.types.add(it.type)
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(it.type, it))
             }
         }
@@ -136,7 +135,7 @@ class LambdaClosureConversion(
         ).also {
             StandardLibASTGenerator.lambdaLib.structs.add(it)
             ctx.types.add(it.type)
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(it.type, it))
             }
         }

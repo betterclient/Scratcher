@@ -1,7 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.CompilationConstants
+import dev.betterclient.scratcher.CompilationOptions
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.code.Generics
@@ -18,9 +18,22 @@ import org.antlr.v4.kotlinruntime.tree.TerminalNode
 import org.json.JSONArray
 import java.io.File
 
-class CompilationContext {
+class CompilationContext(
+    val options: CompilationOptions
+) {
+    companion object {
+        lateinit var current: CompilationContext
+            private set //go
+
+        val options: CompilationOptions
+            get() = current.options
+    }
+    init {
+        current = this
+    }
+
     fun generateGCNames() {
-        if (!CompilationConstants.MARK_AND_SWEEP_GC) return
+        if (!options.gc.markAndSweepGC) return
 
         val allStructs = asts.values.flatMap { it.structs } +
                 StandardLibASTGenerator.compilerLib.structs +
@@ -447,7 +460,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
                     errorReporter.logError(ast, identifier.position(), "No standard library module $moduleName found!")
                     StandardLibASTGenerator.emptyLib
                 }
-            if (moduleName == "gc" && !CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (moduleName == "gc" && !ctx.options.gc.markAndSweepGC) {
                 errorReporter.logError(ast, identifier.position(), "Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
             }
             if (StandardLibASTGenerator.isRestricted(stdLib)) {

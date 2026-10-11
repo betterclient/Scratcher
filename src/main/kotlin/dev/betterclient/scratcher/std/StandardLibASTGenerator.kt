@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.std
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.ArrayType
 import dev.betterclient.scratcher.ast.ErrorReporter
@@ -113,7 +112,7 @@ object StandardLibASTGenerator {
     )
 
     val memLib = ASTFile("mem").also {
-        if (!CompilationConstants.MARK_AND_SWEEP_GC && !CompilationConstants.REFCOUNT_GC) lib["mem"] = it
+        if (!CompilationContext.options.gc.markAndSweepGC && !CompilationContext.options.gc.refCountGC) lib["mem"] = it
     }
 
     val typeChecker by lazy {
@@ -160,7 +159,7 @@ object StandardLibASTGenerator {
     val gc by lazy {
         bypassRestrictions = true //gc needs gc_internal
         val out = compile("/gc.sc", GC_LIB_NAME).also {
-            if (CompilationConstants.MARK_AND_SWEEP_GC) lib[GC_LIB_NAME] = it
+            if (CompilationContext.options.gc.markAndSweepGC) lib[GC_LIB_NAME] = it
         }
         bypassRestrictions = false
         out
@@ -173,7 +172,7 @@ object StandardLibASTGenerator {
     }
 
     val strict_equals by lazy {
-        if (CompilationConstants.TURBOWARP) return@lazy ASTFile("strict_equals")
+        if (CompilationContext.options.experimental.turbowarp) return@lazy ASTFile("strict_equals")
         bypassRestrictions = true
         val out = compile("/strict_equals.sc", "strict_equals").also {
             lib["strict_equals"] = it
@@ -188,7 +187,7 @@ object StandardLibASTGenerator {
 
     fun isRestricted(library: ASTFile): Boolean {
         if (bypassRestrictions) return false
-        if(!CompilationConstants.MARK_AND_SWEEP_GC && library == gcLib) return true
+        if(!CompilationContext.options.gc.markAndSweepGC && library == gcLib) return true
         return library.path == "typecheck" ||
                 library == memoryLib ||
                 library == globalPromotionLib ||
@@ -209,7 +208,7 @@ object StandardLibASTGenerator {
     }
 
     private fun compile(file: String, path: String): ASTFile {
-        val context = CompilationContext()
+        val context = CompilationContext.current
         val ast = ASTReader(
             ctx = context,
             source = String(StandardLibASTGenerator::class.java.getResourceAsStream(file).use { it!!.readBytes() }),

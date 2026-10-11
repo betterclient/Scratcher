@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.sugar.other
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -26,7 +25,7 @@ object SealedEnumDesugaring : CompilerSugar() {
                 position: Position?
             ): Expression {
                 val visitedExpr = visit(expr)
-                val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
+                val tagOffset = if (CompilationContext.options.gc.refCountGC) 1 else 0
                 val tagHeap = TemporaryHeapGetExpression(
                     index = if (tagOffset == 0) visitedExpr
                     else BinaryExpression(visitedExpr, BinaryOperator.ADD, IntLiteral(tagOffset.toBigInteger(), position), position),
@@ -45,7 +44,7 @@ object SealedEnumDesugaring : CompilerSugar() {
                 position: Position?
             ): Expression {
                 val visitedExpr = visit(expr)
-                val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
+                val tagOffset = if (CompilationContext.options.gc.refCountGC) 1 else 0
                 val ptrOffset = tagOffset + 1
                 val enumValue = LocalVariable(
                     "sealedEnumCast@${getUniqueName()}",
@@ -108,7 +107,7 @@ object SealedEnumDesugaring : CompilerSugar() {
                                     ExpressionStatement(
                                         CallExpression(
                                             func = ExceptionLib.panic,
-                                            arguments = listOf(StringLiteral(if (CompilationConstants.OBFUSCATION) {
+                                            arguments = listOf(StringLiteral(if (CompilationContext.options.obfuscation.enabled) {
                                                 "Scratcher runtime error: Cast"
                                             } else {
                                                 "Scratcher runtime error: Type error when casting to: ${targetVariant.sourceAST.simplePath}::${targetVariant.name}"

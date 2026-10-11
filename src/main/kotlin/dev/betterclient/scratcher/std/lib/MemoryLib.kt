@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.std.lib
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.MathOp
@@ -59,13 +59,13 @@ object MemoryLib {
 
         alloc = editor.compile(lib, "alloc") {
             val size = arg("size", PrimitiveType.Integer)
-            val name = if(CompilationConstants.MARK_AND_SWEEP_GC) arg("name", PrimitiveType.Str) else null
+            val name = if(CompilationContext.options.gc.markAndSweepGC) arg("name", PrimitiveType.Str) else null
             val returnIndex = arg("returnIndex", PrimitiveType.Integer)
 
             val variable = variable("alloc::variable")
             val maxSearchIndex = variable("alloc::maxSearchIndex")
             val allocatedAddress = variable("alloc::allocatedAddress")
-            val actualSize = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            val actualSize = if (CompilationContext.options.gc.markAndSweepGC) {
                 val variable = variable("alloc::actualSize")
                 variable.set(size + 1.sc)
                 variable
@@ -73,13 +73,13 @@ object MemoryLib {
                 size
             }
 
-            if (!CompilationConstants.DISABLE_INDEX_OUT_OF_BOUNDS) {
+            if (!CompilationContext.options.performance.disableIndexOutOfBounds) {
                 control.ifThen(size equals 0.sc) {
                     call(ExceptionLib.panic, "Scratcher Runtime error: Alloc called with size 0!".sc)
                 }
             }
 
-            if (!CompilationConstants.TURBOWARP) {
+            if (!CompilationContext.options.experimental.turbowarp) {
                 control.ifThen(
                     ((heap.length - freeList.length + actualSize) gt 199999.sc)
                             and
@@ -117,13 +117,13 @@ object MemoryLib {
                 control.repeat(actualSize) {
                     heap.add("null".sc)
 
-                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    if (CompilationContext.options.gc.markAndSweepGC) {
                         GCLib.markedList.add("0".sc)
                     }
                 }
             }
 
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 heap[allocatedAddress] = name!!
                 heap[returnIndex] = allocatedAddress + 1.sc
             } else {
@@ -137,7 +137,7 @@ object MemoryLib {
 
         for (struct in structs) {
             val name = "new${struct.sourceAST.simplePath}::${struct.name}"
-            val allocParams = if (CompilationConstants.REFCOUNT_GC && struct.parameters.firstOrNull()?.name == "compiler@refcount") {
+            val allocParams = if (CompilationContext.options.gc.refCountGC && struct.parameters.firstOrNull()?.name == "compiler@refcount") {
                 struct.parameters.drop(1)
             } else {
                 struct.parameters
@@ -155,7 +155,7 @@ object MemoryLib {
                 }
             }
 
-            struct.allocFunc = if (CompilationConstants.REFCOUNT_GC || !CompilationConstants.INLINE_STRUCT_INIT) {
+            struct.allocFunc = if (CompilationContext.options.gc.refCountGC || !CompilationContext.options.std.inlineStructInit) {
                 Function(
                     name = name,
                     parameters = allocParams.map { Parameter(it.name, it.type) }.toMutableList(),
@@ -180,7 +180,7 @@ object MemoryLib {
                     useLocal = true,
                     userAccessible = false,
                     prepend = { args ->
-                        val otherArgs = if (CompilationConstants.REFCOUNT_GC) {
+                        val otherArgs = if (CompilationContext.options.gc.refCountGC) {
                             listOf(0.toString().scratch) + args.subList(0, args.size - 1) //the 0 refcount
                         } else {
                             args.subList(0, args.size - 1)
@@ -190,7 +190,7 @@ object MemoryLib {
                         val allocCall = CallFunction(
                             alloc.precompiledCode,
                             mutableListOf(struct.sizeOnHeap.toString().scratch, lastArg).also {
-                                if(CompilationConstants.MARK_AND_SWEEP_GC) {
+                                if(CompilationContext.options.gc.markAndSweepGC) {
                                     it.add(1, findGC(struct).toString().scratch)
                                 }
                             }
@@ -223,14 +223,14 @@ object MemoryLib {
                         it.parameters.size == 1 &&
                         it.parameters[0].type == struct.type
             }
-            if (!freeExists && !(CompilationConstants.MARK_AND_SWEEP_GC || CompilationConstants.REFCOUNT_GC)) {
+            if (!freeExists && !(CompilationContext.options.gc.markAndSweepGC || CompilationContext.options.gc.refCountGC)) {
                 compileInline(
                     library = lib,
                     name = "free",
                     parameters = mutableListOf(Parameter("pointer", struct.type)),
                     returnType = PrimitiveType.Void
                 ) { args ->
-                    val freePtr = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    val freePtr = if (CompilationContext.options.gc.markAndSweepGC) {
                         OperatorExpressions.BinaryExpression(
                             left = args[0],
                             right = "1".scratch,
@@ -238,7 +238,7 @@ object MemoryLib {
                         )
                     } else args[0]
 
-                    val freeSize = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    val freeSize = if (CompilationContext.options.gc.markAndSweepGC) {
                         (struct.sizeOnHeap + 1).toString().scratch
                     } else struct.sizeOnHeap.toString().scratch
 
@@ -266,14 +266,14 @@ object MemoryLib {
         func.code.localVariables.add(ptrVar)
 
         val allocArgs = mutableListOf<Expression>(IntLiteral(BigInteger.valueOf(struct.sizeOnHeap.toLong()), null))
-        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        if (CompilationContext.options.gc.markAndSweepGC) {
             allocArgs.add(StringLiteral(findGC(struct).toString(), null))
         }
         allocArgs.add(TemporaryLocalVariableIndexExpression(ptrVar, null))
 
         func.code.code.add(VariableStatement(null, ptrVar, null))
         func.code.code.add(TemporaryCallStatement(alloc, allocArgs, null))
-        if (CompilationConstants.REFCOUNT_GC) {
+        if (CompilationContext.options.gc.refCountGC) {
             func.code.code.add(TemporaryHeapSetStatement(
                 index = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(ptrVar, null), null, null),
                 data = IntLiteral(BigInteger.ONE, null),
@@ -326,9 +326,9 @@ object MemoryLib {
             fn.code.localVariables.add(payloadVar)
             fn.code.code.add(VariableStatement(payloadExpr, payloadVar, null))
 
-            val enumSize = if (CompilationConstants.REFCOUNT_GC) 3 else 2
+            val enumSize = if (CompilationContext.options.gc.refCountGC) 3 else 2
             val allocArgs = mutableListOf<Expression>(IntLiteral(enumSize.toBigInteger(), null))
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 allocArgs.add(StringLiteral(findGC(sealedEnum.type).toString(), null))
             }
             allocArgs.add(TemporaryLocalVariableIndexExpression(enumPtrVar, null))
@@ -338,11 +338,11 @@ object MemoryLib {
 
             val enumAddr = TemporaryHeapGetExpression(TemporaryLocalVariableIndexExpression(enumPtrVar, null), null, null)
 
-            if (CompilationConstants.REFCOUNT_GC) {
+            if (CompilationContext.options.gc.refCountGC) {
                 fn.code.code.add(TemporaryHeapSetStatement(enumAddr, IntLiteral(1.toBigInteger(), null), null))
             }
 
-            val tagOffset = if (CompilationConstants.REFCOUNT_GC) 1 else 0
+            val tagOffset = if (CompilationContext.options.gc.refCountGC) 1 else 0
             val ptrOffset = tagOffset + 1
 
             val effectiveTag = if (isEmpty) -tag-1 else tag

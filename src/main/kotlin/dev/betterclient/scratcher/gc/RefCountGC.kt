@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.gc
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -144,7 +143,7 @@ object RefCountGC {
                     }
                 }
 
-                val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                val freePtr: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                     BinaryExpression(
                         left = ParameterExpression(ptrArg, null),
                         right = IntLiteral(BigInteger.ONE, null),
@@ -155,7 +154,7 @@ object RefCountGC {
                     ParameterExpression(ptrArg, null)
                 }
 
-                val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                val freeSize: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                     IntLiteral((struct.sizeOnHeap + 1).toBigInteger(), null)
                 } else {
                     IntLiteral(struct.sizeOnHeap.toBigInteger(), null)
@@ -228,13 +227,13 @@ object RefCountGC {
             fun heapGet(index: Expression) = TemporaryHeapGetExpression(index, null, null)
             fun heapGetAt(offset: Long) = heapGet(BinaryExpression(ptr, BinaryOperator.ADD, IntLiteral(offset.toBigInteger(), null), null))
 
-            val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            val freePtr: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                 BinaryExpression(ptr, BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE, null), null)
             } else {
                 ptr
             }
-            val enumSize: Long = if (CompilationConstants.REFCOUNT_GC) 3 else 2
-            val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            val enumSize: Long = if (CompilationContext.options.gc.refCountGC) 3 else 2
+            val freeSize: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                 IntLiteral((enumSize + 1).toBigInteger(), null)
             } else {
                 IntLiteral(enumSize.toBigInteger(), null)
@@ -375,13 +374,13 @@ object RefCountGC {
                 null,
                 null
             )
-            val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            val freePtr: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                 BinaryExpression(ParameterExpression(ptrArg, null), BinaryOperator.SUBTRACT, IntLiteral(BigInteger.ONE, null), null)
             } else {
                 ParameterExpression(ptrArg, null)
             }
             val baseFreeSize = BinaryExpression(IntLiteral(ArrayLib.headerSize.toBigInteger(), null), BinaryOperator.ADD, lengthForFree, null)
-            val freeSize: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            val freeSize: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
                 BinaryExpression(baseFreeSize, BinaryOperator.ADD, IntLiteral(BigInteger.ONE, null), null)
             } else {
                 baseFreeSize

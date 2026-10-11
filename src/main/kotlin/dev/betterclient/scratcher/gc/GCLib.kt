@@ -1,7 +1,7 @@
 package dev.betterclient.scratcher.gc
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
@@ -147,7 +147,7 @@ object GCLib {
             useLocal = false,
             warp = true,
             realCode = {
-                ExpressionLowerResult(BooleanLiteral(CompilationConstants.REFLECT_GC, null))
+                ExpressionLowerResult(BooleanLiteral(CompilationContext.options.gc.reflectGC, null))
             }
         ))
 
@@ -210,9 +210,9 @@ object GCLib {
     }
 
     fun gcFuncs(): List<ASTEventListener> {
-        if (!CompilationConstants.AUTOMATIC_GC) return listOf()
+        if (!CompilationContext.options.gc.automaticGC) return listOf()
 
-        return if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        return if (CompilationContext.options.gc.markAndSweepGC) {
             StandardLibASTGenerator.gc.eventListeners
         } else listOf()
     }
@@ -255,7 +255,7 @@ object GCLib {
         val markListFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markList" }!!
         val markStructFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markStruct" }!!
         val original = StandardLibASTGenerator.gc.functions.find { it.name == "markTopLevels" }!!
-        if (CompilationConstants.REFLECT_GC) {
+        if (CompilationContext.options.gc.reflectGC) {
             reflectList.items.addAll(eligible.flatMap { variable ->
                 listOf(
                     if (variable.type is ArrayType) {

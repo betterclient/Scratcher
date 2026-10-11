@@ -1,9 +1,9 @@
 package dev.betterclient.scratcher.translation
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTEventListener
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.TLVariable
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.EventListener
@@ -40,7 +40,7 @@ class EntrypointTranslator(
     ) {
         val func = listener.ctx ?: return
         val (localSize, gc) = getFunctionLocalSize(func)
-        val alloc = if (localSize == 0) { listOf() } else if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        val alloc = if (localSize == 0) { listOf() } else if (CompilationContext.options.gc.markAndSweepGC) {
             listOf(
                 CallFunction(
                     MemoryLib.alloc.precompiledCode,
@@ -94,19 +94,19 @@ class EntrypointTranslator(
                 ListStatements.ClearList(MemoryLib.heap),
                 ListStatements.ClearList(MemoryLib.freeList)
             ).also { list ->
-                if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                if (CompilationContext.options.gc.markAndSweepGC) {
                     list.add(ListStatements.ClearList(GCLib.rootsList))
                     list.add(ListStatements.ClearList(GCLib.markedList))
                 }
                 repeat(entrypointCount) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch))
-                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    if (CompilationContext.options.gc.markAndSweepGC) {
                         list.add(ListStatements.AddToList(GCLib.markedList, "0".scratch))
                     }
                 }
                 val index = if (topLevelInitLocals.first > 0) {
                     list.add(ListStatements.AddToList(MemoryLib.heap, "reserved".scratch)) //reserve for initLocals
-                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    if (CompilationContext.options.gc.markAndSweepGC) {
                         list.add(ListStatements.AddToList(GCLib.markedList, "0".scratch))
                     }
                     entrypointCount + 1
@@ -116,7 +116,7 @@ class EntrypointTranslator(
                     list.add(CallFunction(
                         MemoryLib.alloc.precompiledCode, //alloc for initLocals
                         mutableListOf(topLevelInitLocals.first.toString().scratch, index.toString().scratch).also {
-                            if (CompilationConstants.MARK_AND_SWEEP_GC) it.add(1, topLevelInitLocals.second.name.toString().scratch)
+                            if (CompilationContext.options.gc.markAndSweepGC) it.add(1, topLevelInitLocals.second.name.toString().scratch)
                         }
                     ))
                 }
@@ -132,7 +132,7 @@ class EntrypointTranslator(
                     )
                 ))
 
-                if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                if (CompilationContext.options.gc.markAndSweepGC) {
                     list.add(
                         VariableStatements.SetVariableTo(
                             variable = toScratchTL(StandardLibASTGenerator.gc.variables.find { it.name == "gc_reserved" }!!),

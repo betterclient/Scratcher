@@ -1,5 +1,6 @@
 package dev.betterclient.scratcher.optimize.impl.control
 
+import dev.betterclient.scratcher.OptimizationMode
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -15,7 +16,7 @@ object FunctionInlining : Optimization("Function inlining") {
         graph: TCallGraph,
         context: CompilationContext
     ): Boolean {
-        if (context.isPreOptimize) {
+        if (context.isPreOptimize || context.options.performance.optimizationMode != OptimizationMode.AGGRESSIVE) {
             return false
         }
 

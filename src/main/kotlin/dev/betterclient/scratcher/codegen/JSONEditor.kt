@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.codegen
 
-import dev.betterclient.scratcher.CompilationConstants
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.toObjectArray
 import org.json.JSONObject
 import java.io.File
@@ -27,7 +27,7 @@ class JSONEditor(val file: ZipFile) {
         }
 
         addExt("pen")
-        if (CompilationConstants.TURBOWARP) {
+        if (CompilationContext.options.experimental.turbowarp) {
             addExt("strings")
             addExt("truefantommath")
             addExt("qxsckvarandlist")
@@ -73,6 +73,6 @@ fun openScratchEditorFromResource(inputStream: InputStream): ScratchEditor {
         }
     }
     return ScratchEditor(JSONEditor(ZipFile(tmpFile))).apply {
-        if (CompilationConstants.ADD_DUMMY_SPRITE) addDummySprite()
+        if (CompilationContext.options.experimental.dummySprite) addDummySprite()
     }
 }

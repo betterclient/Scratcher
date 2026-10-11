@@ -1,9 +1,9 @@
 package dev.betterclient.scratcher.std.lib
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.PrimitiveType
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ScratchEditor
 import dev.betterclient.scratcher.codegen.ast.ScratchSprite
 import dev.betterclient.scratcher.codegen.ast.SensingExpressions
@@ -26,7 +26,7 @@ object CaseSensitiveLib {
     val spriteName = alphabet.items.joinToString("")
 
     fun init(lib: ASTFile, editor: ScratchEditor) {
-        if (CompilationConstants.TURBOWARP) {
+        if (CompilationContext.options.experimental.turbowarp) {
             compileInline(
                 lib,
                 "isUppercase",

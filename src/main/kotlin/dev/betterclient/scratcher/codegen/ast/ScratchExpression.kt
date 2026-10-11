@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.codegen.ast
 
-import dev.betterclient.scratcher.CompilationConstants
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.opcode.*
 import dev.betterclient.scratcher.codegen.wrapper.ScratchOpcode
 import dev.betterclient.scratcher.codegen.wrapper.ScratchRealString
@@ -144,7 +144,7 @@ object ListExpressions {
     }
 
     class ReflectVariable(val name: ScratchExpression) : ScratchExpression() {
-        override fun lower() = if (CompilationConstants.TURBOWARP)
+        override fun lower() = if (CompilationContext.options.experimental.turbowarp)
             ReadVariableTurboWarp(name.lower()).asValue else
                 ReadVariable(name.lower()).asValue
     }

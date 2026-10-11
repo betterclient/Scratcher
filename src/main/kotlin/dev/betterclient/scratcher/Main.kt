@@ -26,15 +26,24 @@ import java.io.File
 
 fun main() {
     val startTime = System.currentTimeMillis()
+    val context = CompilationContext(CompilationOptions(
+        ObfuscationOptions(),
+        StandardLibraryOptions(),
+        GCOptions(),
+        PerformanceOptions(),
+        ExperimentalOptions()
+    ))
+
     val editor = openScratchEditorFromResource(
         ::main.javaClass.getResourceAsStream("/proj.sb3")!!
     )
     StandardLibASTGenerator.init(editor)
 
-    val (ast, context) = compile(File("examples/cube/cube.sc"))
-    if (CompilationConstants.PRINT_STDLIB) {
+    val ast = compile(context, File("examples/cube/cube.sc"))
+
+    /*if (CompilationConstants.PRINT_STDLIB) {
         StandardLibASTGenerator.print()
-    }
+    }*/
 
     println("Reachability")
     val reachableEntrypoints = (EntrypointReachability().run(ast) + GCLib.gcFuncs()).toMutableList()
@@ -51,13 +60,13 @@ fun main() {
     reachableFunctions.clear()
     reachableFunctions.addAll(uniqueFunctions0)
 
-    if (CompilationConstants.REFCOUNT_GC) {
+    if (context.options.gc.refCountGC) {
         RefCountGC.run(context, reachableFunctions)
     }
 
     println("Post-optimize")
     Optimizations.apply(reachableFunctions, context)
-    if (CompilationConstants.MARK_AND_SWEEP_GC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
+    if (context.options.gc.markAndSweepGC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false)
 
     println("Exports")
     val (postReachableFuncs, reachableTopLevelVariables, reachableLists) = FunctionReachability(reachableEntrypoints).run(ast)
@@ -76,7 +85,7 @@ fun main() {
     reachableFunctions.add(topLevelInit)
 
     StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)
-    if (CompilationConstants.REFCOUNT_GC) {
+    if (context.options.gc.refCountGC) {
         reachableFunctions.addAll(RefCountGC.instrument(context, listOf(topLevelInit)))
     }
 
@@ -151,7 +160,7 @@ fun main() {
         editor, reachableEntrypoints
     )
 
-    if (CompilationConstants.MARK_AND_SWEEP_GC) GCLib.populateList(editor)
+    if (context.options.gc.markAndSweepGC) GCLib.populateList(editor)
 
     println("Compile to scratch")
     scratchStubs.map { it.value }.forEach { editor.addFunction(it) }
@@ -159,8 +168,7 @@ fun main() {
     println("Compilation successful in ${System.currentTimeMillis() - startTime}ms")
 }
 
-fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
-    val context = CompilationContext()
+fun compile(context: CompilationContext, sourceFile: File): ASTFile {
     val reporter = ErrorReporter()
 
     println("Initial parse")
@@ -174,5 +182,5 @@ fun compile(sourceFile: File): Pair<ASTFile, CompilationContext> {
 
     reporter.flush()
 
-    return ast to context
+    return ast
 }

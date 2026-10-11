@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.sugar.other
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -14,7 +13,7 @@ import org.antlr.v4.kotlinruntime.ast.Position
 
 object ShortCircuit : CompilerSugar() {
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {
-        if (!CompilationConstants.SHORT_CIRCUITS) return
+        if (!CompilationContext.options.experimental.shortCircuit) return
 
         visit(func, object : ASTVisitor() {
             override fun visitBinaryExpression(

@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.sugar.other
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -27,7 +26,7 @@ object CaseSensitiveEquals : CompilerSugar() {
                 operator: BinaryOperator,
                 position: Position?
             ): Expression {
-                if (CompilationConstants.TURBOWARP) {
+                if (CompilationContext.options.experimental.turbowarp) {
                     if (operator == BinaryOperator.STRICT_EQUAL) {
                         return TemporaryScratchExpr(
                             inputExprs = listOf(left, right),

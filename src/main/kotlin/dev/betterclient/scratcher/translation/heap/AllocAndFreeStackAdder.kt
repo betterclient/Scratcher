@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.translation.heap
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.ListExpressions
 import dev.betterclient.scratcher.codegen.ast.ListStatements
 import dev.betterclient.scratcher.gc.GCLib
@@ -25,7 +25,7 @@ class AllocAndFreeStackAdder(
     private fun createExitStatements(): List<Statement> {
         if (hasLocalsMap[func] != true) return emptyList()
 
-        val freePtr: Expression = if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        val freePtr: Expression = if (CompilationContext.options.gc.markAndSweepGC) {
             BinaryExpression(
                 left = ParameterExpression(stackParameter, null),
                 right = IntLiteral(java.math.BigInteger.ONE, null),
@@ -38,7 +38,7 @@ class AllocAndFreeStackAdder(
 
         val freeSize: Expression = TemporaryStackSizeExpression(
             func,
-            includeGcHeader = CompilationConstants.MARK_AND_SWEEP_GC,
+            includeGcHeader = CompilationContext.options.gc.markAndSweepGC,
             position = null
         )
 
@@ -48,7 +48,7 @@ class AllocAndFreeStackAdder(
             position = null
         )
         val deleteStmt = TemporaryScratchStmt(listOf(ParameterExpression(stackParameter, null)), { scratchExpressions ->
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 listOf(ListStatements.DeleteItem(
                     GCLib.rootsList,
                     ListExpressions.IndexOfItemInList(GCLib.rootsList, scratchExpressions[0])
@@ -79,13 +79,13 @@ class AllocAndFreeStackAdder(
                     TemporaryStackSizeExpression(func, position = null),
                     TemporaryLocalVariableIndexExpression(allocVar, null)
                 ).also {
-                    if (CompilationConstants.MARK_AND_SWEEP_GC) {
+                    if (CompilationContext.options.gc.markAndSweepGC) {
                         it.add(1, TemporaryStackNameExpression(func, null))
                     }
                 },
                 position = null
             ))
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 result.add(TemporaryScratchStmt(listOf(LocalVariableExpression(allocVar, null)), { scratchArgs ->
                     listOf(
                         ListStatements.AddToList(GCLib.rootsList, scratchArgs[0])

@@ -1,8 +1,8 @@
 package dev.betterclient.scratcher.std.lib
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.TurboWarpBoolExpressions
 import dev.betterclient.scratcher.codegen.ast.TurboWarpListExpressions
 import dev.betterclient.scratcher.codegen.ast.TurboWarpListStatements
@@ -23,7 +23,7 @@ object ListPoolLib {
             sourceAST = lib,
             private = false
         ).also { lib.structs.add(it) }
-        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        if (CompilationContext.options.gc.markAndSweepGC) {
             addGC(StructGCInfo(pooledList.type, pooledList))
         }
 
@@ -35,19 +35,19 @@ object ListPoolLib {
             private = true
         ).also { lib.staticLists.add(it) }
 
-        val lists = (1..CompilationConstants.LIST_POOL_SIZE).map { index ->
+        val lists = (1..CompilationContext.options.std.listPoolSize).map { index ->
             TLStaticList(
                 name = "Pool$index",
                 sourceAST = lib,
                 private = true,
                 scratchList = ScratchList(
-                    if (CompilationConstants.TURBOWARP) "list_pool::Pool$index"
+                    if (CompilationContext.options.experimental.turbowarp) "list_pool::Pool$index"
                     else obfuscate("list_pool::Pool$index")
                 )
             ).also { lib.staticLists.add(it) }
         }
         pool.scratchList.items.addAll(
-            (1..CompilationConstants.LIST_POOL_SIZE).map {
+            (1..CompilationContext.options.std.listPoolSize).map {
                 "0"
             }
         )
@@ -315,7 +315,7 @@ object ListPoolLib {
         lib.functions.add(Function(
             name = "free",
             sourceAST = lib,
-            private = CompilationConstants.REFCOUNT_GC, //refcount GC auto frees the list
+            private = CompilationContext.options.gc.refCountGC, //refcount GC auto frees the list
             userAccessible = true,
             warp = true,
             operator = false,
@@ -378,7 +378,7 @@ object ListPoolLib {
             position = null
         )
 
-        if (CompilationConstants.TURBOWARP && turbowarpAction != null) {
+        if (CompilationContext.options.experimental.turbowarp && turbowarpAction != null) {
             val dynamicListName = ConcatExpression(
                 StringLiteral("list_pool::Pool", null),
                 targetIndexExpr,
@@ -392,7 +392,7 @@ object ListPoolLib {
             val dispatchTree = generateBinarySearch(
                 targetIndex = LocalVariableExpression(cachedIndex, null),
                 low = 1,
-                high = CompilationConstants.LIST_POOL_SIZE,
+                high = CompilationContext.options.std.listPoolSize,
                 pool = pool,
                 action = fallbackAction
             )
@@ -412,7 +412,7 @@ object ListPoolLib {
 
         //repeat(pool size)
         add(RepeatStatement(
-            amount = IntLiteral(CompilationConstants.LIST_POOL_SIZE.toBigInteger(), null),
+            amount = IntLiteral(CompilationContext.options.std.listPoolSize.toBigInteger(), null),
             block = CodeBlock().apply {
                 //if(pool[index] == "0")
                 add(

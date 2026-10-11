@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.ast.parser.code
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.Expression
@@ -307,7 +306,7 @@ object Generics {
         context.types.add(instantiatedStruct.type)
 
         val isPhantom = typeArgs.any { it.asNonNull() is PlaceholderType }
-        if (CompilationConstants.MARK_AND_SWEEP_GC && !isPhantom) {
+        if (CompilationContext.options.gc.markAndSweepGC && !isPhantom) {
             addGC(StructGCInfo(instantiatedStruct.type, instantiatedStruct))
         }
 
@@ -382,7 +381,7 @@ object Generics {
         val sealedType = instantiatedSealed.type
         context.types.add(sealedType)
 
-        if (CompilationConstants.MARK_AND_SWEEP_GC) {
+        if (CompilationContext.options.gc.markAndSweepGC) {
             addGC(SealedEnumGCInfo(sealedType, instantiatedSealed))
         }
 
@@ -403,7 +402,7 @@ object Generics {
             context.types.add(concreteVariant.type)
             instantiatedSealed.types.add(concreteVariant)
 
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(concreteVariant.type, concreteVariant))
             }
         }

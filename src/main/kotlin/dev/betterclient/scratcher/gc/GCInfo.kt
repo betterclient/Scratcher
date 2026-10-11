@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.gc
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.ArrayType
@@ -10,6 +9,7 @@ import dev.betterclient.scratcher.ast.SealedEnumType
 import dev.betterclient.scratcher.ast.SimpleType
 import dev.betterclient.scratcher.ast.Struct
 import dev.betterclient.scratcher.ast.Type
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 
 val gcNames = mutableListOf<GCInfo>()
 
@@ -23,7 +23,7 @@ sealed class GCInfo {
 
 data class SealedEnumGCInfo(val type: Type, val sealedEnum: SealedEnum) : GCInfo() {
     override fun toFieldList(): List<String> {
-        val size = if (CompilationConstants.REFCOUNT_GC) 3 else 2
+        val size = if (CompilationContext.options.gc.refCountGC) 3 else 2
         return List(size) { i -> if (i == size - 1) "?" else "p" }
     }
 }

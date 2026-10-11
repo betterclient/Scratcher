@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.sugar.lambda
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -38,7 +37,7 @@ class LambdaDefunctionalization(
             )
             StandardLibASTGenerator.lambdaLib.structs.add(struct)
             ctx.types.add(struct.type)
-            if (CompilationConstants.MARK_AND_SWEEP_GC) {
+            if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(struct.type, struct))
             }
             MemoryLib.initMem(StandardLibASTGenerator.memLib, StandardLibASTGenerator.lambdaLib)

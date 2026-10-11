@@ -14,6 +14,7 @@ repositories {
 }
 
 dependencies {
+    implementation("com.github.ajalt.clikt:clikt:5.1.0")
     implementation("com.strumenta:antlr-kotlin-runtime:1.0.14")
     implementation("org.json:json:20260814")
 }

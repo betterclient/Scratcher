@@ -1,7 +1,7 @@
 package dev.betterclient.scratcher.ast
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.CompilationConstants
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.ast.ScratchASTFunction
 import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
@@ -52,7 +52,7 @@ class Struct(
     val type = SimpleType(name, sourceAST)
     val sizeOnHeap: Int
         get() {
-            return if (CompilationConstants.REFCOUNT_GC && parameters.firstOrNull()?.name != "compiler@refcount") {
+            return if (CompilationContext.options.gc.refCountGC && parameters.firstOrNull()?.name != "compiler@refcount") {
                 parameters.size + 1
             } else {
                 parameters.size

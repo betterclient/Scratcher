@@ -1,6 +1,5 @@
 package dev.betterclient.scratcher.ast.parser.code
 
-import dev.betterclient.scratcher.CompilationConstants
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
@@ -10,6 +9,7 @@ import dev.betterclient.scratcher.ast.Parameter
 import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.StringLiteral
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object TypeCheckParameters {
@@ -19,7 +19,7 @@ object TypeCheckParameters {
         ast: ASTFile,
         currentFunction: Function?
     ) {
-        if (CompilationConstants.DISABLE_TYPE_CHECKER) {
+        if (CompilationContext.options.performance.disableTypeChecker) {
             if (currentFunction?.export == false) return
         }
         if (ast.path == "gc_impl") return
@@ -68,7 +68,7 @@ object TypeCheckParameters {
     }
 
     fun forDataType(parameter: Parameter, ast: ASTFile, currentFunction: Function?, type: String, typeInError: String): ExpressionStatement {
-        val func = if (CompilationConstants.OBFUSCATION) {
+        val func = if (CompilationContext.options.obfuscation.enabled) {
             StandardLibASTGenerator.typeChecker.functions.find { it.name == "check${type}Obf" }
         } else {
             StandardLibASTGenerator.typeChecker.functions.find { it.name == "check$type" }
@@ -78,7 +78,7 @@ object TypeCheckParameters {
             CallExpression(
                 func, listOfNotNull(
                     ParameterExpression(parameter, null),
-                    if (CompilationConstants.OBFUSCATION) null else
+                    if (CompilationContext.options.obfuscation.enabled) null else
                         StringLiteral("Function: ${ast.simplePath}::${currentFunction?.name} Parameter \"${parameter.name}\" is not $typeInError!", null)
                 ).toMutableList(),
                 null
