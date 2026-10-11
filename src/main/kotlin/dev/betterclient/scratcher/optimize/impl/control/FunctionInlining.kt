@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.optimize.impl.control
 
-import dev.betterclient.scratcher.OptimizationMode
+import dev.betterclient.scratcher.cli.OptimizationMode
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext

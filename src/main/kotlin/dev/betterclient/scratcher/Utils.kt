@@ -2,6 +2,7 @@ package dev.betterclient.scratcher
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.CompilationContext
+import dev.betterclient.scratcher.cli.NamingStrategy
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
@@ -47,9 +48,9 @@ fun obfuscate(nonObfuscatedName: String): String {
 }
 
 fun getUniqueName(): String {
-    return when(val strategy = CompilationContext.options.obfuscation.namingStrategy) {
-        NamingStrategy.Minify -> newMinification()
-        is NamingStrategy.Random -> Random.rand(strategy.length)
+    return when(CompilationContext.options.obfuscation.namingStrategy) {
+        NamingStrategy.MINIFY -> newMinification()
+        NamingStrategy.RANDOM -> Random.rand(20)
     }
 }
 

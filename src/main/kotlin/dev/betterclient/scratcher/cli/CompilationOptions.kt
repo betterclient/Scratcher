@@ -1,28 +1,21 @@
-package dev.betterclient.scratcher
+package dev.betterclient.scratcher.cli
 
 data class CompilationOptions(
-    val obfuscation: ObfuscationOptions,
-    val std: StandardLibraryOptions,
-    val gc: GCOptions,
-    val performance: PerformanceOptions,
-    val experimental: ExperimentalOptions
+    val obfuscation: ObfuscationOptions = ObfuscationOptions(),
+    val std: StandardLibraryOptions = StandardLibraryOptions(),
+    val gc: GCOptions = GCOptions(),
+    val performance: PerformanceOptions = PerformanceOptions(),
+    val experimental: ExperimentalOptions = ExperimentalOptions()
 )
 
 data class ObfuscationOptions(
     val enabled: Boolean = false,
-    val namingStrategy: NamingStrategy = NamingStrategy.Minify
-) {
-    companion object {
-        val OFF_MINIFY = ObfuscationOptions(enabled = false, namingStrategy = NamingStrategy.Minify)
-        val OFF_GARBAGE = ObfuscationOptions(enabled = false, namingStrategy = NamingStrategy.Random())
-        val ON_MINIFY = ObfuscationOptions(enabled = true, namingStrategy = NamingStrategy.Minify)
-        val ON_GARBAGE = ObfuscationOptions(enabled = true, namingStrategy = NamingStrategy.Random())
-    }
-}
+    val namingStrategy: NamingStrategy = NamingStrategy.MINIFY
+)
 
-sealed interface NamingStrategy {
-    data object Minify : NamingStrategy
-    data class Random(val length: Int = 20) : NamingStrategy
+enum class NamingStrategy(val length: Int? = null) {
+    MINIFY,
+    RANDOM(length = 10)
 }
 
 data class StandardLibraryOptions(
@@ -47,7 +40,9 @@ data class PerformanceOptions(
 )
 
 enum class OptimizationMode {
-    OFF, MEDIUM, AGGRESSIVE
+    OFF, //no optimization
+    MEDIUM, //optimizations enabled
+    AGGRESSIVE //optimizations + function inlining
 }
 
 data class ExperimentalOptions(

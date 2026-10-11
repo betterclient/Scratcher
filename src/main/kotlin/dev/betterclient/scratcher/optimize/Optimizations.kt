@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.optimize
 
-import dev.betterclient.scratcher.OptimizationMode
+import dev.betterclient.scratcher.cli.OptimizationMode
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
@@ -42,7 +42,7 @@ object Optimizations {
 
     )
 
-    fun apply(functions: MutableList<Function>, context: CompilationContext, print: Boolean = true) {
+    fun apply(functions: MutableList<Function>, context: CompilationContext, print: Boolean = true, println: (String) -> Unit) {
         if (CompilationContext.options.performance.optimizationMode == OptimizationMode.OFF) return
 
         var changed: Boolean
@@ -83,9 +83,9 @@ object Optimizations {
         }
     }
 
-    fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true) {
+    fun apply(ast: ASTFile, context: CompilationContext, print: Boolean = true, println: (String) -> Unit) {
         val functions = (ast.functions + ast.imports.values.flatMap { it.functions }).toMutableList()
-        apply(functions, context, print)
+        apply(functions, context, print, println)
     }
 
     private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {

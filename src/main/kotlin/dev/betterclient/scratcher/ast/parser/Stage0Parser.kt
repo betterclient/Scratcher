@@ -1,7 +1,7 @@
 package dev.betterclient.scratcher.ast.parser
 
 import com.strumenta.antlrkotlin.parsers.generated.ScratcherLangParser
-import dev.betterclient.scratcher.CompilationOptions
+import dev.betterclient.scratcher.cli.CompilationOptions
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.code.Generics
