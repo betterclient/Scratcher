@@ -76,6 +76,24 @@ object SequentialConstantPropagation : Optimization("Sequential constant propaga
                 knownValues.clear()
                 return DynamicCallExpression(type, fn, visitedArgs, position)
             }
+
+            override fun visitLambdaExpression(
+                block: CodeBlock,
+                arguments: List<LocalVariable>,
+                captured: MutableSet<LocalVariable>,
+                position: Position?
+            ): Expression {
+                val lambdaPass = Pass()
+                val processedBlock = lambdaPass.processCodeBlock(block)
+                if (lambdaPass.modified) {
+                    modified = true
+                }
+
+                val modifiedInside = collectModifiedVariables(block)
+                invalidateAll(modifiedInside)
+
+                return LambdaExpression(arguments, processedBlock, captured, position)
+            }
         }
 
         fun propagate(expr: Expression): Expression {

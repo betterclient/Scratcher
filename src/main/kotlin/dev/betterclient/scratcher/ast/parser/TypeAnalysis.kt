@@ -500,7 +500,6 @@ class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val
             BinaryOperator.ADD,
             BinaryOperator.SUBTRACT,
             BinaryOperator.MULTIPLY,
-            BinaryOperator.DIVIDE,
             BinaryOperator.MODULO -> {
                 if (isNumeric(leftType) && isNumeric(rightType)) {
                     if (leftType == PrimitiveType.Float || rightType == PrimitiveType.Float) PrimitiveType.Float else PrimitiveType.Integer
@@ -508,6 +507,14 @@ class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val
                     this.error("Operator cannot be applied to $leftType and $rightType", expr.position)
                     PrimitiveType.Float
                 }
+            }
+
+            BinaryOperator.DIVIDE -> {
+                if (!isNumeric(leftType) || !isNumeric(rightType)) {
+                    this.error("Operator cannot be applied to $leftType and $rightType", expr.position)
+                }
+
+                PrimitiveType.Float
             }
 
             BinaryOperator.LESS_THAN,

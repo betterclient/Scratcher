@@ -8,6 +8,9 @@ import dev.betterclient.scratcher.optimize.Optimization
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import org.antlr.v4.kotlinruntime.ast.Position
+import java.math.BigDecimal
+import java.math.BigInteger
+import kotlin.math.floor
 
 object ConstantFolding : Optimization("Constant Folding") {
     override fun apply(
@@ -120,22 +123,37 @@ object ConstantFolding : Optimization("Constant Folding") {
             left is BooleanLiteral && right is BooleanLiteral -> {
                 left.value == right.value
             }
+            left is StringLiteral && right is StringLiteral -> {
+                val d1 = left.value.trim().toDoubleOrNull()
+                val d2 = right.value.trim().toDoubleOrNull()
+                if (d1 != null && d2 != null) {
+                    d1 == d2
+                } else {
+                    left.value.equals(right.value, ignoreCase = true)
+                }
+            }
+            (left is StringLiteral || left is CharLiteral) && (right is IntLiteral || right is FloatLiteral) -> {
+                val s = if (left is StringLiteral) left.value else (left as CharLiteral).value.toString()
+                val num = s.trim().toDoubleOrNull()
+                val rightNum = (right as? IntLiteral)?.value?.toDouble() ?: (right as FloatLiteral).value.toDouble()
+                num != null && num == rightNum
+            }
+            (left is IntLiteral || left is FloatLiteral) && (right is StringLiteral || right is CharLiteral) -> {
+                val s = if (right is StringLiteral) right.value else (right as CharLiteral).value.toString()
+                val num = s.trim().toDoubleOrNull()
+                val leftNum = (left as? IntLiteral)?.value?.toDouble() ?: (left as FloatLiteral).value.toDouble()
+                num != null && num == leftNum
+            }
             (left is IntLiteral || left is FloatLiteral) && (right is IntLiteral || right is FloatLiteral) -> {
                 val leftValue = (left as? IntLiteral)?.value?.toBigDecimal() ?: (left as FloatLiteral).value
                 val rightValue = (right as? IntLiteral)?.value?.toBigDecimal() ?: (right as FloatLiteral).value
                 leftValue.compareTo(rightValue) == 0
-            }
-            left is StringLiteral && right is StringLiteral -> {
-                left.value.equals(right.value, ignoreCase = true)
             }
             left is StringLiteral && right is CharLiteral -> {
                 left.value.equals(right.value.toString(), ignoreCase = true)
             }
             left is CharLiteral && right is CharLiteral -> {
                 left.value.equals(right.value, ignoreCase = true)
-            }
-            left is CharLiteral && right is StringLiteral -> {
-                left.value.toString().equals(right.value, ignoreCase = true)
             }
             else -> {
                 (left as? Literal)?.withoutPosition() == (right as? Literal)?.withoutPosition()
@@ -181,28 +199,38 @@ object ConstantFolding : Optimization("Constant Folding") {
         )
     }
 
-    private fun foldConstantSimpleMath(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): Literal {
-        val returnFloat = left is FloatLiteral || right is FloatLiteral
+    private fun foldConstantSimpleMath(left: Literal, right: Literal, operator: BinaryOperator, position: Position?): Expression {
+        val returnFloat = left is FloatLiteral || right is FloatLiteral || operator == BinaryOperator.DIVIDE
         return if (returnFloat) {
-            val leftValue = (left as? IntLiteral)?.value?.toBigDecimal()?: (left as FloatLiteral).value
-            val rightValue = (right as? IntLiteral)?.value?.toBigDecimal()?: (right as FloatLiteral).value
-            when (operator) {
-                BinaryOperator.MULTIPLY -> FloatLiteral(leftValue * rightValue, position)
-                BinaryOperator.DIVIDE -> FloatLiteral(leftValue / rightValue, position)
-                BinaryOperator.MODULO -> FloatLiteral(leftValue % rightValue, position)
-                BinaryOperator.ADD -> FloatLiteral(leftValue + rightValue, position)
-                BinaryOperator.SUBTRACT -> FloatLiteral(leftValue - rightValue, position)
+            val d1 = (left as? IntLiteral)?.value?.toDouble() ?: (left as FloatLiteral).value.toDouble()
+            val d2 = (right as? IntLiteral)?.value?.toDouble() ?: (right as FloatLiteral).value.toDouble()
+            if (operator == BinaryOperator.DIVIDE && d2 == 0.0) return BinaryExpression(left, operator, right, position)
+
+            val res = when (operator) {
+                BinaryOperator.MULTIPLY -> d1 * d2
+                BinaryOperator.DIVIDE -> d1 / d2
+                BinaryOperator.MODULO -> d1 - d2 * floor(d1 / d2)
+                BinaryOperator.ADD -> d1 + d2
+                BinaryOperator.SUBTRACT -> d1 - d2
                 else -> throw UnreachableException()
             }
+
+            if (!res.isFinite()) return BinaryExpression(left, operator, right, position)
+            FloatLiteral(BigDecimal.valueOf(res), position)
         } else {
-            val leftValue = (left as IntLiteral).value
-            val rightValue = (right as IntLiteral).value
+            val l = (left as IntLiteral).value
+            val r = (right as IntLiteral).value
+            if ((operator == BinaryOperator.MODULO) && r == BigInteger.ZERO) {
+                return BinaryExpression(left, operator, right, position)
+            }
             when (operator) {
-                BinaryOperator.MULTIPLY -> IntLiteral(leftValue * rightValue, position)
-                BinaryOperator.DIVIDE -> IntLiteral(leftValue / rightValue, position)
-                BinaryOperator.MODULO -> IntLiteral(leftValue % rightValue, position)
-                BinaryOperator.ADD -> IntLiteral(leftValue + rightValue, position)
-                BinaryOperator.SUBTRACT -> IntLiteral(leftValue - rightValue, position)
+                BinaryOperator.MULTIPLY -> IntLiteral(l * r, position)
+                BinaryOperator.ADD -> IntLiteral(l + r, position)
+                BinaryOperator.SUBTRACT -> IntLiteral(l - r, position)
+                BinaryOperator.MODULO -> {
+                    val rem = ((l % r) + r) % r
+                    IntLiteral(if (rem != BigInteger.ZERO && rem.signum() != r.signum()) rem + r else rem, position)
+                }
                 else -> throw UnreachableException()
             }
         }

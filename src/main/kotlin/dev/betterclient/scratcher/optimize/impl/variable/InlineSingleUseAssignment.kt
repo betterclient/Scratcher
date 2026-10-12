@@ -100,17 +100,48 @@ class InlineSingleUseAnalysis {
     val writeCounts = mutableMapOf<LocalVariable, Int>()
     private val invalidated = mutableSetOf<LocalVariable>()
     private var loopDepth = 0
+    private var lambdaDepth = 0
 
     private val exprVisitor = object : ASTVisitor() {
+        override fun visitLambdaExpression(
+            block: CodeBlock,
+            arguments: List<LocalVariable>,
+            captured: MutableSet<LocalVariable>,
+            position: Position?
+        ): Expression {
+            lambdaDepth++
+            val res = super.visitLambdaExpression(block, arguments, captured, position)
+            lambdaDepth--
+            return res
+        }
+
         override fun visitLocalVariableExpression(variable: LocalVariable, position: Position?): Expression {
             val def = activeVars[variable]
             if (def != null) {
-                def.readCount++
-            } else if (loopDepth > 0 && writeCounts.containsKey(variable)) {
+                if (lambdaDepth > 0) {
+                    def.readCount += 2
+                    def.isInvalid = true
+                    invalidated.add(variable)
+                } else {
+                    def.readCount++
+                }
+            } else if ((loopDepth > 0 || lambdaDepth > 0) && writeCounts.containsKey(variable)) {
                 invalidated.add(variable)
             }
 
             return super.visitLocalVariableExpression(variable, position)
+        }
+
+        override fun visitLocalVariableAssignmentStatement(
+            variable: LocalVariable,
+            assignment: Expression,
+            position: Position?
+        ): Statement? {
+            if (lambdaDepth > 0) {
+                invalidated.add(variable)
+                activeVars[variable]?.let { it.isInvalid = true }
+            }
+            return super.visitLocalVariableAssignmentStatement(variable, assignment, position)
         }
 
         override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {

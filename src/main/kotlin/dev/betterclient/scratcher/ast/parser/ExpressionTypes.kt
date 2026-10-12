@@ -119,13 +119,14 @@ object ExpressionTypes {
 
         return when (expr.operator) {
             BinaryOperator.ADD, BinaryOperator.SUBTRACT,
-            BinaryOperator.MULTIPLY, BinaryOperator.DIVIDE,
+            BinaryOperator.MULTIPLY,
             BinaryOperator.MODULO -> {
                 when {
                     leftType == PrimitiveType.Float || rightType == PrimitiveType.Float -> PrimitiveType.Float
                     else -> PrimitiveType.Integer
                 }
             }
+            BinaryOperator.DIVIDE -> PrimitiveType.Float
 
             BinaryOperator.LESS_THAN,
             BinaryOperator.GREATER_THAN,

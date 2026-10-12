@@ -3,6 +3,7 @@ package dev.betterclient.scratcher.optimize
 import dev.betterclient.scratcher.cli.OptimizationMode
 import dev.betterclient.scratcher.ast.ASTFile
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.UnreachableException
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.impl.TailCallOptimization
 import dev.betterclient.scratcher.optimize.impl.control.DeadCodeElimination
@@ -47,7 +48,11 @@ object Optimizations {
 
         var changed: Boolean
         var iterations = 0
-        val maxIterations = 20
+        val maxIterations = when(CompilationContext.options.performance.optimizationMode) {
+            OptimizationMode.OFF -> throw UnreachableException()
+            OptimizationMode.MEDIUM -> 20
+            OptimizationMode.AGGRESSIVE -> 40
+        }
         val applyCounts = mutableMapOf<Optimization, Int>()
 
         do {

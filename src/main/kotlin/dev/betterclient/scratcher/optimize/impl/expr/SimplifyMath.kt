@@ -9,6 +9,7 @@ import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.simple
 import org.antlr.v4.kotlinruntime.ast.Position
+import java.math.BigDecimal
 import java.math.BigInteger
 
 object SimplifyMath : Optimization("Simplify math") {
@@ -61,8 +62,8 @@ object SimplifyMath : Optimization("Simplify math") {
             }
             BinaryOperator.DIVIDE -> when {
                 rightZero -> null
-                rightOne -> left
-                leftZero && right is IntLiteral -> left
+                rightOne && left is FloatLiteral -> left
+                leftZero && right is IntLiteral -> FloatLiteral(BigDecimal.ZERO, position)
                 else -> null
             }
             BinaryOperator.MODULO -> when {
