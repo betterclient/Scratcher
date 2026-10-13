@@ -34,11 +34,19 @@ val generateKotlinGrammarSource = tasks.register<AntlrKotlinTask>("generateKotli
 }
 
 application {
-    mainClass.set("dev.betterclient.scratcher.DebugMainKt")
+    mainClass.set("dev.betterclient.scratcher.DebugMain")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "dev.betterclient.scratcher.cli.CLIKt"
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
 }
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(11)
 
     sourceSets {
         main {

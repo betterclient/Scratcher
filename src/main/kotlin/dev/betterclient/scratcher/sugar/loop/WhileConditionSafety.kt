@@ -23,7 +23,7 @@ object WhileConditionSafety : CompilerSugar() {
                         VariableStatement(condition, whileCond, position)
                     ))
 
-                    block.code.addLast(
+                    block.code.add(
                         LocalVariableAssignmentStatement(
                             whileCond, condition, position
                         )
