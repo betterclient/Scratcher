@@ -3,6 +3,7 @@ import motion::gotoXY;
 import pen;
 import triangle;
 import sensing;
+import math::round;
 
 warp void renderText(str text, int x, int y, float color, bool center) {
     pen::setSize(1.5);
@@ -36,7 +37,7 @@ warp void fill(float x, float y, float endX, float endY, float color) {
 
 warp void button(str text, int x, int y, int width, int height, float bgColor, float textColor, () -> void onClick) {
     fill(x, y, x + width, y + height, bgColor);
-    renderText(text, x + width / 2, y + height / 2, textColor, true);
+    renderText(text, round(x + width / 2), round(y + height / 2), textColor, true);
 
     if(sensing::isMousePressed() && isMouseInside(x, y, x + width, y + height)) {
         onClick();

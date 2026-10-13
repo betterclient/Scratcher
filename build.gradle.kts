@@ -34,7 +34,7 @@ val generateKotlinGrammarSource = tasks.register<AntlrKotlinTask>("generateKotli
 }
 
 application {
-    mainClass.set("dev.betterclient.scratcher.MainKt")
+    mainClass.set("dev.betterclient.scratcher.DebugMainKt")
 }
 
 kotlin {

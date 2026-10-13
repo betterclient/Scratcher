@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.cli.CompilationOptions
 import dev.betterclient.scratcher.cli.ExperimentalOptions
 import dev.betterclient.scratcher.cli.GCOptions
 import dev.betterclient.scratcher.cli.ObfuscationOptions
+import dev.betterclient.scratcher.cli.OptimizationMode
 import dev.betterclient.scratcher.cli.PerformanceOptions
 import dev.betterclient.scratcher.cli.StandardLibraryOptions
 import java.io.File
@@ -16,12 +17,14 @@ object DebugMain {
             ObfuscationOptions(),
             StandardLibraryOptions(),
             GCOptions(),
-            PerformanceOptions(),
+            PerformanceOptions(
+                optimizationMode = OptimizationMode.OFF,
+            ),
             ExperimentalOptions()
         )
 
         val compiler = Compiler(
-            File("examples/cube/cube.sc"),
+            File("test/sealed_enum.sc"),
             outFile = File("out.sb3"),
             inputProj = null,
             options = options,

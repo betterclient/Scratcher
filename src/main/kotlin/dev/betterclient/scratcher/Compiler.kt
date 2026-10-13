@@ -144,9 +144,10 @@ class Compiler(
         val reachableFunctionsLocalCountsMap = ConvertToHeapAccess(reachableFunctions).run()
 
         val (nowReachable) = FunctionReachability(reachableEntrypoints).run(ast)
+        nowReachable.addAll(FunctionReachability(listOf()).run(topLevelInit))
+
         reachableFunctions.clear()
         reachableFunctions.addAll(nowReachable)
-        reachableFunctions.add(topLevelInit)
 
         //store it as a pair cause we need the original func for the code itself
         val translator = FunctionStructureTranslator()
