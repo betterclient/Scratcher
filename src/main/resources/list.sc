@@ -1,5 +1,6 @@
 import array::*;
 import except;
+import math::*;
 
 struct List<T>(
     private int length,
@@ -82,6 +83,7 @@ warp <T> T List<T>.removeAt(int index) {
     }
 
     this.length--;
+    this.ptr[this.length] = null;
     return removedItem;
 }
 
@@ -91,12 +93,11 @@ warp <T> bool List<T>.remove(T item) {
     repeat(this.length) { index ->
         if(foundIndex == -1 && this.ptr[index] === item) {
             foundIndex = index;
+            break;
         }
     }
 
-    if(foundIndex == -1) {
-        return false;
-    }
+    return false if(foundIndex == -1);
 
     //shift
     int i = foundIndex;
@@ -106,7 +107,18 @@ warp <T> bool List<T>.remove(T item) {
     }
 
     this.length--;
+    this.ptr[this.length] = null;
     return true;
+}
+
+warp <T> void List<T>.fit() {
+    return if(this.ptr.length() == this.length || this.length == 0);
+
+    auto newArray = arrayOfNulls(this.length);
+    repeat(this.length) { index ->
+        newArray[index] = this.ptr[index];
+    }
+    this.ptr = newArray;
 }
 
 //extensions
@@ -319,4 +331,41 @@ warp <T> str List<T>.joinToString(str delimeter, (T) -> str toString) {
         index++;
     }
     return out;
+}
+
+warp <T> void List<T>.sort((T, T) -> int compare) {
+    return if length() <= 1;
+
+    this.sortInternal(0, length() - 1, compare);
+}
+
+private warp <T> void List<T>.sortInternal(int l, int h, (T, T) -> int compare) {
+    int low = l;
+    int high = h;
+
+    while(low < high) {
+        T pivot = this[round(floor(low + (high - low) / 2))];
+        int i = low;
+        int j = high;
+
+        while(i <= j) {
+            while(compare(this[i], pivot) < 0) { i += 1; }
+            while(compare(this[j], pivot) > 0) { j -= 1; }
+            if(i <= j) {
+                T temp = this[i];
+                this[i] = this[j];
+                this[j] = temp;
+                i += 1;
+                j -= 1;
+            }
+        }
+
+        if(j - low < high - i) {
+            if(low < j) this.sortInternal(low, j, compare);
+            low = i;
+        } else {
+            if(i < high) this.sortInternal(i, high, compare);
+            high = j;
+        }
+    }
 }

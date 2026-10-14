@@ -2,6 +2,7 @@ import array;
 import extensions_internal as self;
 import case_sensitive_equals as uppercase_helper;
 import except::panic;
+import math::*;
 
 //general
 warp <T, R> R T.let((T) -> R action) {
@@ -121,5 +122,41 @@ warp <T, R> R[] T[].map((T) -> R action) {
 warp <T> void T[].forEach((T) -> void action) {
     for(T t in this) {
         action(t);
+    }
+}
+
+warp <T> void T[].sort((T, T) -> int compare) {
+    return if length() <= 1;
+
+    this.sortInternal(0, length() - 1, compare);
+}
+
+private warp <T> void T[].sortInternal(int l, int h, (T, T) -> int compare) {
+    int low = l;
+    int high = h;
+    while(low < high) {
+        T pivot = this[round(floor(low + (high - low) / 2))];
+        int i = low;
+        int j = high;
+
+        while(i <= j) {
+            while(compare(this[i], pivot) < 0) { i += 1; }
+            while(compare(this[j], pivot) > 0) { j -= 1; }
+            if(i <= j) {
+                T temp = this[i];
+                this[i] = this[j];
+                this[j] = temp;
+                i += 1;
+                j -= 1;
+            }
+        }
+
+        if(j - low < high - i) {
+            if(low < j) this.sortInternal(low, j, compare);
+            low = i;
+        } else {
+            if(i < high) this.sortInternal(i, high, compare);
+            high = j;
+        }
     }
 }

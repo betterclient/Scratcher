@@ -139,7 +139,7 @@ class ExpressionParser(
 
                 parser.functionResolver.resolveReceiverFunction(list, "get", listOf(index), filter = { it.operator })
                     ?: run {
-                        return error(ctx.position!!, ast, "Cannot resolve get for $type")
+                        return error(ctx.position!!, ast, "Cannot resolve ${type}.get(${index.type})")
                     }
             }
             is ScratcherLangParser.WhenExprContext -> {

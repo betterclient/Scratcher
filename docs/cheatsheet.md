@@ -134,6 +134,8 @@
 - `operator <T> List<T> plus(List<T> first, List<T> second)`
 - `<T> T[] List<T>.toArray()`
 - `<T> List<T> T[].toList()`
+- `void List<T>.fit()` (shrink capacity to fit length)
+- `<T> void List<T>.sort((T, T) -> int compare)`
 
 ### `array`
 **Notes**:
@@ -165,6 +167,7 @@
 - `<T> void T[].copyTo(T[] other)`
 - `<T, R> R[] T[].map((T) -> R action)`
 - `<T> void T[].forEach((T) -> void action)`
+- `<T> void T[].sort((T, T) -> int compare)`
 
 ### `list_pool`
 **Notes**: The pool is configurable.
