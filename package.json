@@ -1,0 +1,8 @@
+{
+  "name": "scratch-tester",
+  "private": true,
+  "dependencies": {
+    "scratch-storage": "latest",
+    "scratch-vm": "latest"
+  }
+}

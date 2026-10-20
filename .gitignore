@@ -12,6 +12,8 @@ build/
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+node_modules
+package-lock.json
 
 out.sb3
 antlr/ScratcherLangLexer.tokens
