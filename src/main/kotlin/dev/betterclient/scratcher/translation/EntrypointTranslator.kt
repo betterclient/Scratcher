@@ -12,7 +12,6 @@ import dev.betterclient.scratcher.gc.GCInfo
 import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.name
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 
 class EntrypointTranslator(
@@ -135,7 +134,7 @@ class EntrypointTranslator(
                 if (CompilationContext.options.gc.markAndSweepGC) {
                     list.add(
                         VariableStatements.SetVariableTo(
-                            variable = toScratchTL(StandardLibASTGenerator.gc.variables.find { it.name == "gc_reserved" }!!),
+                            variable = toScratchTL(CompilationContext.std.gc.variables.find { it.name == "gc_reserved" }!!),
                             value = (entrypointCount + 1).toString().scratch
                         )
                     )

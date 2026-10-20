@@ -22,7 +22,6 @@ import dev.betterclient.scratcher.ast.unifyTypes
 import dev.betterclient.scratcher.gc.SealedEnumGCInfo
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -320,7 +319,7 @@ object Generics {
             )
         }
 
-        MemoryLib.initMem(StandardLibASTGenerator.memLib, template.sourceAST)
+        MemoryLib.initMem(CompilationContext.std.memLib, template.sourceAST)
 
         return instantiatedStruct.type
     }
@@ -407,7 +406,7 @@ object Generics {
             }
         }
 
-        MemoryLib.initMem(StandardLibASTGenerator.memLib, targetAST)
+        MemoryLib.initMem(CompilationContext.std.memLib, targetAST)
 
         return sealedType
     }

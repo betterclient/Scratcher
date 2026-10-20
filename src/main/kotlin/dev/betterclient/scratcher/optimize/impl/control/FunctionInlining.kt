@@ -6,7 +6,6 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.*
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
 
@@ -67,7 +66,7 @@ object FunctionInlining : Optimization("Function inlining") {
             }
 
             override fun visitExpressionStatement(expression: Expression, position: Position?): Statement? {
-                if (expression is CallExpression && expression.func.sourceAST == StandardLibASTGenerator.typeChecker) return null
+                if (expression is CallExpression && expression.func.sourceAST == CompilationContext.std.typeChecker) return null
 
                 return super.visitExpressionStatement(expression, position)
             }
@@ -100,9 +99,9 @@ object InlineEligibility {
         var currentCost = 0
 
         //do not inline
-        if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == StandardLibASTGenerator.gc) return Int.MAX_VALUE
-        if (targetFunc.sourceAST == StandardLibASTGenerator.typeChecker) return Int.MAX_VALUE
-        if (targetFunc.sourceAST == StandardLibASTGenerator.refCountGC) return Int.MAX_VALUE
+        if (targetFunc.name == "markTopLevels" && targetFunc.sourceAST == CompilationContext.std.gc) return Int.MAX_VALUE
+        if (targetFunc.sourceAST == CompilationContext.std.typeChecker) return Int.MAX_VALUE
+        if (targetFunc.sourceAST == CompilationContext.std.refCountGC) return Int.MAX_VALUE
         if (targetFunc.export) return Int.MAX_VALUE
         if (OptimizationUtils.isRecursive(targetFunc, graph)) return Int.MAX_VALUE
 
@@ -152,7 +151,7 @@ object InlineEligibility {
             }
 
             override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
-                if (func.sourceAST == StandardLibASTGenerator.typeChecker) return super.visitCallExpression(func, args, position)
+                if (func.sourceAST == CompilationContext.std.typeChecker) return super.visitCallExpression(func, args, position)
 
                 currentCost += when (func) {
                     is InlineStandardLibFunction -> 100
@@ -180,7 +179,7 @@ object InlineEligibility {
                 for (stmt in block.code) {
                     if (stmt is ExpressionStatement &&
                         stmt.expression is CallExpression &&
-                        stmt.expression.func.sourceAST == StandardLibASTGenerator.typeChecker
+                        stmt.expression.func.sourceAST == CompilationContext.std.typeChecker
                     ) {
                         continue
                     }

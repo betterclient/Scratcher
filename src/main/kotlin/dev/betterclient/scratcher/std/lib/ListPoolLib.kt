@@ -10,7 +10,6 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.math.BigInteger
 
 object ListPoolLib {
@@ -27,7 +26,7 @@ object ListPoolLib {
             addGC(StructGCInfo(pooledList.type, pooledList))
         }
 
-        MemoryLib.initMem(StandardLibASTGenerator.memLib, lib)
+        MemoryLib.initMem(CompilationContext.std.memLib, lib)
 
         val pool = TLStaticList(
             name = "Pool",

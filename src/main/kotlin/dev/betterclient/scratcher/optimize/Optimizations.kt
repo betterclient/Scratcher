@@ -18,7 +18,6 @@ import dev.betterclient.scratcher.optimize.impl.variable.DeadStoreElimination
 import dev.betterclient.scratcher.optimize.impl.variable.InlineSingleUseAssignment
 import dev.betterclient.scratcher.optimize.impl.variable.PrimitiveCopyPropagation
 import dev.betterclient.scratcher.optimize.impl.variable.SequentialConstantPropagation
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 typealias TCallGraph = Map<Function, List<Function>>
 
@@ -94,7 +93,7 @@ object Optimizations {
     }
 
     private fun applyAll(context: CompilationContext, func: Function, graph: TCallGraph, applyCounts: MutableMap<Optimization, Int>): Boolean {
-        if (StandardLibASTGenerator.isStandardLib(func)) return false
+        if (CompilationContext.std.isStandardLib(func)) return false
         var funcModified = false
         val opts = optimizations
         opts.forEach { optimization ->

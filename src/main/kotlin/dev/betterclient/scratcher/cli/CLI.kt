@@ -19,7 +19,6 @@ import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.TypeAnalysis
 import dev.betterclient.scratcher.ast.parser.code.Stage1Parser
 import dev.betterclient.scratcher.codegen.openScratchEditorFromResource
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import java.io.File
 
 fun main(args: Array<String>) = ScratcherCLI()
@@ -43,7 +42,7 @@ class StandardLibrary : CliktCommand() {
         val editor = openScratchEditorFromResource(
             Compiler::class.java.getResourceAsStream("/proj.sb3")!!
         )
-        StandardLibASTGenerator.init(editor)
+        CompilationContext.std.init(editor)
 
         val code = """
             on GreenFlag {}
@@ -53,11 +52,11 @@ class StandardLibrary : CliktCommand() {
         val ast = ASTReader(reporter, context, code, "code.sc").read()
         context.generateGCNames()
 
-        StandardLibASTGenerator.generateFrom(context, ast)
+        CompilationContext.std.generateFrom(context, ast)
         Stage1Parser(context, ast).parse()
         TypeAnalysis(reporter, context, ast).run()
 
-        StandardLibASTGenerator.print()
+        CompilationContext.std.print()
     }
 }
 

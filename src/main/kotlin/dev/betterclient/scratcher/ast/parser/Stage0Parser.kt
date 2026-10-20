@@ -27,17 +27,22 @@ class CompilationContext(
 
         val options: CompilationOptions
             get() = current.options
+
+        val std: StandardLibASTGenerator
+            get() = current.std
     }
     init {
         current = this
     }
 
+    val std = StandardLibASTGenerator(this)
+
     fun generateGCNames() {
         if (!options.gc.markAndSweepGC) return
 
         val allStructs = asts.values.flatMap { it.structs } +
-                StandardLibASTGenerator.compilerLib.structs +
-                StandardLibASTGenerator.lambdaLib.structs
+                std.compilerLib.structs +
+                std.lambdaLib.structs
 
         allStructs.distinct().forEach { struct ->
             if (gcNames.none { it is StructGCInfo && it.struct == struct }) {
@@ -46,8 +51,8 @@ class CompilationContext(
         }
 
         val allSealedEnums = asts.values.flatMap { it.sealedEnums } +
-                StandardLibASTGenerator.compilerLib.sealedEnums +
-                StandardLibASTGenerator.lambdaLib.sealedEnums
+                std.compilerLib.sealedEnums +
+                std.lambdaLib.sealedEnums
 
         allSealedEnums.distinct().forEach { sealed ->
             if (gcNames.none { it is SealedEnumGCInfo && it.sealedEnum == sealed }) {
@@ -455,15 +460,15 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
             val moduleNode = identifier!!
             val moduleName = moduleNode.text
 
-            val stdLib = StandardLibASTGenerator.lib[moduleName]
+            val stdLib = ctx.std.lib[moduleName]
                 ?: run {
                     errorReporter.logError(ast, identifier.position(), "No standard library module $moduleName found!")
-                    StandardLibASTGenerator.emptyLib
+                    ctx.std.emptyLib
                 }
             if (moduleName == "gc" && !ctx.options.gc.markAndSweepGC) {
                 errorReporter.logError(ast, identifier.position(), "Mark and sweep GC is disabled! Cannot access \"gc\" from ${ast.simplePath}")
             }
-            if (StandardLibASTGenerator.isRestricted(stdLib)) {
+            if (ctx.std.isRestricted(stdLib)) {
                 errorReporter.logError(ast, identifier.position(), "Standard library module $moduleName is restricted!")
             }
 
@@ -478,7 +483,7 @@ class ASTReader(val errorReporter: ErrorReporter, val ctx: CompilationContext, v
 
             if (!importedFile.exists()) {
                 errorReporter.logError(ast, plainStringLiteralContext.position!!, "Imported file not found at $importedPath")
-                return StandardLibASTGenerator.emptyLib
+                return ctx.std.emptyLib
             }
 
             val importedAST = ctx.asts[importedPath] ?: run {
@@ -609,7 +614,7 @@ fun figureOutType(
             if (inner is NullableType) return inner
             if (inner == PrimitiveType.Str) {
                 NullableType(
-                    StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!.type
+                    context.std.compilerLib.structs.find { it.name == "StringBox" }!!.type
                 )
             } else {
                 NullableType(
@@ -629,7 +634,7 @@ fun figureOutType(
                     currentAST.imports[id[0].text]
                         ?: run {
                             reporter.logError(currentAST, id[0].position(), "Import \"${id[0].text}\" not found for type ${type.text}")
-                            StandardLibASTGenerator.emptyLib
+                            context.std.emptyLib
                         }
                 } else {
                     currentAST
@@ -667,7 +672,7 @@ fun figureOutType(
                     val otherFile = currentAST.imports[importName]
                         ?: run {
                             reporter.logError(currentAST, type.typePath().position!!, "Type ${type.text} not found in any imports")
-                            StandardLibASTGenerator.emptyLib
+                            context.std.emptyLib
                         }
 
                     val found = context.types.find {
@@ -731,7 +736,7 @@ fun figureOutType(
                     val otherFile = currentAST.imports[id[0].text]
                         ?: run {
                             reporter.logError(currentAST, type.typePath().position!!, "Type ${type.text} not found in any imports")
-                            StandardLibASTGenerator.emptyLib
+                            context.std.emptyLib
                         }
 
                     val typeName = id[1].text

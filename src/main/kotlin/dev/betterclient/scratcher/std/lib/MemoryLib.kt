@@ -10,7 +10,6 @@ import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.findGC
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 import java.math.BigInteger
 
@@ -133,7 +132,7 @@ object MemoryLib {
     }
 
     fun initMem(lib: ASTFile, compilationStartAST: ASTFile) {
-        val structs = (mutableMapOf<ASTFile, List<Struct>>().also { figureOutReachableStructs(it, compilationStartAST) }.flatMap { (_, structs) -> structs } + StandardLibASTGenerator.compilerLib.structs)
+        val structs = (mutableMapOf<ASTFile, List<Struct>>().also { figureOutReachableStructs(it, compilationStartAST) }.flatMap { (_, structs) -> structs } + CompilationContext.std.compilerLib.structs)
 
         for (struct in structs) {
             val name = "new${struct.sourceAST.simplePath}::${struct.name}"
@@ -366,7 +365,7 @@ object MemoryLib {
     }
 
     private fun allocReturnType(struct: Struct): Type {
-        return if (struct.sourceAST == StandardLibASTGenerator.compilerLib) struct.type.asNullable() else struct.type
+        return if (struct.sourceAST == CompilationContext.std.compilerLib) struct.type.asNullable() else struct.type
     }
 
     private fun figureOutReachableStructs(out: MutableMap<ASTFile, List<Struct>>, ast: ASTFile) {

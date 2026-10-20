@@ -1,6 +1,6 @@
 package dev.betterclient.scratcher.ast
 
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 
 sealed interface Type {
     val isPrimitive: Boolean
@@ -109,7 +109,7 @@ data class SimpleType(
     }
 
     override fun toString(): String {
-        if (sourceAST == StandardLibASTGenerator.compilerLib && name == "StringBox") return "str"
+        if (sourceAST == CompilationContext.std.compilerLib && name == "StringBox") return "str"
         return "${sourceAST.simplePath}::$name"
     }
 

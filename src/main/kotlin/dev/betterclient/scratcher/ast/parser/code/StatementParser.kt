@@ -8,7 +8,7 @@ import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.ast.parser.position
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
@@ -332,7 +332,7 @@ class StatementParser(
         type: SimpleType
     ): IfStatement {
         val listStruct = (ast.structs + ast.structTemplates + ast.imports.values.flatMap { it.structs + it.structTemplates }).find { it.type == type }
-            ?: (StandardLibASTGenerator.list.value.structs + StandardLibASTGenerator.list.value.structTemplates).find { it.type == type }!!
+            ?: (CompilationContext.std.list.value.structs + CompilationContext.std.list.value.structTemplates).find { it.type == type }!!
         val ptrMember = listStruct.parameters.find { it.name == "ptr" || it.type is ArrayType }!!
 
         val listType = when {

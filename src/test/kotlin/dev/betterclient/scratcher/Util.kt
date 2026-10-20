@@ -1,16 +1,7 @@
 package dev.betterclient.scratcher
 
-import dev.betterclient.scratcher.cli.CompilationOptions
-import dev.betterclient.scratcher.cli.ExperimentalOptions
-import dev.betterclient.scratcher.cli.GCOptions
-import dev.betterclient.scratcher.cli.ObfuscationOptions
-import dev.betterclient.scratcher.cli.OptimizationMode
-import dev.betterclient.scratcher.cli.PerformanceOptions
-import dev.betterclient.scratcher.cli.StandardLibraryOptions
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
-import org.json.JSONObject
+import dev.betterclient.scratcher.cli.*
 import java.io.File
-import kotlin.test.assertEquals
 
 fun compile(
     code: String,

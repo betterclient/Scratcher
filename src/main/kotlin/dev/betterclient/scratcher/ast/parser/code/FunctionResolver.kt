@@ -5,7 +5,7 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes.type
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
@@ -50,7 +50,7 @@ class FunctionResolver(
         }
 
         //special stuff for array.sc
-        if (sourceAST == StandardLibASTGenerator.arrayInternalLib) {
+        if (sourceAST == CompilationContext.std.arrayInternalLib) {
             if (funcName == "newArray") {
                 val elemType = parser.currentTypeBindings["T"]
                     ?: (expectedType as? ArrayType)?.elementType

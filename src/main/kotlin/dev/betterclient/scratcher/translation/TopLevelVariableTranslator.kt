@@ -5,11 +5,10 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class TopLevelVariableTranslator {
     fun translate(variable: TLVariable): ScratchVariable {
-        if (variable.name.startsWith("Exported Return: ") && variable.sourceAST == StandardLibASTGenerator.compilerLib) {
+        if (variable.name.startsWith("Exported Return: ") && variable.sourceAST == CompilationContext.std.compilerLib) {
             return ScratchVariable(variable.name)
         }
         return ScratchVariable(obfuscate("${variable.sourceAST.simplePath}::${variable.name}"))
@@ -24,7 +23,7 @@ class TopLevelVariableTranslator {
             operator = false,
             private = false,
             userAccessible = false, //idk how you would access it?? This function is created after parsing
-            sourceAST = StandardLibASTGenerator.compilerLib
+            sourceAST = CompilationContext.std.compilerLib
         )
 
         if (CompilationContext.options.gc.refCountGC) {

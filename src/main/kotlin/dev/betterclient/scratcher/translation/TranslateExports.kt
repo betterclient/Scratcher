@@ -6,7 +6,7 @@ import dev.betterclient.scratcher.codegen.opcode.EventListener
 import dev.betterclient.scratcher.codegen.opcode.ProcedureArgumentString
 import dev.betterclient.scratcher.codegen.wrapper.ScratchFunction
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 
 class TranslateExports(val reachable: MutableList<Function>, val entrypoints: MutableList<ASTEventListener>) {
     fun run() {
@@ -17,7 +17,7 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
     }
 
     private fun translate(function: Function) {
-        val compilerLib = StandardLibASTGenerator.compilerLib
+        val compilerLib = CompilationContext.std.compilerLib
         val args = function.parameters.map { ProcedureArgumentString(it.name) }
         entrypoints.add(ASTEventListener(
             event = EventListener.ProcedureCall(
@@ -63,11 +63,11 @@ class TranslateExports(val reachable: MutableList<Function>, val entrypoints: Mu
                 warp = function.warp,
                 operator = false,
                 returnType = PrimitiveType.Void,
-                sourceAST = StandardLibASTGenerator.compilerLib,
+                sourceAST = CompilationContext.std.compilerLib,
                 private = false,
                 parameters = params
             ).also { func ->
-                StandardLibASTGenerator.compilerLib.functions.add(func)
+                CompilationContext.std.compilerLib.functions.add(func)
                 reachable.add(func)
             }
         })

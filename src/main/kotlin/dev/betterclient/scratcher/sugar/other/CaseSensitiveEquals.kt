@@ -9,7 +9,6 @@ import dev.betterclient.scratcher.codegen.ast.TurboWarpBoolExpressions
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.CompilerSugar
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -72,7 +71,7 @@ object CaseSensitiveEquals : CompilerSugar() {
         return when {
             leftType == PrimitiveType.Char && rightType == PrimitiveType.Char -> {
                 CallExpression(
-                    func = StandardLibASTGenerator.strict_equals.functions.find {
+                    func = CompilationContext.std.strict_equals.functions.find {
                         it.name == "equalsCC"
                     }!!,
                     arguments = listOf(left, right),
@@ -81,7 +80,7 @@ object CaseSensitiveEquals : CompilerSugar() {
             }
             else -> {
                 CallExpression(
-                    func = StandardLibASTGenerator.strict_equals.functions.find {
+                    func = CompilationContext.std.strict_equals.functions.find {
                         it.name == "equalsSS"
                     }!!,
                     arguments = listOf(left, right),

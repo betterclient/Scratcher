@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.CompilerSugar
 import org.antlr.v4.kotlinruntime.ast.Position
 import java.math.BigInteger
@@ -67,7 +66,7 @@ object DynamicDispatchHandler : CompilerSugar() {
                 "dispatcher$${getUniqueName()}",
                 parameters = pars.toMutableList(),
                 returnType = func.returnType,
-                sourceAST = StandardLibASTGenerator.dynamicDispatchLib,
+                sourceAST = CompilationContext.std.dynamicDispatchLib,
                 export = false,
                 warp = true,
                 private = false,
@@ -80,7 +79,7 @@ object DynamicDispatchHandler : CompilerSugar() {
                     ))
                 }
             ).also {
-                StandardLibASTGenerator.dynamicDispatchLib.functions.add(it)
+                CompilationContext.std.dynamicDispatchLib.functions.add(it)
             },
             targets = literals
         )

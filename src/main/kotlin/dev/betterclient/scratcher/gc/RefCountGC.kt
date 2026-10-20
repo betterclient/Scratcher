@@ -4,7 +4,6 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import java.math.BigInteger
@@ -53,15 +52,15 @@ object RefCountGC {
         setupDone = true
 
         val reachableStructs = context.asts.flatMap { (_, ast) -> ast.structs } +
-                StandardLibASTGenerator.compilerLib.structs +
-                StandardLibASTGenerator.lambdaLib.structs +
-                StandardLibASTGenerator.listPoolLib.structs
+                CompilationContext.std.compilerLib.structs +
+                CompilationContext.std.lambdaLib.structs +
+                CompilationContext.std.listPoolLib.structs
         reachableStructs.forEach { struct ->
             val refParam = Parameter("compiler@refcount", PrimitiveType.Integer)
             struct.parameters.add(0, refParam)
         }
 
-        lib = StandardLibASTGenerator.refCountGC
+        lib = CompilationContext.std.refCountGC
 
         val ptrArg = Parameter("ptr", PrimitiveType.Integer)
         inc = Function(
@@ -110,8 +109,8 @@ object RefCountGC {
         }
 
         val reachableSealedEnums = context.asts.values.flatMap { it.sealedEnums } +
-                StandardLibASTGenerator.compilerLib.sealedEnums +
-                StandardLibASTGenerator.lambdaLib.sealedEnums
+                CompilationContext.std.compilerLib.sealedEnums +
+                CompilationContext.std.lambdaLib.sealedEnums
         sealedDecs = reachableSealedEnums.distinct().associateWith { sealed ->
             Function(
                 name = "dec@${sealed.sourceAST.simplePath}::${sealed.name}",
@@ -161,10 +160,10 @@ object RefCountGC {
                 }
 
                 //list pool destructor
-                if (struct.sourceAST == StandardLibASTGenerator.listPoolLib) {
+                if (struct.sourceAST == CompilationContext.std.listPoolLib) {
                     it.code.add(ExpressionStatement(
                         CallExpression(
-                            func = StandardLibASTGenerator.listPoolLib.functions.find { func -> func.name == "free" }!!,
+                            func = CompilationContext.std.listPoolLib.functions.find { func -> func.name == "free" }!!,
                             arguments = listOf(ParameterExpression(ptrArg, null)),
                             position = null
                         ),

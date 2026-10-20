@@ -4,7 +4,6 @@ import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
     val reporter = ErrorReporter()
@@ -30,7 +29,7 @@ class Stage1Parser(val ctx: CompilationContext, val ast: ASTFile) {
             }
         }
 
-        if (StandardLibASTGenerator.lib.containsValue(ast)) return //do not try to parse standard lib
+        if (CompilationContext.std.lib.containsValue(ast)) return //do not try to parse standard lib
 
         parseInternal()
         reporter.flush()

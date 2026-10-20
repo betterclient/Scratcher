@@ -4,7 +4,6 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.generateCallGraph
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.sugar.dispatch.DynamicDispatchHandler
 import dev.betterclient.scratcher.sugar.lambda.LambdaDesugaring
 import dev.betterclient.scratcher.sugar.loop.ContinueAndBreakDesugaring
@@ -44,7 +43,7 @@ object Desugaring {
             if (s is DynamicDispatchHandler) {
                 if (!runDynamicDispatch) return@forEach
                 s.apply(callGraph.keys.first(), callGraph, context)
-                functions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
+                functions.addAll(CompilationContext.std.dynamicDispatchLib.functions)
                 return@forEach
             }
 
@@ -53,7 +52,7 @@ object Desugaring {
             }
 
             if (s is LambdaDesugaring) {
-                functions.addAll(StandardLibASTGenerator.lambdaLib.functions)
+                functions.addAll(CompilationContext.std.lambdaLib.functions)
             }
         }
         context.generateGCNames()
@@ -62,7 +61,7 @@ object Desugaring {
     fun applyDynamicDispatch(functions: MutableList<Function>, context: CompilationContext) {
         val callGraph = generateCallGraph(functions)
         DynamicDispatchHandler.apply(callGraph.keys.first(), callGraph, context)
-        functions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
+        functions.addAll(CompilationContext.std.dynamicDispatchLib.functions)
         context.generateGCNames()
     }
 }

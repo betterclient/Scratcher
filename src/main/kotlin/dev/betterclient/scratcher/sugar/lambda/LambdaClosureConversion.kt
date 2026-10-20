@@ -22,7 +22,6 @@ import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -31,11 +30,11 @@ class LambdaClosureConversion(
 ) : ASTVisitor() {
     val lambdaCapturesEnum = SealedEnum(
         name = "LambdaCaptures",
-        sourceAST = StandardLibASTGenerator.lambdaLib,
+        sourceAST = CompilationContext.std.lambdaLib,
         types = mutableListOf(),
         private = false,
     ).also {
-        StandardLibASTGenerator.lambdaLib.sealedEnums.add(it)
+        CompilationContext.std.lambdaLib.sealedEnums.add(it)
         ctx.types.add(it.type)
     }
 
@@ -66,10 +65,10 @@ class LambdaClosureConversion(
         visit(func, captureCollector)
 
         allCapturedLocals.forEach { boxFor(it) }
-        MemoryLib.initMem(StandardLibASTGenerator.memLib, StandardLibASTGenerator.lambdaLib)
+        MemoryLib.initMem(CompilationContext.std.memLib, CompilationContext.std.lambdaLib)
 
         visit(func, this)
-        MemoryLib.initMem(StandardLibASTGenerator.memLib, StandardLibASTGenerator.lambdaLib)
+        MemoryLib.initMem(CompilationContext.std.memLib, CompilationContext.std.lambdaLib)
     }
 
     override fun visitLambdaExpression(
@@ -80,10 +79,10 @@ class LambdaClosureConversion(
     ): Expression {
         val myCapture = Struct(
             name = "LambdaCapture@${index++}",
-            sourceAST = StandardLibASTGenerator.lambdaLib,
+            sourceAST = CompilationContext.std.lambdaLib,
             private = false,
         ).also {
-            StandardLibASTGenerator.lambdaLib.structs.add(it)
+            CompilationContext.std.lambdaLib.structs.add(it)
             lambdaCapturesEnum.types.add(it)
             ctx.types.add(it.type)
             if (CompilationContext.options.gc.markAndSweepGC) {
@@ -130,10 +129,10 @@ class LambdaClosureConversion(
         Struct(
             name = "LambdaBox${type.toSafeString()}",
             parameters = mutableListOf(Parameter("val", type)),
-            sourceAST = StandardLibASTGenerator.lambdaLib,
+            sourceAST = CompilationContext.std.lambdaLib,
             private = false,
         ).also {
-            StandardLibASTGenerator.lambdaLib.structs.add(it)
+            CompilationContext.std.lambdaLib.structs.add(it)
             ctx.types.add(it.type)
             if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(it.type, it))

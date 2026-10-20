@@ -8,7 +8,6 @@ import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.TCallGraph
 import dev.betterclient.scratcher.optimize.visit
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ExceptionLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import dev.betterclient.scratcher.sugar.CompilerSugar
@@ -137,7 +136,7 @@ object SealedEnumDesugaring : CompilerSugar() {
                 position: Position?
             ): Expression {
                 val visitedArgs = args.map { visit(it) }
-                val wrapper = MemoryLib.ensureVariantAllocFunc(StandardLibASTGenerator.memLib, sealedEnum, targetVariant)
+                val wrapper = MemoryLib.ensureVariantAllocFunc(CompilationContext.std.memLib, sealedEnum, targetVariant)
                 return CallExpression(wrapper, visitedArgs, position)
             }
         })

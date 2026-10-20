@@ -16,7 +16,6 @@ import dev.betterclient.scratcher.gc.GCLib
 import dev.betterclient.scratcher.gc.RefCountGC
 import dev.betterclient.scratcher.gc.ReleaseDeadTemporaries
 import dev.betterclient.scratcher.optimize.Optimizations
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.sugar.Desugaring
 import dev.betterclient.scratcher.translation.EntrypointReachability
@@ -49,7 +48,7 @@ class Compiler(
     )
 
     init {
-        StandardLibASTGenerator.init(editor)
+        CompilationContext.std.init(editor)
     }
 
     fun check(): String {
@@ -85,7 +84,7 @@ class Compiler(
 
         print("Post-optimize")
         Optimizations.apply(reachableFunctions, context, println = print)
-        if (context.options.gc.markAndSweepGC) Optimizations.apply(StandardLibASTGenerator.gc, context, print = false, print)
+        if (context.options.gc.markAndSweepGC) Optimizations.apply(CompilationContext.std.gc, context, print = false, print)
 
         print("Exports")
         val (postReachableFuncs, reachableTopLevelVariables, reachableLists) = FunctionReachability(reachableEntrypoints).run(ast)
@@ -103,20 +102,20 @@ class Compiler(
         val topLevelInit = topLevelTranslator.createFunction(reachableTopLevelVariables, reachableLists)
         reachableFunctions.add(topLevelInit)
 
-        StandardLibASTGenerator.compilerLib.functions.add(topLevelInit)
+        CompilationContext.std.compilerLib.functions.add(topLevelInit)
         if (context.options.gc.refCountGC) {
             reachableFunctions.addAll(RefCountGC.instrument(context, listOf(topLevelInit)))
         }
 
         Desugaring.apply(mutableListOf(topLevelInit), context, runDynamicDispatch = false)
-        val allDesugaredFunctions = (reachableFunctions + topLevelInit + StandardLibASTGenerator.lambdaLib.functions).toMutableList()
+        val allDesugaredFunctions = (reachableFunctions + topLevelInit + CompilationContext.std.lambdaLib.functions).toMutableList()
         Desugaring.applyDynamicDispatch(allDesugaredFunctions, context)
-        reachableFunctions.addAll(StandardLibASTGenerator.lambdaLib.functions)
-        reachableFunctions.addAll(StandardLibASTGenerator.dynamicDispatchLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.lambdaLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.dynamicDispatchLib.functions)
         Optimizations.apply(mutableListOf(topLevelInit), context, print = false, print) //optimize the top level init
 
-        reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions)
-        reachableFunctions.addAll(StandardLibASTGenerator.exceptLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.memoryLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.exceptLib.functions)
         reachableFunctions.addAll(ArrayLib.arrayFuncs)
 
         GCLib.generate(reachableTopLevelVariables.keys.toList()) { variable ->
@@ -124,8 +123,8 @@ class Compiler(
                 topLevelTranslator.translate(variable).also { editor.addVariable(it) }
             }
         }
-        reachableFunctions.addAll(StandardLibASTGenerator.memoryLib.functions)
-        reachableFunctions.addAll(StandardLibASTGenerator.memLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.memoryLib.functions)
+        reachableFunctions.addAll(CompilationContext.std.memLib.functions)
 
         val uniqueFunctions = reachableFunctions.distinct()
         reachableFunctions.clear()
@@ -193,7 +192,7 @@ class Compiler(
         print("Initial parse")
         val ast = ASTReader(reporter, context, sourceFile.readText(), sourceFile.absolutePath).read()
         context.generateGCNames()
-        StandardLibASTGenerator.generateFrom(context, ast)
+        CompilationContext.std.generateFrom(context, ast)
         print("Code parse")
         Stage1Parser(context, ast).parse()
         print("Static Type Checking")

@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.codegen.ast.*
 import dev.betterclient.scratcher.codegen.opcode.ScratchList
 import dev.betterclient.scratcher.codegen.opcode.ScratchVariable
 import dev.betterclient.scratcher.obfuscate
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.dsl.*
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import dev.betterclient.scratcher.std.lib.MemoryLib
@@ -213,7 +212,7 @@ object GCLib {
         if (!CompilationContext.options.gc.automaticGC) return listOf()
 
         return if (CompilationContext.options.gc.markAndSweepGC) {
-            StandardLibASTGenerator.gc.eventListeners
+            CompilationContext.std.gc.eventListeners
         } else listOf()
     }
 
@@ -252,9 +251,9 @@ object GCLib {
 
     fun generate(vars: List<TLVariable>, translate: (TLVariable) -> ScratchVariable) {
         val eligible = vars.filter { !it.type.isPrimitive }
-        val markListFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markList" }!!
-        val markStructFunc = StandardLibASTGenerator.gc.functions.find { it.name == "markStruct" }!!
-        val original = StandardLibASTGenerator.gc.functions.find { it.name == "markTopLevels" }!!
+        val markListFunc = CompilationContext.std.gc.functions.find { it.name == "markList" }!!
+        val markStructFunc = CompilationContext.std.gc.functions.find { it.name == "markStruct" }!!
+        val original = CompilationContext.std.gc.functions.find { it.name == "markTopLevels" }!!
         if (CompilationContext.options.gc.reflectGC) {
             reflectList.items.addAll(eligible.flatMap { variable ->
                 listOf(

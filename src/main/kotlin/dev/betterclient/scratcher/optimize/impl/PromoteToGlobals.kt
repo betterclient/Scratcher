@@ -5,13 +5,12 @@ import dev.betterclient.scratcher.ast.Function
 import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.*
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import org.antlr.v4.kotlinruntime.ast.Position
 
 object PromoteToGlobals : Optimization("Promote to globals") {
     override fun shouldApply(func: Function, callGraph: TCallGraph): Boolean {
-        if (func.sourceAST == StandardLibASTGenerator.gc ||
-            func.sourceAST == StandardLibASTGenerator.refCountGC
+        if (func.sourceAST == CompilationContext.std.gc ||
+            func.sourceAST == CompilationContext.std.refCountGC
         ) {
             return false
         }
@@ -34,10 +33,10 @@ object PromoteToGlobals : Optimization("Promote to globals") {
                 type = it.type,
                 defaultValue = null,
                 private = false,
-                sourceAST = StandardLibASTGenerator.globalPromotionLib,
+                sourceAST = CompilationContext.std.globalPromotionLib,
                 position = null
             )
-            StandardLibASTGenerator.globalPromotionLib.variables.add(variable)
+            CompilationContext.std.globalPromotionLib.variables.add(variable)
             variable
         }
 

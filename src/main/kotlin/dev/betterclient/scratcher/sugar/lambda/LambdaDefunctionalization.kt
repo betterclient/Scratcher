@@ -7,7 +7,6 @@ import dev.betterclient.scratcher.ast.parser.ExpressionTypes
 import dev.betterclient.scratcher.gc.StructGCInfo
 import dev.betterclient.scratcher.gc.addGC
 import dev.betterclient.scratcher.optimize.ASTVisitor
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.MemoryLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -24,7 +23,7 @@ class LambdaDefunctionalization(
 
     private fun getOrCreateClosureStruct(funcType: FunctionType): Struct {
         return closureStructs.computeIfAbsent(funcType) {
-            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: StandardLibASTGenerator.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: CompilationContext.std.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
             val targetFuncType = FunctionType(listOf(captureType) + funcType.parameterTypes, funcType.returnType)
             val struct = Struct(
                 name = "Closure@${index++}",
@@ -32,15 +31,15 @@ class LambdaDefunctionalization(
                     Parameter("func", targetFuncType),
                     Parameter("captures", captureType.asNullable())
                 ),
-                sourceAST = StandardLibASTGenerator.lambdaLib,
+                sourceAST = CompilationContext.std.lambdaLib,
                 private = false,
             )
-            StandardLibASTGenerator.lambdaLib.structs.add(struct)
+            CompilationContext.std.lambdaLib.structs.add(struct)
             ctx.types.add(struct.type)
             if (CompilationContext.options.gc.markAndSweepGC) {
                 addGC(StructGCInfo(struct.type, struct))
             }
-            MemoryLib.initMem(StandardLibASTGenerator.memLib, StandardLibASTGenerator.lambdaLib)
+            MemoryLib.initMem(CompilationContext.std.memLib, CompilationContext.std.lambdaLib)
             struct
         }
     }
@@ -65,11 +64,11 @@ class LambdaDefunctionalization(
             export = false,
             warp = true,
             operator = false,
-            sourceAST = StandardLibASTGenerator.lambdaLib,
+            sourceAST = CompilationContext.std.lambdaLib,
             private = false,
             code = LambdaDefunctionalization(ctx, lookup, closureConversion).visitCodeBlock(block)
         ).also {
-            StandardLibASTGenerator.lambdaLib.functions.add(it)
+            CompilationContext.std.lambdaLib.functions.add(it)
         }
 
         val closureStruct = getOrCreateClosureStruct(userFuncType)
@@ -106,7 +105,7 @@ class LambdaDefunctionalization(
         val closureStruct = getOrCreateClosureStruct(userFuncType)
 
         val trampoline = trampolines.computeIfAbsent(func) {
-            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: StandardLibASTGenerator.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: CompilationContext.std.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
             val capturePar = Parameter("capture", captureType)
             val userPars = func.parameters.map { Parameter(it.name, it.type) }
 
@@ -126,11 +125,11 @@ class LambdaDefunctionalization(
                 export = false,
                 warp = true,
                 operator = false,
-                sourceAST = StandardLibASTGenerator.lambdaLib,
+                sourceAST = CompilationContext.std.lambdaLib,
                 code = trampolineBody,
                 private = false,
             ).also {
-                StandardLibASTGenerator.lambdaLib.functions.add(it)
+                CompilationContext.std.lambdaLib.functions.add(it)
             }
         }
 

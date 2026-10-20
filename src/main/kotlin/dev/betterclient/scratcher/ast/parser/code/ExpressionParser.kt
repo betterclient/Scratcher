@@ -8,7 +8,7 @@ import dev.betterclient.scratcher.ast.parser.figureOutType
 import dev.betterclient.scratcher.ast.parser.position
 import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.simple
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -192,7 +192,7 @@ class ExpressionParser(
         if (lt.asNonNull() in directComp && rt.asNonNull() in directComp)
             return BinaryExpression(left, strictOp, right, ctx.position)
 
-        val sb = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }
+        val sb = CompilationContext.std.compilerLib.structs.find { it.name == "StringBox" }
             ?: return BinaryExpression(left, normalOp, right, ctx.position)
 
         val lb = isStringBox(lt, sb)
@@ -536,7 +536,7 @@ class ExpressionParser(
             return BinaryExpression(left, op, right, ctx.position)
         }
 
-        val stringBoxStruct = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" } ?: return BinaryExpression(left, op, right, ctx.position)
+        val stringBoxStruct = CompilationContext.std.compilerLib.structs.find { it.name == "StringBox" } ?: return BinaryExpression(left, op, right, ctx.position)
         val leftIsBox = isStringBox(leftType, stringBoxStruct)
         val rightIsBox = isStringBox(rightType, stringBoxStruct)
 

@@ -10,7 +10,6 @@ import dev.betterclient.scratcher.ast.ParameterExpression
 import dev.betterclient.scratcher.ast.PrimitiveType
 import dev.betterclient.scratcher.ast.StringLiteral
 import dev.betterclient.scratcher.ast.parser.CompilationContext
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object TypeCheckParameters {
     fun addParameterChecks(
@@ -69,9 +68,9 @@ object TypeCheckParameters {
 
     fun forDataType(parameter: Parameter, ast: ASTFile, currentFunction: Function?, type: String, typeInError: String): ExpressionStatement {
         val func = if (CompilationContext.options.obfuscation.enabled) {
-            StandardLibASTGenerator.typeChecker.functions.find { it.name == "check${type}Obf" }
+            CompilationContext.std.typeChecker.functions.find { it.name == "check${type}Obf" }
         } else {
-            StandardLibASTGenerator.typeChecker.functions.find { it.name == "check$type" }
+            CompilationContext.std.typeChecker.functions.find { it.name == "check$type" }
         }!!
 
         return ExpressionStatement(

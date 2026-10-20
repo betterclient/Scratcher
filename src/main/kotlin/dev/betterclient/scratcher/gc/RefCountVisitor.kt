@@ -8,7 +8,6 @@ import dev.betterclient.scratcher.getUniqueName
 import dev.betterclient.scratcher.optimize.ASTVisitor
 import dev.betterclient.scratcher.optimize.VisitMode
 import dev.betterclient.scratcher.simple
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -318,7 +317,7 @@ class RefCountVisitor(
     }
 
     override fun visitCallExpression(func: Function, args: List<Expression>, position: Position?): Expression {
-        val isConstructor = func.sourceAST == StandardLibASTGenerator.memLib && func.name.startsWith("new")
+        val isConstructor = func.sourceAST == CompilationContext.std.memLib && func.name.startsWith("new")
         val processedArgs = args.map { arg ->
             val type = arg.getType()
             if (type.isRefCounted() && arg.isReturningPlusOne() && arg !is LocalVariableExpression && !isConstructor) {
@@ -375,9 +374,9 @@ class RefCountVisitor(
         if (nonNull is SealedEnumType) return true
         if (nonNull is SimpleType) {
             return (compilationContext.asts.values.flatMap { it.structs } +
-                    StandardLibASTGenerator.compilerLib.structs +
-                    StandardLibASTGenerator.lambdaLib.structs +
-                    StandardLibASTGenerator.listPoolLib.structs).any { it.type.asNonNull() == nonNull }
+                    CompilationContext.std.compilerLib.structs +
+                    CompilationContext.std.lambdaLib.structs +
+                    CompilationContext.std.listPoolLib.structs).any { it.type.asNonNull() == nonNull }
         }
         return false
     }

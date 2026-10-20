@@ -2,7 +2,7 @@ package dev.betterclient.scratcher.ast.parser
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.std.lib.ArrayLib
 import org.antlr.v4.kotlinruntime.ast.Position
 
@@ -24,7 +24,7 @@ class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val
             }
         }
 
-        if (StandardLibASTGenerator.lib.containsValue(ast) && !StandardLibASTGenerator.rawLibs.contains(ast)) {
+        if (CompilationContext.std.lib.containsValue(ast) && !CompilationContext.std.rawLibs.contains(ast)) {
             return
         }
 

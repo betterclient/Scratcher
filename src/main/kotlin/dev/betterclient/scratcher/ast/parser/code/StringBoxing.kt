@@ -2,12 +2,12 @@ package dev.betterclient.scratcher.ast.parser.code
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.parser.ExpressionTypes
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.getUniqueName
-import dev.betterclient.scratcher.std.StandardLibASTGenerator
 
 object StringBoxing {
     val stringBoxStruct: Struct
-        get() = StandardLibASTGenerator.compilerLib.structs.find { it.name == "StringBox" }!!
+        get() = CompilationContext.std.compilerLib.structs.find { it.name == "StringBox" }!!
 
     fun autoConvert(expr: Expression, expectedType: Type?): Expression {
         if (expectedType == null) return expr
@@ -65,10 +65,10 @@ object StringBoxing {
     }
 
     fun init() {
-        StandardLibASTGenerator.compilerLib.structs.add(Struct(
+        CompilationContext.std.compilerLib.structs.add(Struct(
             name = "StringBox",
             parameters = mutableListOf(Parameter("str", PrimitiveType.Str, false)),
-            sourceAST = StandardLibASTGenerator.compilerLib,
+            sourceAST = CompilationContext.std.compilerLib,
             private = false
         ))
     }

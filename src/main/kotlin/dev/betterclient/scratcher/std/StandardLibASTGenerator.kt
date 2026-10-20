@@ -27,8 +27,11 @@ import dev.betterclient.scratcher.std.dsl.compileInline
 import dev.betterclient.scratcher.std.lib.*
 import kotlin.system.exitProcess
 
-object StandardLibASTGenerator {
-    const val GC_LIB_NAME = "gc_impl"
+class StandardLibASTGenerator(val context: CompilationContext) {
+    companion object {
+        const val GC_LIB_NAME = "gc_impl"
+    }
+
     private var editor: ScratchEditor? = null
     fun init(editor: ScratchEditor) {
         CaseSensitiveLib.init(caseSensitiveLib, editor)
@@ -112,7 +115,7 @@ object StandardLibASTGenerator {
     )
 
     val memLib = ASTFile("mem").also {
-        if (!CompilationContext.options.gc.markAndSweepGC && !CompilationContext.options.gc.refCountGC) lib["mem"] = it
+        if (!context.options.gc.markAndSweepGC && !context.options.gc.refCountGC) lib["mem"] = it
     }
 
     val typeChecker by lazy {
@@ -159,7 +162,7 @@ object StandardLibASTGenerator {
     val gc by lazy {
         bypassRestrictions = true //gc needs gc_internal
         val out = compile("/gc.sc", GC_LIB_NAME).also {
-            if (CompilationContext.options.gc.markAndSweepGC) lib[GC_LIB_NAME] = it
+            if (context.options.gc.markAndSweepGC) lib[GC_LIB_NAME] = it
         }
         bypassRestrictions = false
         out
@@ -172,7 +175,7 @@ object StandardLibASTGenerator {
     }
 
     val strict_equals by lazy {
-        if (CompilationContext.options.experimental.turbowarp) return@lazy ASTFile("strict_equals")
+        if (context.options.experimental.turbowarp) return@lazy ASTFile("strict_equals")
         bypassRestrictions = true
         val out = compile("/strict_equals.sc", "strict_equals").also {
             lib["strict_equals"] = it
@@ -187,7 +190,7 @@ object StandardLibASTGenerator {
 
     fun isRestricted(library: ASTFile): Boolean {
         if (bypassRestrictions) return false
-        if(!CompilationContext.options.gc.markAndSweepGC && library == gcLib) return true
+        if(!context.options.gc.markAndSweepGC && library == gcLib) return true
         return library.path == "typecheck" ||
                 library == memoryLib ||
                 library == globalPromotionLib ||
@@ -208,10 +211,9 @@ object StandardLibASTGenerator {
     }
 
     private fun compile(file: String, path: String): ASTFile {
-        val context = CompilationContext.current
         val ast = ASTReader(
             ctx = context,
-            source = String(StandardLibASTGenerator::class.java.getResourceAsStream(file).use { it!!.readBytes() }),
+            source = String(javaClass.getResourceAsStream(file).use { it!!.readBytes() }),
             fullPath = path,
             errorReporter = ErrorReporter()
         ).read()
