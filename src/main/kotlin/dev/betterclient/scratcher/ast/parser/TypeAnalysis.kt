@@ -285,7 +285,7 @@ class TypeAnalysis(val reporter: ErrorReporter, val ctx: CompilationContext, val
                     ArrayLib.getActualReturnType(expr) { getActualTypeOrThrow(it, function) }
                 } else {
                     expr.arguments.forEachIndexed { index, expression ->
-                        checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct", expression.position)
+                        checkType(expr.func.parameters[index].type, getActualTypeOrThrow(expression, function), "Call parameter type is not correct (calling ${expr.func.name})", expression.position)
                     }
 
                     expr.func.returnType

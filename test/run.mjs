@@ -8,10 +8,10 @@ const ScratchStorage = typeof ScratchStorageRaw === 'function'
     ? ScratchStorageRaw
     : (ScratchStorageRaw.ScratchStorage || ScratchStorageRaw.default || ScratchStorageRaw);
 
-const [,, projectPath, maxWaitMs = "1000"] = process.argv;
+const [, , projectPath, maxWaitMs = '1000'] = process.argv;
 
 if (!projectPath) {
-    console.error("Missing .sb3 project path");
+    console.error('Missing .sb3 project path');
     process.exit(1);
 }
 
@@ -21,7 +21,7 @@ try {
     if (stdin) {
         config = JSON.parse(stdin);
     }
-} catch (_) {}
+} catch {}
 
 async function main() {
     const vm = new VirtualMachine();
@@ -30,27 +30,31 @@ async function main() {
     const logs = [];
     const questions = [];
     const askQueue = [...(config.asks || [])];
+    let activeQuestion = null;
 
     vm.runtime.on('SAY', (target, type, text) => {
-        if (text !== null && text !== undefined && text !== '') {
-            logs.push(String(text));
-        }
+        if (!text || text === activeQuestion) return;
+        logs.push(String(text));
     });
 
-    vm.runtime.on('QUESTION', (question) => {
-        const qText = question !== null && question !== undefined ? String(question) : '';
-        questions.push(qText);
+    const originalAsk = vm.runtime._primitives['sensing_askandwait'];
+    vm.runtime._primitives['sensing_askandwait'] = function (args, util) {
+        const questionText = String(args.QUESTION);
+        questions.push(questionText);
+        activeQuestion = questionText;
 
-        let answer = '';
-        if (askQueue.length > 0) {
-            const next = askQueue.shift();
-            answer = next.answer !== undefined ? String(next.answer) : '';
-        }
+        const next = askQueue.shift();
+        const answer = next?.answer !== undefined ? String(next.answer) : '';
+
+        const promise = originalAsk.call(this, args, util);
 
         setTimeout(() => {
             vm.runtime.emit('ANSWER', answer);
-        }, 10);
-    });
+            activeQuestion = null;
+        }, 15);
+
+        return promise;
+    };
 
     const fileBuffer = fs.readFileSync(projectPath);
     await vm.loadProject(fileBuffer);
@@ -63,8 +67,8 @@ async function main() {
 
     await new Promise((resolve) => {
         const timer = setInterval(() => {
-            const activeThreads = vm.runtime.threads.filter((t) => !t.isDone);
-            if (activeThreads.length === 0 || Date.now() - start >= timeout) {
+            const hasActiveThreads = vm.runtime.threads.some((t) => !t.isDone);
+            if (!hasActiveThreads || Date.now() - start >= timeout) {
                 clearInterval(timer);
                 resolve();
             }
@@ -75,7 +79,7 @@ async function main() {
     const lists = {};
 
     for (const target of vm.runtime.targets) {
-        for (const [, variable] of Object.entries(target.variables)) {
+        for (const variable of Object.values(target.variables)) {
             if (variable.type === 'list') {
                 lists[variable.name] = variable.value;
             } else {
