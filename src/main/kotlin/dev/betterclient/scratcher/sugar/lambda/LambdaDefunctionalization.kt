@@ -13,17 +13,17 @@ import org.antlr.v4.kotlinruntime.ast.Position
 class LambdaDefunctionalization(
     val ctx: CompilationContext,
     val parLookup: Map<LocalVariable, Parameter> = emptyMap(),
-    val closureConversion: LambdaClosureConversion? = null
+    val closureConversion: LambdaClosureConversion
 ) : ASTVisitor() {
-    companion object {
-        var index = 0
-        val closureStructs = mutableMapOf<FunctionType, Struct>()
-        val trampolines = mutableMapOf<Function, Function>()
-    }
+    private val closureStructs get() = closureConversion.defuncClosureStructs
+    private val trampolines get() = closureConversion.defuncTrampolines
+    private var index: Int
+        get() = closureConversion.defuncIndex
+        set(value) { closureConversion.defuncIndex = value }
 
     private fun getOrCreateClosureStruct(funcType: FunctionType): Struct {
         return closureStructs.computeIfAbsent(funcType) {
-            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: CompilationContext.std.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion.lambdaCapturesEnum.type
             val targetFuncType = FunctionType(listOf(captureType) + funcType.parameterTypes, funcType.returnType)
             val struct = Struct(
                 name = "Closure@${index++}",
@@ -72,7 +72,7 @@ class LambdaDefunctionalization(
         }
 
         val closureStruct = getOrCreateClosureStruct(userFuncType)
-        val lambdaCapturesEnum = closureConversion!!.lambdaCapturesEnum
+        val lambdaCapturesEnum = closureConversion.lambdaCapturesEnum
         val myCaptureStruct = closureConversion.lambdaCaptureStructs[lambdaExpr]
 
         val captureAlloc = if (myCaptureStruct != null && captured.isNotEmpty()) {
@@ -105,7 +105,7 @@ class LambdaDefunctionalization(
         val closureStruct = getOrCreateClosureStruct(userFuncType)
 
         val trampoline = trampolines.computeIfAbsent(func) {
-            val captureType = closureConversion?.lambdaCapturesEnum?.type ?: CompilationContext.std.lambdaLib.sealedEnums.first { it.name == "LambdaCaptures" }.type
+            val captureType = closureConversion.lambdaCapturesEnum.type
             val capturePar = Parameter("capture", captureType)
             val userPars = func.parameters.map { Parameter(it.name, it.type) }
 

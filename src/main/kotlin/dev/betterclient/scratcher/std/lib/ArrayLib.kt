@@ -16,9 +16,7 @@ object ArrayLib {
     lateinit var length: Function
     lateinit var replace: Function
 
-    val arrayFuncs by lazy {
-        listOf(newArray, itemAt, length, replace)
-    }
+    val arrayFuncs get() = listOf(newArray, itemAt, length, replace)
 
     //offsets
     val refCountOffset = if (CompilationContext.options.gc.refCountGC) 0 else -1

@@ -4,6 +4,7 @@ import dev.betterclient.scratcher.ast.CallExpression
 import dev.betterclient.scratcher.ast.CodeBlock
 import dev.betterclient.scratcher.ast.Expression
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.FunctionType
 import dev.betterclient.scratcher.ast.LambdaExpression
 import dev.betterclient.scratcher.ast.LocalVariable
 import dev.betterclient.scratcher.ast.LocalVariableExpression
@@ -46,6 +47,9 @@ class LambdaClosureConversion(
     var activeCapture: Struct? = null
     var activeCaptureVal: LocalVariable? = null
     val captureMappings = mutableMapOf<LocalVariable, Parameter>()
+    var defuncIndex = 0
+    val defuncClosureStructs = mutableMapOf<FunctionType, Struct>()
+    val defuncTrampolines = mutableMapOf<Function, Function>()
 
     val allCapturedLocals = mutableSetOf<LocalVariable>()
     val lambdaCaptureStructs = mutableMapOf<LambdaExpression, Struct>()

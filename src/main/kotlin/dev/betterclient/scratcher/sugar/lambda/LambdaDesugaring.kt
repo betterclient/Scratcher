@@ -7,20 +7,27 @@ import dev.betterclient.scratcher.optimize.visit
 import dev.betterclient.scratcher.sugar.CompilerSugar
 
 object LambdaDesugaring : CompilerSugar() {
-    lateinit var closureConversion: LambdaClosureConversion
-    fun closure(context: CompilationContext): LambdaClosureConversion {
-        if (!::closureConversion.isInitialized) {
-            closureConversion = LambdaClosureConversion(context)
+    private var cachedContext: CompilationContext? = null
+    private lateinit var cachedClosureConversion: LambdaClosureConversion
+    private lateinit var cachedDefunc: LambdaDefunctionalization
+
+    private fun getPerContext(context: CompilationContext) {
+        if (cachedContext !== context) {
+            cachedContext = context
+            val conversion = LambdaClosureConversion(context)
+            cachedClosureConversion = conversion
+            cachedDefunc = LambdaDefunctionalization(context, closureConversion = conversion)
         }
-        return closureConversion
     }
 
-    lateinit var defunctionalization: LambdaDefunctionalization
+    fun closure(context: CompilationContext): LambdaClosureConversion {
+        getPerContext(context)
+        return cachedClosureConversion
+    }
+
     fun defunc(context: CompilationContext): LambdaDefunctionalization {
-        if (!::defunctionalization.isInitialized) {
-            defunctionalization = LambdaDefunctionalization(context, mapOf(), closureConversion)
-        }
-        return defunctionalization
+        getPerContext(context)
+        return cachedDefunc
     }
 
     override fun apply(func: Function, graph: TCallGraph, context: CompilationContext) {

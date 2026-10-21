@@ -36,6 +36,7 @@ class CompilationContext(
     }
 
     val std = StandardLibASTGenerator(this)
+    var refCountGCSetupDone = false
 
     fun generateGCNames() {
         if (!options.gc.markAndSweepGC) return

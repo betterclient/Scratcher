@@ -9,7 +9,6 @@ import dev.betterclient.scratcher.std.lib.MemoryLib
 import java.math.BigInteger
 
 object RefCountGC {
-    private var setupDone = false
     private lateinit var lib: ASTFile
     private lateinit var inc: Function
     private lateinit var structDecs: Map<Struct, Function>
@@ -48,8 +47,10 @@ object RefCountGC {
     fun incFunction(): Function = inc
 
     private fun setup(context: CompilationContext) {
-        if (setupDone) return
-        setupDone = true
+        if (context.refCountGCSetupDone) return
+        context.refCountGCSetupDone = true
+
+        listDecMap.clear()
 
         val reachableStructs = context.asts.flatMap { (_, ast) -> ast.structs } +
                 CompilationContext.std.compilerLib.structs +
