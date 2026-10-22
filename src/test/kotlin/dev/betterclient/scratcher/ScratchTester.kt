@@ -76,7 +76,12 @@ fun run(
 
     assertEquals(0, exitCode, "Node script failed to run .sb3 file")
 
-    val json = JSONObject(stdout.trim().lines().last())
+    val json = stdout.trim().lines().last().let {
+        runCatching { JSONObject(it) }.getOrElse { _ ->
+            println("Failed to parse json: \n$it")
+            throw UnsupportedOperationException()
+        }
+    }
     val varsJson = json.getJSONObject("variables")
     val listsJson = json.getJSONObject("lists")
     val logsJson = json.getJSONArray("logs")

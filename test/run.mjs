@@ -90,7 +90,16 @@ async function main() {
 
     vm.quit();
 
-    console.log(JSON.stringify({ variables, lists, logs, questions }));
+    const output = JSON.stringify({ variables, lists, logs, questions }) + '\n';
+
+    await new Promise((resolve) => {
+        if (!process.stdout.write(output)) {
+            process.stdout.once('drain', resolve);
+        } else {
+            process.nextTick(resolve);
+        }
+    });
+
     process.exit(0);
 }
 
