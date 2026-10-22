@@ -163,4 +163,28 @@ class SimpleTests {
             }
         }
     }
+
+    @Test
+    fun `simple list`() {
+        compileAndRun($$"""
+            import sensing::ask;
+            import list::*;
+            import array::*;
+            import looks::say;
+            import cast;
+            
+            on GreenFlag {
+                List<str> myArr = arrayOf(cast::toInt(ask("Size?")), (int index) -> { "Index: ${index}" }).toList();
+            
+                for(str a in myArr) {
+                    say(a);
+                }
+            }
+        """.trimIndent()) {
+            assertAsk("Size?", "15")
+            repeat(15) { index ->
+                assertSay("Index: $index")
+            }
+        }
+    }
 }

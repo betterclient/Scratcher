@@ -385,7 +385,13 @@ class StatementParser(
                             ),
                             position = child.position
                         ).let { itemAt ->
-                            if (listType is NullableType) itemAt else NonNullAssertExpression(itemAt, child.position)
+                            when (listType) {
+                                PrimitiveType.Str -> {
+                                    StringBoxing.unboxIfNeeded(itemAt, PrimitiveType.Str)
+                                }
+                                is NullableType -> itemAt
+                                else -> NonNullAssertExpression(itemAt, child.position)
+                            }
                         },
                         position = child.position
                     ))

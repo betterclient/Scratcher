@@ -25,7 +25,16 @@ class ExpressionParser(
         expectedType: Type? = null
     ): Expression {
         currentPosition = ctx.position
-        val expr = when (ctx) {
+        val expr = internalParseExpr(ctx, expectedType)
+
+        return StringBoxing.autoConvert(expr, expectedType)
+    }
+
+    private fun internalParseExpr(
+        ctx: ScratcherLangParser.ExpressionContext,
+        expectedType: Type? = null
+    ): Expression {
+        return when (ctx) {
             is ScratcherLangParser.ParensExprContext -> parseExpression(ctx.expression(), expectedType)
             is ScratcherLangParser.CallExprContext -> parser.functionResolver.figureOutFunction(ctx.functionIdentifier(), ctx.argList(), expectedType)
             is ScratcherLangParser.UnaryExprContext -> UnaryExpression(
@@ -47,7 +56,7 @@ class ExpressionParser(
                         ctx.position
                     )
                 }
-                return error(ctx.position!!, ast, "Not a receiver function!")
+                error(ctx.position!!, ast, "Not a receiver function!")
             }
             is ScratcherLangParser.MultExprContext -> buildBinaryExpression(
                 left = parseExpression(ctx.expression(0)!!),
@@ -127,7 +136,7 @@ class ExpressionParser(
                     error(ctx.position!!, ast, "Struct ${struct.name}'s member \"${member.name}\" is private!")
                 }
 
-                return SafeDotExpression(struct, structExpr, member, ctx.position)
+                SafeDotExpression(struct, structExpr, member, ctx.position)
             }
             is ScratcherLangParser.IndexExprContext -> {
                 val list = parseExpression(ctx.expression(0)!!)
@@ -171,8 +180,6 @@ class ExpressionParser(
             is ScratcherLangParser.NewArrayExprContext -> parseArrayExpr(ctx, expectedType)
             else -> throw NotImplementedException("No parser for expr ${ctx.text} yet!")
         }
-
-        return StringBoxing.autoConvert(expr, expectedType)
     }
 
     private fun parseExactEqualsExpr(ctx: ScratcherLangParser.ExactEqualsExprContext): Expression {
