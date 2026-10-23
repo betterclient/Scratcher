@@ -131,6 +131,8 @@ object RefCountGC {
         structDecs.forEach { (struct, function) ->
             val ptrArg = function.parameters[0]
             val thenBlock0 = CodeBlock().also {
+                it.code.add(VariableAssignmentStatement(ParameterExpression(ptrArg, null), struct.parameters[0], struct, IntLiteral((-1).toBigInteger(), null), null)) //long story
+
                 struct.parameters.drop(1).forEach { par ->
                     val fieldExpr = MemberExpression(
                         expression = ParameterExpression(ptrArg, null),
@@ -248,6 +250,7 @@ object RefCountGC {
                 body.code.add(IfStatement(
                     condition = BinaryExpression(heapGet(ptr), BinaryOperator.EQUAL, IntLiteral(BigInteger.ZERO, null), null),
                     thenBlock = CodeBlock().also { freeBlock ->
+                        freeBlock.code.add(TemporaryHeapSetStatement(ptr, IntLiteral((-1).toBigInteger(), null), null))
                         val taggedVariants = enumDef.types.withIndex().filter { it.value.parameters.isNotEmpty() }
                         if (taggedVariants.isNotEmpty()) {
                             fun dispatch(lo: Int, hi: Int): Statement {
@@ -329,6 +332,8 @@ object RefCountGC {
             ))
 
             val freeBlock = CodeBlock()
+            freeBlock.code.add(TemporaryHeapSetStatement(ParameterExpression(ptrArg, null), IntLiteral((-1).toBigInteger(), null), null))
+
             val elemType = arrayType.elementType.asNonNull()
 
             if (elemType is SimpleType || elemType is ArrayType || elemType is SealedEnumType) {
@@ -409,8 +414,7 @@ object RefCountGC {
         structDecs: Map<Struct, Function>,
         lib: ASTFile
     ): Statement? {
-        val targetType = type.asNonNull()
-        return when (targetType) {
+        return when (val targetType = type.asNonNull()) {
             is SimpleType -> {
                 val targetStruct = targetType.sourceAST.structs.find { it.name == targetType.name } ?: return null
                 val decFunc = structDecs[targetStruct] ?: return null

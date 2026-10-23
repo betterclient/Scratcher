@@ -412,9 +412,9 @@ object ListPoolLib {
         //repeat(pool size)
         add(RepeatStatement(
             amount = IntLiteral(CompilationContext.options.std.listPoolSize.toBigInteger(), null),
-            block = CodeBlock().apply {
+            block = CodeBlock().also {
                 //if(pool[index] == "0")
-                add(
+                it.add(
                     IfStatement(
                         condition = BinaryExpression(
                             left = StaticListItemExpression(pool, LocalVariableExpression(index, null), null),
@@ -422,9 +422,9 @@ object ListPoolLib {
                             operator = BinaryOperator.EQUAL,
                             position = null
                         ),
-                        thenBlock = CodeBlock().apply {
+                        thenBlock = CodeBlock().also { meow ->
                             //pool[index] = "1";
-                            add(StaticListSetStatement(
+                            meow.add(StaticListSetStatement(
                                 list = pool,
                                 index = LocalVariableExpression(index, null),
                                 value = StringLiteral("1", null),
@@ -432,7 +432,7 @@ object ListPoolLib {
                             ))
 
                             //return PooledList(index);
-                            add(ReturnStatement(
+                            meow.add(ReturnStatement(
                                 CallExpression(
                                     func = pooledList.allocFunc,
                                     arguments = listOf(LocalVariableExpression(index, null)),
@@ -445,7 +445,7 @@ object ListPoolLib {
                     ))
 
                 //index++;
-                add(LocalVariableAssignmentStatement(
+                it.add(LocalVariableAssignmentStatement(
                     index, BinaryExpression(
                         left = LocalVariableExpression(index, null),
                         right = IntLiteral(1.toBigInteger(), null),

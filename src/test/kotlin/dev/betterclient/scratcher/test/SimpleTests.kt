@@ -231,4 +231,29 @@ class SimpleTests {
             assertSay("Error message: error!!!")
         }
     }
+
+    @Test
+    fun `pooled list`() {
+        compileAndRun($$"""
+            import sensing::ask;
+            import list_pool::*;
+            import looks::say;
+            import cast;
+            
+            on GreenFlag {
+                PooledList a = allocate();
+                repeat(cast::toInt(ask("amount?"))) { index ->
+                    a.add("${index} meow");
+                }
+                a[0] = a[1];
+                a.clear();
+                a.add("meow ${a.length()}");
+                a.insert(0, "wowie ${a[0]}");
+                say("${a[0]}");
+            }
+        """.trimIndent()) {
+            assertAsk("amount?", "15")
+            assertSay("wowie meow 0")
+        }
+    }
 }
