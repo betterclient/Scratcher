@@ -24,7 +24,7 @@ object DebugMain {
         )
 
         val compiler = Compiler(
-            File("test/sealed_enum.sc"),
+            File("examples/cube/cube.sc"),
             outFile = File("out.sb3"),
             inputProj = null,
             options = options,
