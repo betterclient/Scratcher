@@ -19,9 +19,15 @@ import org.json.JSONArray
 import java.io.File
 
 class CompilationContext(
-    val options: CompilationOptions
+    val options: CompilationOptions,
+    val print: (String) -> Unit,
+    val error: (String) -> Unit
 ) {
     companion object {
+        fun print(msg: String, err: Boolean = false) {
+            (if(err) current.error else current.print)(msg)
+        }
+
         lateinit var current: CompilationContext
             private set //go
 

@@ -227,7 +227,7 @@ class StandardLibASTGenerator(val context: CompilationContext) {
         return ast
     }
 
-    fun print() {
+    fun print(println: (String) -> Unit = context.print) {
         lib.forEach { (name, ast) ->
             if (isRestricted(ast)) return@forEach
             println("Library: $name")

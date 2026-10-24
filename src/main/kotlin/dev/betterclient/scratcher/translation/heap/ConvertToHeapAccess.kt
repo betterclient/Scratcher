@@ -2,6 +2,7 @@ package dev.betterclient.scratcher.translation.heap
 
 import dev.betterclient.scratcher.ast.*
 import dev.betterclient.scratcher.ast.Function
+import dev.betterclient.scratcher.ast.parser.CompilationContext
 import dev.betterclient.scratcher.gc.GCInfo
 import dev.betterclient.scratcher.obfuscate
 import dev.betterclient.scratcher.optimize.ASTVisitor
@@ -17,27 +18,27 @@ class ConvertToHeapAccess(
     fun run(): Map<Function, Pair<Int, GCInfo>> {
         hasLocalsMap = HasLocalsMapGenerator(functions).run()
 
-        println("Add stack parameter")
+        CompilationContext.print("Add stack parameter")
         val stacks = functions.filter { it !is StandardLibASTFunction }.map { func ->
             Parameter(obfuscate("compiler@stack"), PrimitiveType.Integer).also { func.parameters.add(0, it) } to func
         }
 
-        println("Add free(stack) and alloc(stack)")
+        CompilationContext.print("Add free(stack) and alloc(stack)")
         stacks.forEach { (par, func) ->
             AllocAndFreeStackAdder(
                 par, func, hasLocalsMap
             ).run()
         }
 
-        println("Re-parse locals again")
+        CompilationContext.print("Re-parse locals again")
         functions.forEach { ReParseLocalVariables(it).run() }
 
-        println("Count locals")
+        CompilationContext.print("Count locals")
         val newFuncs = functions
             .filter { it !is StandardLibASTFunction }
             .associateWith { LocalAllocationCalculator(it).calculate() }
 
-        println("Convert to heap")
+        CompilationContext.print("Convert to heap")
         for (function in newFuncs.keys) {
             HeapConversion(function, function) { newFuncs[it]!! }.run()
         }

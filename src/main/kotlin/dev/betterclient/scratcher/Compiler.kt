@@ -42,7 +42,7 @@ class Compiler(
     val print: (String) -> Unit,
     val error: (String) -> Unit
 ) {
-    private val context = CompilationContext(options)
+    private val context = CompilationContext(options, print, error)
     val editor = openScratchEditorFromResource(
         inputProj?.inputStream() ?: Compiler::class.java.getResourceAsStream("/proj.sb3")!!
     )

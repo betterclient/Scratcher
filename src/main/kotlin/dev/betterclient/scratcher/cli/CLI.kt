@@ -38,7 +38,7 @@ class StandardLibrary : CliktCommand() {
     }
 
     override fun run() {
-        val context = CompilationContext(CompilationOptions())
+        val context = CompilationContext(CompilationOptions(), {  }, {  })
         val editor = openScratchEditorFromResource(
             Compiler::class.java.getResourceAsStream("/proj.sb3")!!
         )
@@ -56,7 +56,7 @@ class StandardLibrary : CliktCommand() {
         Stage1Parser(context, ast).parse()
         TypeAnalysis(reporter, context, ast).run()
 
-        CompilationContext.std.print()
+        CompilationContext.std.print { echo(it) }
     }
 }
 
@@ -84,7 +84,7 @@ class Compile : CliktCommand() {
                 error = { System.err.println(it) }
             ).compile()
         } catch (e: GeneralCompilerException) {
-            echo(e.message) //error reporter
+            echo(e.message, err = true) //error reporter
             throw ProgramResult(1)
         }
     }
@@ -99,16 +99,22 @@ class Check : CliktCommand() {
     }
 
     override fun run() {
-        echo(
-            Compiler(
-                startFile = file,
-                inputProj = null,
-                outFile = File("out.sb3"),
-                options = settings.asOptions,
-                print = { println(it) },
-                error = { System.err.println(it) }
-            ).check()
-        )
+        val errors = Compiler(
+            startFile = file,
+            inputProj = null,
+            outFile = File("out.sb3"),
+            options = settings.asOptions,
+            print = { println(it) },
+            error = { System.err.println(it) }
+        ).check()
+
+        if (errors == "No errors!") {
+            echo(errors)
+            throw ProgramResult(0)
+        } else {
+            echo(errors, err = true)
+            throw ProgramResult(1)
+        }
     }
 }
 
