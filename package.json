@@ -2,7 +2,7 @@
   "name": "scratch-tester",
   "private": true,
   "dependencies": {
-    "scratch-storage": "latest",
-    "scratch-vm": "latest"
+    "scratch-storage": "6.2.1",
+    "scratch-vm": "5.0.300"
   }
 }
