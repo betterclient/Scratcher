@@ -58,6 +58,11 @@ class StandardLibASTGenerator(val context: CompilationContext) {
 
         ListPoolLib.init(listPoolLib)
         rawLibs
+        rawLibs.forEach {
+            val reporter = ErrorReporter()
+            TypeAnalysis(reporter, context, it).run()
+            reporter.flush()
+        }
     }
 
     val looksLib = ASTFile("looks")
@@ -170,7 +175,13 @@ class StandardLibASTGenerator(val context: CompilationContext) {
 
     val compactIntList by lazy {
         compile("/compact_int_list.sc", "compact_int_list").also {
-            lib["compact_list"] = it
+            lib["compact_int_list"] = it
+        }
+    }
+
+    val compactFloatList by lazy {
+        compile("/compact_float_list.sc", "compact_float_list").also {
+            lib["compact_float_list"] = it
         }
     }
 
@@ -185,7 +196,7 @@ class StandardLibASTGenerator(val context: CompilationContext) {
     }
 
     val rawLibs by lazy {
-        listOf(typeChecker, triangle, compactIntList)
+        listOf(typeChecker, triangle, compactIntList, compactFloatList)
     }
 
     fun isRestricted(library: ASTFile): Boolean {
@@ -221,7 +232,9 @@ class StandardLibASTGenerator(val context: CompilationContext) {
         Stage1Parser(context, ast).parse()
 
         val reporter = ErrorReporter()
-        if (path == GC_LIB_NAME) TypeAnalysis(reporter, context, ast).run() //yea
+        if (path == GC_LIB_NAME) {
+            TypeAnalysis(reporter, context, ast).run()
+        }
         reporter.flush()
 
         return ast
